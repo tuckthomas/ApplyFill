@@ -1,0 +1,308 @@
+<html class="light" lang="en"><head></head><body class="bg-background text-on-surface min-h-screen flex flex-col">```html
+
+
+
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VANTAGE STUDIO | Premium Resume Wizard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(37, 99, 235, 0.1);
+            --blue-glow: rgba(37, 99, 235, 0.1);
+        }
+
+        body {
+            font-family: 'Geist', sans-serif;
+            background-color: #f8f9ff;
+            color: #1e293b;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+        }
+
+        .input-focus-glow:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 10px var(--blue-glow);
+            background: rgba(255, 255, 255, 1);
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .active-step-line {
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Hide scrollbar for clean editor look */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#2563eb",
+                        "on-primary": "#ffffff",
+                        "primary-container": "#dbeafe",
+                        "on-primary-container": "#1e40af",
+                        "secondary": "#475569",
+                        "surface": "#f8f9ff",
+                        "on-surface": "#1e293b",
+                        "surface-variant": "#f1f5f9",
+                        "on-surface-variant": "#64748b",
+                        "outline": "#cbd5e1",
+                        "outline-variant": "#e2e8f0",
+                        "surface-container": "#ffffff",
+                        "surface-container-high": "#f1f5f9",
+                        "surface-container-highest": "#e2e8f0",
+                        "background": "#f8f9ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-sm": "12px",
+                        "stack-lg": "48px",
+                        "margin-mobile": "16px",
+                        "margin-desktop": "40px",
+                        "gutter": "24px",
+                        "unit": "8px",
+                        "container-max": "1200px",
+                        "stack-md": "24px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Geist"],
+                        "label-caps": ["Geist"],
+                        "headline-lg": ["Geist"],
+                        "display-lg": ["Geist"],
+                        "title-md": ["Geist"],
+                        "headline-lg-mobile": ["Geist"],
+                        "body-sm": ["Geist"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                        "display-lg": ["40px", {"lineHeight": "1.1", "letterSpacing": "0.02em", "fontWeight": "700"}],
+                        "title-md": ["20px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+    body {
+      min-height: 100dvh;
+    }
+  </style>
+<!-- Top App Bar -->
+<header class="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl border-b border-outline-variant/60 shadow-sm flex items-center justify-between px-margin-mobile h-16">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-2xl">grid_view</span>
+<h1 class="font-display-lg text-headline-lg-mobile tracking-wider text-on-surface uppercase">VANTAGE</h1>
+</div>
+<div class="w-10 h-10 rounded-full border border-outline p-0.5 overflow-hidden">
+<img alt="Profile" class="w-full h-full rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDkwdpALgHyXobZUnR1E009ZLIAA4S6t9aF_iaBOn_0reiAhBXZvP1ua4KQGz9FujwrulgXJtCDVgSw4mBb309UrTg6XQa6MidtQdTugsBuvPH0R7S4j8piA7H3eAi5xTLQ3vZuUml0ltYaM9GQdKqvxXkA08HvDr7etq17Wf90g44McEw0EiVYSdCT-eojsrQFj8UaaAaiAWxFOxG2145CD3FchU78SK8ABFlFm61ep8ISnRtdz36E_JOb6Oah6oYyoPtcsJJBm2c"/>
+</div>
+</header>
+<!-- Progress Indicator -->
+<div class="fixed top-16 left-0 w-full h-1 bg-surface-container-highest z-50">
+<div class="h-full bg-primary active-step-line" id="progress-bar" style="width: 33.33%;"></div>
+</div>
+<!-- Main Content Canvas -->
+<main class="flex-grow pt-24 pb-20 px-margin-mobile flex flex-col gap-stack-md">
+<!-- View Toggle -->
+<div class="flex p-1 bg-surface-container-high rounded-xl border border-outline-variant/60 self-center w-full max-w-sm">
+<button class="flex-1 py-2 text-label-caps bg-white text-primary shadow-sm rounded-lg font-bold transition-all" id="btn-editor" onclick="switchView('editor')">EDITOR</button>
+<button class="flex-1 py-2 text-label-caps text-on-surface-variant rounded-lg transition-all" id="btn-preview" onclick="switchView('preview')">PREVIEW</button>
+</div>
+<!-- Editor Section -->
+<section class="flex flex-col gap-stack-md transition-all duration-300" id="section-editor">
+<!-- Step 1: Profile -->
+<div class="step-container" id="step-1">
+<div class="bg-white p-stack-md rounded-2xl border border-outline-variant/60 shadow-sm flex flex-col gap-stack-sm">
+<div class="flex items-center justify-between mb-2">
+<span class="text-label-caps text-primary bg-primary-container px-2 py-0.5 rounded">01 / 03</span>
+<h2 class="font-title-md text-title-md text-on-surface">Personal Identity</h2>
+</div>
+<div class="flex flex-col gap-stack-sm">
+<div class="flex flex-col gap-1.5">
+<label class="text-label-caps text-on-surface-variant ml-1 uppercase">Full Name</label>
+<input class="w-full px-4 py-3 rounded-xl text-body-lg bg-surface-variant/50 border border-outline-variant focus:border-primary focus:bg-white transition-all outline-none" placeholder="Alex Sterling" type="text"/>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="text-label-caps text-on-surface-variant ml-1 uppercase">Professional Title</label>
+<input class="w-full px-4 py-3 rounded-xl text-body-lg bg-surface-variant/50 border border-outline-variant focus:border-primary focus:bg-white transition-all outline-none" placeholder="Senior Product Architect" type="text"/>
+</div>
+<div class="grid grid-cols-1 gap-stack-sm">
+<div class="flex flex-col gap-1.5">
+<label class="text-label-caps text-on-surface-variant ml-1 uppercase">Email</label>
+<input class="w-full px-4 py-3 rounded-xl text-body-lg bg-surface-variant/50 border border-outline-variant focus:border-primary focus:bg-white transition-all outline-none" placeholder="alex@vantage.io" type="email"/>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="text-label-caps text-on-surface-variant ml-1 uppercase">Location</label>
+<input class="w-full px-4 py-3 rounded-xl text-body-lg bg-surface-variant/50 border border-outline-variant focus:border-primary focus:bg-white transition-all outline-none" placeholder="London, UK" type="text"/>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Step 2: Summary -->
+<div class="step-container hidden" id="step-2">
+<div class="bg-white p-stack-md rounded-2xl border border-outline-variant/60 shadow-sm flex flex-col gap-stack-sm">
+<div class="flex items-center justify-between mb-2">
+<span class="text-label-caps text-primary bg-primary-container px-2 py-0.5 rounded">02 / 03</span>
+<h2 class="font-title-md text-title-md text-on-surface">Executive Summary</h2>
+</div>
+<div class="flex flex-col gap-stack-sm">
+<div class="flex flex-col gap-1.5">
+<label class="text-label-caps text-on-surface-variant ml-1 uppercase">Professional Bio</label>
+<textarea class="w-full px-4 py-3 rounded-xl text-body-lg bg-surface-variant/50 border border-outline-variant focus:border-primary focus:bg-white transition-all outline-none resize-none" placeholder="Strategic leader with 10+ years experience in high-growth technology environments..." rows="6"></textarea>
+</div>
+</div>
+</div>
+</div>
+<!-- Step 3: Experience -->
+<div class="step-container hidden" id="step-3">
+<div class="bg-white p-stack-md rounded-2xl border border-outline-variant/60 shadow-sm flex flex-col gap-stack-sm">
+<div class="flex items-center justify-between mb-2">
+<span class="text-label-caps text-primary bg-primary-container px-2 py-0.5 rounded">03 / 03</span>
+<h2 class="font-title-md text-title-md text-on-surface">Work History</h2>
+</div>
+<div class="flex flex-col gap-stack-sm">
+<div class="p-4 border-l-4 border-primary bg-primary/5 rounded-r-xl flex flex-col gap-1 shadow-sm">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="font-title-md text-on-surface text-base">Principal Designer</h4>
+<p class="text-body-sm text-on-surface-variant">Quantum Systems • 2021 — Present</p>
+</div>
+<button class="p-1 text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-xl">edit</span></button>
+</div>
+</div>
+<button class="flex items-center justify-center gap-2 py-4 border-2 border-dashed border-outline-variant rounded-xl text-on-surface-variant hover:border-primary hover:text-primary transition-all bg-surface-variant/20 font-bold">
+<span class="material-symbols-outlined">add_circle</span>
+<span class="text-label-caps">Add Position</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Navigation Controls -->
+<div class="flex gap-stack-sm mt-2">
+<button class="hidden flex-1 py-4 bg-white text-on-surface font-title-md rounded-xl border border-outline-variant active:scale-[0.98] transition-all text-sm" id="prev-btn" onclick="navigate(-1)">Previous</button>
+<button class="flex-[2] py-4 bg-primary text-on-primary font-title-md rounded-xl shadow-lg shadow-primary/20 active:scale-[0.98] transition-all text-sm" id="next-btn" onclick="navigate(1)">Next Step</button>
+</div>
+</section>
+<!-- Preview Section -->
+<section class="hidden flex flex-col items-center" id="section-preview">
+<div class="w-full bg-white p-8 rounded-2xl border border-outline-variant shadow-xl relative overflow-hidden">
+<!-- Resume A4 Representation -->
+<div class="flex flex-col gap-6 text-slate-900">
+<div class="border-b-2 border-slate-900 pb-4">
+<h1 class="font-display-lg text-3xl tracking-tight leading-none mb-1">ALEX STERLING</h1>
+<p class="text-sm font-semibold text-slate-500 tracking-[0.1em] uppercase">Senior Product Architect</p>
+<div class="flex flex-wrap gap-x-4 gap-y-1 mt-4 text-[10px] font-bold text-slate-400 uppercase">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">location_on</span> LONDON, UK</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">mail</span> ALEX@VANTAGE.IO</span>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<h3 class="text-[10px] font-black tracking-[0.15em] text-slate-900 border-b border-slate-200 pb-1 uppercase">Summary</h3>
+<p class="text-[12px] leading-relaxed text-slate-700">
+                            Visionary Design Leader with over a decade of experience driving product innovation at scale. Specializing in high-fidelity interface design and strategic user experience. Proven track record of leading cross-functional teams to deliver award-winning digital solutions for Fortune 500 tech firms.
+                        </p>
+</div>
+<div class="flex flex-col gap-4">
+<h3 class="text-[10px] font-black tracking-[0.15em] text-slate-900 border-b border-slate-200 pb-1 uppercase">Experience</h3>
+<div class="flex flex-col gap-1">
+<div class="flex justify-between items-baseline">
+<h4 class="font-bold text-[13px] uppercase">Principal Designer</h4>
+<span class="text-[10px] font-bold text-slate-400">2021 — PRESENT</span>
+</div>
+<p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Quantum Systems</p>
+<ul class="list-disc ml-4 text-[11px] text-slate-700 space-y-1 mt-2">
+<li>Pioneered the 'Zenith' design language system currently powering 12 enterprise applications.</li>
+<li>Reduced time-to-market by 40% through optimized component modularity.</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<button class="mt-stack-md w-full py-4 bg-primary text-on-primary font-title-md rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined">ios_share</span>
+<span class="text-sm">EXPORT PDF</span>
+</button>
+</section>
+</main>
+<!-- Bottom Navigation -->
+<nav class="fixed bottom-0 w-full z-50 bg-white/90 backdrop-blur-xl border-t border-outline-variant/60 shadow-sm flex justify-around items-center h-16 md:hidden">
+<div class="flex flex-col items-center gap-1 text-primary">
+<span class="material-symbols-outlined">description</span>
+<span class="text-[10px] font-bold uppercase tracking-wider">Resumes</span>
+</div>
+<div class="flex flex-col items-center gap-1 text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">dashboard_customize</span>
+<span class="text-[10px] font-bold uppercase tracking-wider">Templates</span>
+</div>
+<div class="flex flex-col items-center gap-1 text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">analytics</span>
+<span class="text-[10px] font-bold uppercase tracking-wider">Analyze</span>
+</div>
+<div class="flex flex-col items-center gap-1 text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px] font-bold uppercase tracking-wider">Account</span>
+</div>
+</nav>
+<script>
+        let currentStep = 1;
+        const totalSteps = 3;
+
+        function navigate(direction) {
+            const nextStep = currentStep + direction;
+            if (nextStep < 1 || nextStep > totalSteps) return;
+
+            document.getElementById(`step-${currentStep}`).classList.add('hidden');
+            document.getElementById(`step-${nextStep}`).classList.remove('hidden');
+            
+            currentStep = nextStep;
+            updateUI();
+        }
+
+        function updateUI() {
+            const percentage = (currentStep / totalSteps) * 100;
+            document.getElementById('progress-bar').style.width = `${percentage}%`;
+            
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+
+            if (currentStep === 1) {
+                prevBtn.classList.add('hidden');
+            } else {
+                prevBtn.classList.remove('hidden');
+            }
+
+            if (</script></body></html>

@@ -1,0 +1,47 @@
+- `[/]` Phase 1: Core Resume Builder
+  - `[x]` Project structure initialization
+    - `[x]` Setup ASP.NET Core .NET 10 Web API backend solution
+    - `[x]` Setup Vite + React + TypeScript frontend
+  - `[x]` Database & Data Models
+    - `[x]` Setup PostgreSQL connection
+    - `[x]` Add Entity Framework Core
+    - `[x]` Define structured resume/profile data models (User, UserProfile, Resume, etc.)
+    - `[x]` Create initial EF Core migrations
+  - `[/]` Authentication
+    - `[x]` Implement development-mode auth stub (bypassing sign-in for dev)
+    - `[ ]` Implement local account creation (email/password) (Deferred)
+    - `[ ]` Implement Google OAuth sign-in (Deferred)
+  - `[/]` Core UI
+    - `[x]` Build Resume Builder Dashboard
+    - `[x]` Build Structured Resume Builder Wizard (Profile, Summary, Experience, Education, Skills)
+    - `[x]` Add basic layout/theme using Premium Vanilla CSS
+  - `[x]` AI Integration
+    - `[x]` Implement basic AI bullet enhancement endpoint using Gemini BYOK
+    - `[x]` Add UI controls for AI assistance
+  - `[x]` Preview & Templates
+    - `[x]` Implement initial simple template structure
+    - `[x]` Build live preview component in frontend
+
+- `[x]` Phase 1.5: UI Light Mode Refactor
+  - `[x]` Update `index.css` with new light theme variables and card styles
+  - `[x]` Refactor `ResumeBuilder.tsx` to new layout structure (Top Progress Bar)
+  - `[x]` Update Step components (Profile, Summary, Experience, etc.) to match new form input styles
+
+- `[x]` Phase 1.8: AI-Powered Rich Text Work Experience
+  - `[x]` Install `react-quill` dependencies
+  - `[x]` Add `EnhanceExperienceDescriptionAsync` to backend `IAiService` and `GeminiAiService`
+  - `[x]` Add `/enhance-experience` endpoint to `AiController`
+  - `[x]` Replace bullet point inputs in `ExperienceSection.tsx` with `ReactQuill`
+  - `[x]` Implement "AI Wand" button logic to format text into bullet points
+
+- `[ ]` Phase 2: PDF Rendering & Data Integration
+  - `[ ]` Entity Framework & Repository
+    - `[ ]` Implement CRUD services for Resume entities
+    - `[ ]` Expose REST endpoints for saving/loading resumes
+  - `[ ]` Frontend Integration
+    - `[ ]` Connect ResumeBuilder state to backend APIs
+    - `[ ]` Implement saving and loading existing resumes
+  - `[ ]` Playwright PDF Export
+    - `[ ]` Setup Playwright for .NET headless rendering
+    - `[ ]` Create server-side Razor template for PDF rendering
+    - `[ ]` Expose PDF download endpoint
