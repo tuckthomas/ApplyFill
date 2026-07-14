@@ -1,6 +1,6 @@
-# ResumeJobAssistant Design System
+# ApplyFill Design System
 
-This document outlines the UI/UX design patterns, tokens, and thematic guidelines for the ResumeJobAssistant application. Future AI agents must strictly adhere to these patterns to maintain a consistent, premium user experience.
+This document outlines the UI/UX design patterns, tokens, and thematic guidelines for the ApplyFill application. Future AI agents must strictly adhere to these patterns to maintain a consistent, accessible, and coherent user experience.
 
 The application supports a dual-theme architecture: **Vantage Premium** (Light Mode) and **Obsidian Path** (Dark Mode).
 

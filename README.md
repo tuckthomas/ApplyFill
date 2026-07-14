@@ -7,6 +7,11 @@ ApplyFill is a reusable job application profile builder. It stores personal info
 - `frontend/` - Vite React application for the profile and resume builder UI.
 - `src/` - .NET backend projects for application, domain, infrastructure, API, and worker services.
 - `tests/` - .NET test projects.
+- `.agents/` - AI-agent guidance organized by design, planning, and task documentation.
+
+## Agent Documentation
+
+Repository-specific design rules, architecture decisions, and implementation tracking live under [`.agents/`](.agents/README.md). Keep this material in its category directory so future agents can load the relevant guidance without treating every planning document as a root-level project entry point.
 
 ## Frontend Development
 
