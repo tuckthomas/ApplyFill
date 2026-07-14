@@ -1,5 +1,6 @@
 export const APP_BRAND = {
   name: 'ApplyFill',
-  description: 'Reusable profile data for job applications and tailored resumes',
+  shortName: 'ApplyFill',
+  description: 'Store job application details once. Reuse them for resumes, forms, and autofill.',
   repoName: 'ApplyFill'
 } as const;

@@ -36,14 +36,52 @@
   justify-content: space-between;
 }
 
-.logo-text {
-  font-size: 1.25rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, var(--primary-color), #8a2be2);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.brand-logo {
+  align-items: center;
+  color: var(--text-main);
+  display: inline-flex;
+  gap: 10px;
+  min-width: 0;
   white-space: nowrap;
-  margin: 0;
+}
+
+.brand-logo-mark {
+  flex: 0 0 auto;
+  height: 36px;
+  width: 36px;
+}
+
+.brand-logo-panel {
+  fill: var(--primary-color);
+}
+
+.brand-logo-fold {
+  fill: none;
+  opacity: 0.42;
+  stroke: #ffffff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+}
+
+.brand-logo-line,
+.brand-logo-check {
+  fill: none;
+  stroke: #ffffff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.brand-logo-check {
+  stroke: #5eead4;
+}
+
+.brand-logo-wordmark {
+  color: var(--text-main);
+  font-size: 1.22rem;
+  font-weight: 800;
+  letter-spacing: 0;
 }
 
 .sidebar-nav {

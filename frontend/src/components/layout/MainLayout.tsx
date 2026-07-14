@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, FileText, Settings, UserCircle, Sun, Moon, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
-import { APP_BRAND } from '../../constants/brand';
+import { ApplyFillLogo } from '../brand/ApplyFillLogo';
 import './MainLayout.css';
 
 export function MainLayout() {
@@ -52,7 +52,7 @@ export function MainLayout() {
     <div className={`layout-container ${isSidebarExpanded ? 'sidebar-open' : 'sidebar-closed'}`}>
       <aside className={`sidebar ${isSidebarExpanded ? 'expanded' : 'collapsed'}`}>
         <div className="sidebar-header">
-          {isSidebarExpanded && <h1 className="logo-text">{APP_BRAND.name}</h1>}
+          {isSidebarExpanded ? <ApplyFillLogo /> : <ApplyFillLogo showWordmark={false} />}
           <button 
             className="icon-button" 
             onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
