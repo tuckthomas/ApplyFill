@@ -376,6 +376,7 @@ export default function ProjectsSection({ projects, onChange }: ProjectsSectionP
             className="project-modal-dialog"
             closeLabel={project.isSaved ? `Close edit ${projectTitle}` : 'Close add project'}
             description="Add the project details once so they can be reused in targeted resumes."
+            dirtyKey={JSON.stringify(project)}
             initialFocusId={`${prefix}-name`}
             isOpen={!validationDialog}
             key={project.id}
@@ -458,7 +459,7 @@ export default function ProjectsSection({ projects, onChange }: ProjectsSectionP
                 <div className="toolbar-row project-modal-actions">
                   {project.rewriteMessage ? <p className="section-copy" role="status">{project.rewriteMessage}</p> : <span />}
                   <div className="modal-form-actions">
-                    <button className="btn btn-secondary" type="button" onClick={() => closeProjectForm(project)}>Cancel</button>
+                    <button className="btn btn-secondary" data-modal-close type="button" onClick={() => closeProjectForm(project)}>Cancel</button>
                     <button className="btn btn-primary" type="submit">Save Project</button>
                   </div>
                 </div>

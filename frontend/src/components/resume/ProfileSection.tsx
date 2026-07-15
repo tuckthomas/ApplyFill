@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import Select from '../ui/AppSelect';
-import { COUNTRY_OPTIONS, STATE_OPTIONS, selectStyles } from '../../constants/location';
+import { selectStyles } from '../../constants/location';
 import FormModal from '../ui/FormModal';
 import RepeatableEntryCard from '../ui/RepeatableEntryCard';
 import RepeatableSectionHeader from '../ui/RepeatableSectionHeader';
+import AddressFlow from '../ui/AddressFlow';
+import type { AddressValue } from '../ui/AddressFlow';
 
 export type AlternativeName = {
   id: number;
@@ -55,6 +57,7 @@ type ProfileSectionProps = {
 
 export default function ProfileSection({ data, onChange }: ProfileSectionProps) {
   const [alternativeNameDraft, setAlternativeNameDraft] = useState<AlternativeName | null>(null);
+  const [addressDraft, setAddressDraft] = useState<AddressValue | null>(null);
   const [webLinkDraft, setWebLinkDraft] = useState<WebLink | null>(null);
 
   const setAlternativeNames = (updater: SetStateAction<AlternativeName[]>) => {
@@ -136,8 +139,50 @@ export default function ProfileSection({ data, onChange }: ProfileSectionProps) 
     setWebLinkDraft(null);
   };
 
+  const openAddress = () => {
+    setAddressDraft({
+      address1: data.address1,
+      address2: data.address2,
+      city: data.city,
+      state: data.state,
+      postalCode: data.postalCode,
+      country: data.country
+    });
+  };
+
+  const saveAddress = () => {
+    if (!addressDraft?.country) return;
+
+    onChange((current) => ({
+      ...current,
+      address1: addressDraft.address1 ?? '',
+      address2: addressDraft.address2 ?? '',
+      city: addressDraft.city,
+      state: addressDraft.state,
+      postalCode: addressDraft.postalCode ?? '',
+      country: addressDraft.country
+    }));
+    setAddressDraft(null);
+  };
+
+  const removeAddress = () => {
+    onChange((current) => ({
+      ...current,
+      address1: '',
+      address2: '',
+      city: '',
+      state: null,
+      postalCode: '',
+      country: null
+    }));
+  };
+
   const savedAlternativeNames = data.alternativeNames.filter((name) => name.name.trim());
   const savedWebLinks = data.webLinks.filter((link) => link.name.trim() || link.url.trim());
+  const hasAddress = Boolean(data.country);
+  const addressLocation = [data.city, data.state?.value, data.postalCode, data.country?.label]
+    .filter(Boolean)
+    .join(', ');
 
   return (
     <div className="page-stack">
@@ -149,9 +194,41 @@ export default function ProfileSection({ data, onChange }: ProfileSectionProps) 
       </div>
 
       <FormModal
+        className="address-modal-dialog"
+        closeLabel="Close address form"
+        description="Save this address once for reuse in job applications."
+        dirtyKey={addressDraft ? JSON.stringify(addressDraft) : undefined}
+        initialFocusId={addressDraft?.country ? 'profile-address-address-1' : 'profile-address-country'}
+        isOpen={Boolean(addressDraft)}
+        onClose={() => setAddressDraft(null)}
+        title={hasAddress ? 'Edit address' : 'Add address'}
+      >
+        {addressDraft ? (
+          <form
+            autoComplete="on"
+            className="address-modal-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              saveAddress();
+            }}
+          >
+            <AddressFlow
+              idPrefix="profile-address"
+              onChange={(field, value) => setAddressDraft((current) => current
+                ? { ...current, [field]: value }
+                : current)}
+              showSaveAction
+              value={addressDraft}
+            />
+          </form>
+        ) : null}
+      </FormModal>
+
+      <FormModal
         className="repeatable-entry-modal"
         closeLabel="Close alternative name form"
         description="Save another name and its context for reuse in job applications."
+        dirtyKey={alternativeNameDraft ? JSON.stringify(alternativeNameDraft) : undefined}
         initialFocusId="alternative-name-value"
         isOpen={Boolean(alternativeNameDraft)}
         onClose={() => setAlternativeNameDraft(null)}
@@ -197,7 +274,7 @@ export default function ProfileSection({ data, onChange }: ProfileSectionProps) 
               />
             </div>
             <div className="modal-form-actions">
-              <button className="btn btn-secondary" onClick={() => setAlternativeNameDraft(null)} type="button">
+              <button className="btn btn-secondary" data-modal-close onClick={() => setAlternativeNameDraft(null)} type="button">
                 Cancel
               </button>
               <button className="btn btn-primary" type="submit">Save Name</button>
@@ -210,6 +287,7 @@ export default function ProfileSection({ data, onChange }: ProfileSectionProps) 
         className="repeatable-entry-modal"
         closeLabel="Close web link form"
         description="Save a professional link for reuse in applications and generated resumes."
+        dirtyKey={webLinkDraft ? JSON.stringify(webLinkDraft) : undefined}
         initialFocusId="web-link-name"
         isOpen={Boolean(webLinkDraft)}
         onClose={() => setWebLinkDraft(null)}
@@ -254,7 +332,7 @@ export default function ProfileSection({ data, onChange }: ProfileSectionProps) 
               />
             </div>
             <div className="modal-form-actions">
-              <button className="btn btn-secondary" onClick={() => setWebLinkDraft(null)} type="button">
+              <button className="btn btn-secondary" data-modal-close onClick={() => setWebLinkDraft(null)} type="button">
                 Cancel
               </button>
               <button className="btn btn-primary" type="submit">Save Link</button>
@@ -355,82 +433,31 @@ export default function ProfileSection({ data, onChange }: ProfileSectionProps) 
           </div>
         ))}
 
-        <div className="form-grid-full">
-          <h4 className="section-title">Location</h4>
-          <hr className="subtle-divider" />
-        </div>
-        
-        <div className="form-group">
-          <label className="form-label" htmlFor="profile-address-1">Address Line 1</label>
-          <input
-            id="profile-address-1"
-            type="text"
-            className="form-input"
-            placeholder="123 Main St"
-            autoComplete="address-line1"
-            value={data.address1}
-            onChange={(event) => updateField('address1', event.target.value)}
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="profile-address-2">Address Line 2 (Optional)</label>
-          <input
-            id="profile-address-2"
-            type="text"
-            className="form-input"
-            placeholder="Suite 100"
-            autoComplete="address-line2"
-            value={data.address2}
-            onChange={(event) => updateField('address2', event.target.value)}
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="profile-city">City</label>
-          <input
-            id="profile-city"
-            type="text"
-            className="form-input"
-            placeholder="San Francisco"
-            autoComplete="address-level2"
-            value={data.city}
-            onChange={(event) => updateField('city', event.target.value)}
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="profile-state">State/Province</label>
-          <Select 
-            inputId="profile-state"
-            options={STATE_OPTIONS} 
-            styles={selectStyles} 
-            placeholder="Select State"
-            value={data.state}
-            onChange={(option) => updateField('state', option as SelectOption | null)}
-            isClearable 
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="profile-postal-code">ZIP/Postal Code</label>
-          <input
-            id="profile-postal-code"
-            type="text"
-            className="form-input"
-            placeholder="94105"
-            autoComplete="postal-code"
-            value={data.postalCode}
-            onChange={(event) => updateField('postalCode', event.target.value)}
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="profile-country">Country</label>
-          <Select 
-            inputId="profile-country"
-            options={COUNTRY_OPTIONS} 
-            styles={selectStyles} 
-            value={data.country}
-            onChange={(option) => updateField('country', option as SelectOption | null)}
-            isClearable 
-          />
-        </div>
+        <RepeatableSectionHeader
+          actionLabel={hasAddress ? undefined : 'Add Address'}
+          className="form-grid-full"
+          headingLevel={4}
+          onAdd={hasAddress ? undefined : openAddress}
+          title="Location"
+        />
+        <hr className="form-grid-full subtle-divider" />
+
+        {!hasAddress ? (
+          <div className="form-grid-full field-card profile-empty-state" aria-label="No address added">
+            <p className="section-copy">No address added</p>
+          </div>
+        ) : (
+          <div className="form-grid-full">
+            <RepeatableEntryCard
+              editLabel="Edit address"
+              onEdit={openAddress}
+              onRemove={removeAddress}
+              removeLabel="Remove address"
+              subtitle={addressLocation}
+              title={data.address1 || 'Saved address'}
+            />
+          </div>
+        )}
         
         <RepeatableSectionHeader
           actionLabel="Add Link"

@@ -11,7 +11,12 @@ export const COUNTRIES = [
   "Vanuatu", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"
 ];
 
-export const COUNTRY_OPTIONS = COUNTRIES.map(c => ({ value: c, label: c }));
+export type LocationOption = {
+  value: string;
+  label: string;
+};
+
+export const COUNTRY_OPTIONS: LocationOption[] = COUNTRIES.map(c => ({ value: c, label: c }));
 
 export const STATE_OPTIONS = [
   { value: 'AL', label: 'Alabama' }, { value: 'AK', label: 'Alaska' }, { value: 'AZ', label: 'Arizona' }, { value: 'AR', label: 'Arkansas' },
@@ -28,6 +33,33 @@ export const STATE_OPTIONS = [
   { value: 'UT', label: 'Utah' }, { value: 'VT', label: 'Vermont' }, { value: 'VA', label: 'Virginia' }, { value: 'WA', label: 'Washington' },
   { value: 'WV', label: 'West Virginia' }, { value: 'WI', label: 'Wisconsin' }, { value: 'WY', label: 'Wyoming' }
 ].map((option) => ({ ...option, label: option.value }));
+
+export const CANADIAN_PROVINCE_OPTIONS: LocationOption[] = [
+  { value: 'AB', label: 'AB' },
+  { value: 'BC', label: 'BC' },
+  { value: 'MB', label: 'MB' },
+  { value: 'NB', label: 'NB' },
+  { value: 'NL', label: 'NL' },
+  { value: 'NS', label: 'NS' },
+  { value: 'NT', label: 'NT' },
+  { value: 'NU', label: 'NU' },
+  { value: 'ON', label: 'ON' },
+  { value: 'PE', label: 'PE' },
+  { value: 'QC', label: 'QC' },
+  { value: 'SK', label: 'SK' },
+  { value: 'YT', label: 'YT' }
+];
+
+export const AUSTRALIAN_STATE_OPTIONS: LocationOption[] = [
+  { value: 'ACT', label: 'ACT' },
+  { value: 'NSW', label: 'NSW' },
+  { value: 'NT', label: 'NT' },
+  { value: 'QLD', label: 'QLD' },
+  { value: 'SA', label: 'SA' },
+  { value: 'TAS', label: 'TAS' },
+  { value: 'VIC', label: 'VIC' },
+  { value: 'WA', label: 'WA' }
+];
 
 export const selectStyles = {
   control: (base: any, state: any) => ({

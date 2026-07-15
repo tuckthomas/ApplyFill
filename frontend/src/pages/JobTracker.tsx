@@ -128,18 +128,6 @@ export default function JobTracker() {
       .sort((a, b) => b.appliedDate.localeCompare(a.appliedDate));
   }, [applications, searchQuery, statusFilter]);
 
-  const statusCounts = useMemo(() => STATUS_OPTIONS.reduce<Record<JobApplicationStatus, number>>((counts, option) => {
-    counts[option.value] = applications.filter((application) => application.status === option.value).length;
-    return counts;
-  }, {
-    Saved: 0,
-    Applied: 0,
-    Interviewing: 0,
-    'Offer Received': 0,
-    Rejected: 0,
-    Withdrawn: 0
-  }), [applications]);
-
   const updateFormField = <Key extends keyof ApplicationFormState>(
     key: Key,
     value: ApplicationFormState[Key]
@@ -189,29 +177,11 @@ export default function JobTracker() {
         <AddButton onClick={openForm}>Add Application</AddButton>
       </header>
 
-      <section className="tracker-summary-grid" aria-label="Application summary">
-        <article className="field-card tracker-summary-item">
-          <span className="tracker-summary-label">Total applications</span>
-          <strong>{applications.length}</strong>
-        </article>
-        <article className="field-card tracker-summary-item">
-          <span className="tracker-summary-label">Applied</span>
-          <strong>{statusCounts.Applied}</strong>
-        </article>
-        <article className="field-card tracker-summary-item">
-          <span className="tracker-summary-label">Interviewing</span>
-          <strong>{statusCounts.Interviewing}</strong>
-        </article>
-        <article className="field-card tracker-summary-item">
-          <span className="tracker-summary-label">Offers</span>
-          <strong>{statusCounts['Offer Received']}</strong>
-        </article>
-      </section>
-
       <FormModal
         className="tracker-modal-dialog"
         closeLabel="Close add application"
         description="Capture the application once so it can later connect to resumes and application packets."
+        dirtyKey={JSON.stringify(formState)}
         initialFocusId="tracker-company"
         isOpen={isFormOpen}
         onClose={closeForm}
@@ -298,7 +268,7 @@ export default function JobTracker() {
               <div className="toolbar-row tracker-form-actions tracker-form-full-width">
                 <span className="section-copy">Required fields are marked with an asterisk.</span>
                 <div className="modal-form-actions">
-                  <button className="btn btn-secondary" type="button" onClick={closeForm}>Cancel</button>
+                  <button className="btn btn-secondary" data-modal-close type="button" onClick={closeForm}>Cancel</button>
                   <button className="btn btn-primary" type="submit">Save Application</button>
                 </div>
               </div>

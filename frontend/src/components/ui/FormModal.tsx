@@ -1,7 +1,7 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { AlertTriangle, Pencil, Trash2, X } from 'lucide-react';
+import ModalRenderer from './ModalRenderer';
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -18,6 +18,7 @@ type FormModalProps = {
   className?: string;
   closeLabel: string;
   description?: string;
+  dirtyKey?: string;
   initialFocusId?: string;
   isOpen: boolean;
   onClose: () => void;
@@ -29,58 +30,113 @@ export default function FormModal({
   className = '',
   closeLabel,
   description,
+  dirtyKey,
   initialFocusId,
   isOpen,
   onClose,
   title
 }: FormModalProps) {
   const generatedTitleId = useId();
+  const confirmRef = useRef<HTMLElement>(null);
+  const currentDirtyKeyRef = useRef(dirtyKey);
   const dialogRef = useRef<HTMLElement>(null);
+  const dirtyBaselineRef = useRef<string | undefined>(undefined);
+  const dirtyRef = useRef(false);
+  const initialFocusIdRef = useRef(initialFocusId);
   const onCloseRef = useRef(onClose);
+  const requestCloseRef = useRef<() => void>(() => undefined);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  const showDiscardPromptRef = useRef(false);
+  const [showDiscardPrompt, setShowDiscardPrompt] = useState(false);
+
+  currentDirtyKeyRef.current = dirtyKey;
+  initialFocusIdRef.current = initialFocusId;
 
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
 
   useEffect(() => {
+    showDiscardPromptRef.current = showDiscardPrompt;
+  }, [showDiscardPrompt]);
+
+  const closeWithoutPrompt = () => {
+    dirtyRef.current = false;
+    showDiscardPromptRef.current = false;
+    setShowDiscardPrompt(false);
+    onCloseRef.current();
+  };
+
+  const requestClose = () => {
+    if (dirtyRef.current) {
+      showDiscardPromptRef.current = true;
+      setShowDiscardPrompt(true);
+      window.requestAnimationFrame(() => {
+        confirmRef.current?.querySelector<HTMLElement>('[data-confirm-cancel]')?.focus();
+      });
+      return;
+    }
+    closeWithoutPrompt();
+  };
+
+  const markDirty = () => {
+    dirtyRef.current = true;
+  };
+
+  const keepEditing = () => {
+    showDiscardPromptRef.current = false;
+    setShowDiscardPrompt(false);
+  };
+
+  requestCloseRef.current = requestClose;
+
+  useEffect(() => {
     if (!isOpen) return undefined;
+
+    dirtyBaselineRef.current = currentDirtyKeyRef.current;
+    dirtyRef.current = false;
+    setShowDiscardPrompt(false);
 
     returnFocusRef.current = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;
 
-    const previousBodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
     const focusFrame = window.requestAnimationFrame(() => {
-      const initialTarget = initialFocusId
-        ? dialogRef.current?.querySelector<HTMLElement>(`#${CSS.escape(initialFocusId)}`)
+      const initialTarget = initialFocusIdRef.current
+        ? dialogRef.current?.querySelector<HTMLElement>(`#${CSS.escape(initialFocusIdRef.current)}`)
         : null;
       (initialTarget ?? dialogRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ?? dialogRef.current)?.focus();
     });
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        if (showDiscardPromptRef.current) {
+          event.preventDefault();
+          showDiscardPromptRef.current = false;
+          setShowDiscardPrompt(false);
+          return;
+        }
+
         const hasOpenChildPopup = dialogRef.current?.querySelector(
           '.date-picker-popover, [role="combobox"][aria-expanded="true"]'
         );
         if (hasOpenChildPopup) return;
 
         event.preventDefault();
-        onCloseRef.current();
+        requestCloseRef.current();
         return;
       }
 
-      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const focusRoot = showDiscardPromptRef.current ? confirmRef.current : dialogRef.current;
+      if (event.key !== 'Tab' || !focusRoot) return;
 
       const focusableElements = Array.from(
-        dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-      ).filter((element) => element.getClientRects().length > 0);
+        focusRoot.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+      ).filter((element) => element.getClientRects().length > 0 && !element.closest('[inert]'));
 
       if (focusableElements.length === 0) {
         event.preventDefault();
-        dialogRef.current.focus();
+        focusRoot.focus();
         return;
       }
 
@@ -88,7 +144,7 @@ export default function FormModal({
       const lastElement = focusableElements[focusableElements.length - 1];
       const activeElement = document.activeElement;
 
-      if (!dialogRef.current.contains(activeElement)) {
+      if (!focusRoot.contains(activeElement)) {
         event.preventDefault();
         firstElement.focus();
       } else if (event.shiftKey && activeElement === firstElement) {
@@ -104,53 +160,102 @@ export default function FormModal({
     return () => {
       window.cancelAnimationFrame(focusFrame);
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = previousBodyOverflow;
 
       window.requestAnimationFrame(() => {
         if (returnFocusRef.current?.isConnected) returnFocusRef.current.focus();
       });
     };
-  }, [initialFocusId, isOpen]);
+  }, [isOpen]);
 
-  if (!isOpen || typeof document === 'undefined') return null;
+  useEffect(() => {
+    if (!isOpen || dirtyBaselineRef.current === undefined || dirtyKey === undefined) return;
+    if (dirtyKey !== dirtyBaselineRef.current) dirtyRef.current = true;
+  }, [dirtyKey, isOpen]);
 
   const titleId = `form-modal-${generatedTitleId.replace(/:/g, '')}`;
   const dialogClasses = ['modal-dialog', className].filter(Boolean).join(' ');
 
-  return createPortal(
-    <div
-      className="modal-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <section
-        aria-labelledby={titleId}
-        aria-modal="true"
-        className={dialogClasses}
-        ref={dialogRef}
-        role="dialog"
-        tabIndex={-1}
+  return (
+    <ModalRenderer isOpen={isOpen}>
+      <div
+        className="modal-backdrop"
+        role="presentation"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) requestClose();
+        }}
       >
-        <div className="modal-header">
-          <div>
-            <h3 className="section-title" id={titleId}>{title}</h3>
-            {description ? <p className="section-copy">{description}</p> : null}
+        <section
+          aria-labelledby={titleId}
+          aria-modal="true"
+          className={dialogClasses}
+          onChangeCapture={markDirty}
+          onClickCapture={(event) => {
+            const target = event.target as HTMLElement;
+            if (!target.closest('[data-modal-close]')) return;
+            event.preventDefault();
+            event.stopPropagation();
+            requestClose();
+          }}
+          onInputCapture={markDirty}
+          ref={dialogRef}
+          role="dialog"
+          tabIndex={-1}
+          inert={showDiscardPrompt}
+        >
+          <div className="modal-header">
+            <div>
+              <h3 className="section-title" id={titleId}>{title}</h3>
+              {description ? <p className="section-copy">{description}</p> : null}
+            </div>
+            <button
+              aria-label={closeLabel}
+              className="icon-button"
+              data-tooltip="Close"
+              onClick={requestClose}
+              type="button"
+            >
+              <X size={20} aria-hidden="true" />
+            </button>
           </div>
-          <button
-            aria-label={closeLabel}
-            className="icon-button"
-            data-tooltip="Close"
-            onClick={onClose}
-            type="button"
-          >
-            <X size={20} aria-hidden="true" />
-          </button>
-        </div>
-        {children}
-      </section>
-    </div>,
-    document.body
+          {children}
+
+        </section>
+
+        {showDiscardPrompt ? (
+          <div className="modal-discard-backdrop" role="presentation">
+            <section
+              aria-labelledby={`${titleId}-discard-title`}
+              aria-modal="true"
+              className="modal-discard-dialog"
+              ref={confirmRef}
+              role="alertdialog"
+            >
+              <div className="modal-discard-icon" aria-hidden="true">
+                <AlertTriangle size={22} />
+              </div>
+              <div>
+                <h4 className="section-title" id={`${titleId}-discard-title`}>Discard unsaved changes?</h4>
+                <p className="section-copy">The information entered in this window has not been saved.</p>
+              </div>
+              <div className="modal-form-actions">
+                <button
+                  className="btn btn-secondary"
+                  data-confirm-cancel
+                  onClick={keepEditing}
+                  type="button"
+                >
+                  <Pencil aria-hidden="true" size={18} />
+                  Keep Editing
+                </button>
+                <button className="btn btn-danger" onClick={closeWithoutPrompt} type="button">
+                  <Trash2 aria-hidden="true" size={18} />
+                  Discard Changes
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
+      </div>
+    </ModalRenderer>
   );
 }

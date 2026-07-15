@@ -3,7 +3,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { ChevronDown, Trash2 } from 'lucide-react';
 import Select from '../ui/AppSelect';
 
-import { COUNTRY_OPTIONS, STATE_OPTIONS, selectStyles } from '../../constants/location';
+import { selectStyles } from '../../constants/location';
 import RichTextEditor from './RichTextEditor';
 import DatePicker from '../ui/DatePicker';
 import ValidationDialog from '../ui/ValidationDialog';
@@ -13,6 +13,8 @@ import RepeatableSectionHeader from '../ui/RepeatableSectionHeader';
 import EntrySortControl from '../ui/EntrySortControl';
 import { readEntrySortOrder, sortEntries } from '../ui/entrySorting';
 import type { EntrySortOrder } from '../ui/entrySorting';
+import AddressFlow from '../ui/AddressFlow';
+import type { AddressValue } from '../ui/AddressFlow';
 
 type SelectOption = {
   value: string;
@@ -54,7 +56,7 @@ type ValidationDialogState = {
   messages: string[];
 };
 
-const createExperience = (id: number): ExperienceEntry => ({
+const createExperience = (id: number, defaultCountry: SelectOption | null): ExperienceEntry => ({
   id,
   jobTitle: '',
   company: '',
@@ -68,7 +70,7 @@ const createExperience = (id: number): ExperienceEntry => ({
   city: '',
   state: null,
   postalCode: '',
-  country: COUNTRY_OPTIONS.find((option) => option.value === 'United States') ?? null,
+  country: defaultCountry ? { ...defaultCountry } : null,
   companyPhone: '',
   supervisorName: '',
   mayContactSupervisor: false,
@@ -86,11 +88,12 @@ const DATE_PRECISION_OPTIONS: Array<{ value: EmploymentDatePrecision; label: str
 ];
 
 type ExperienceSectionProps = {
+  defaultCountry: SelectOption | null;
   experiences: ExperienceEntry[];
   onChange: Dispatch<SetStateAction<ExperienceEntry[]>>;
 };
 
-export default function ExperienceSection({ experiences, onChange }: ExperienceSectionProps) {
+export default function ExperienceSection({ defaultCountry, experiences, onChange }: ExperienceSectionProps) {
   const [enhancingField, setEnhancingField] = useState<{ id: number; field: RichTextField } | null>(null);
   const [validationDialog, setValidationDialog] = useState<ValidationDialogState | null>(null);
   const [sortOrder, setSortOrder] = useState<EntrySortOrder>(() => readEntrySortOrder('applyfill.experience-sort'));
@@ -107,7 +110,7 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
   };
 
   const addExperience = () => {
-    const experience = createExperience(Date.now());
+    const experience = createExperience(Date.now(), defaultCountry);
     setExperiences((current) => [
       ...current.map((entry) => ({ ...entry, isEditing: false })),
       experience
@@ -489,6 +492,7 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
             className="experience-modal-dialog"
             closeLabel={isSaved ? `Close edit ${experienceTitle}` : 'Close add job'}
             description="Save the complete role once so it can be reused in applications and targeted resumes."
+            dirtyKey={JSON.stringify(experience)}
             initialFocusId={`${prefix}-job-title`}
             isOpen={!validationDialog}
             key={experience.id}
@@ -496,6 +500,7 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
             title={isSaved ? `Edit ${experienceTitle}` : 'Add job'}
           >
             <form
+              autoComplete="on"
               className="page-stack experience-modal-form"
               onSubmit={(event) => {
                 event.preventDefault();
@@ -605,74 +610,16 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
               <hr className="subtle-divider" />
             </div>
 
+            <AddressFlow
+              idPrefix={prefix}
+              onChange={(field, value) => updateExperience(
+                experience.id,
+                field as keyof ExperienceEntry,
+                value as ExperienceEntry[keyof ExperienceEntry]
+              )}
+              value={experience as AddressValue}
+            />
             <div className="form-grid">
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" htmlFor={`${prefix}-address-1`}>Address Line 1</label>
-                <input
-                  id={`${prefix}-address-1`}
-                  type="text"
-                  className="form-input"
-                  value={experience.address1}
-                  onChange={(event) => updateExperience(experience.id, 'address1', event.target.value)}
-                  placeholder="123 Main St"
-                />
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" htmlFor={`${prefix}-address-2`}>Address Line 2 (Optional)</label>
-                <input
-                  id={`${prefix}-address-2`}
-                  type="text"
-                  className="form-input"
-                  value={experience.address2}
-                  onChange={(event) => updateExperience(experience.id, 'address2', event.target.value)}
-                  placeholder="Suite 100"
-                />
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" htmlFor={`${prefix}-city`}>City</label>
-                <input
-                  id={`${prefix}-city`}
-                  type="text"
-                  className="form-input"
-                  value={experience.city}
-                  onChange={(event) => updateExperience(experience.id, 'city', event.target.value)}
-                />
-              </div>
-              <div className="form-grid">
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" htmlFor={`${prefix}-state`}>State/Province</label>
-                  <Select
-                    inputId={`${prefix}-state`}
-                    options={STATE_OPTIONS}
-                    styles={selectStyles}
-                    value={experience.state}
-                    onChange={(option) => updateExperience(experience.id, 'state', option as SelectOption | null)}
-                    placeholder="Select State"
-                    isClearable
-                  />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" htmlFor={`${prefix}-postal-code`}>ZIP/Postal Code</label>
-                  <input
-                    id={`${prefix}-postal-code`}
-                    type="text"
-                    className="form-input"
-                    value={experience.postalCode}
-                    onChange={(event) => updateExperience(experience.id, 'postalCode', event.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" htmlFor={`${prefix}-country`}>Country</label>
-                <Select
-                  inputId={`${prefix}-country`}
-                  options={COUNTRY_OPTIONS}
-                  styles={selectStyles}
-                  value={experience.country}
-                  onChange={(option) => updateExperience(experience.id, 'country', option as SelectOption | null)}
-                  isClearable
-                />
-              </div>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label" htmlFor={`${prefix}-company-phone`}>Company Phone</label>
                 <input
@@ -741,7 +688,7 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
                 <span />
               )}
               <div className="modal-form-actions">
-                <button className="btn btn-secondary" type="button" onClick={() => closeExperienceForm(experience)}>
+                <button className="btn btn-secondary" data-modal-close type="button" onClick={() => closeExperienceForm(experience)}>
                   Cancel
                 </button>
                 <button className="btn btn-primary" type="submit">Save Job</button>

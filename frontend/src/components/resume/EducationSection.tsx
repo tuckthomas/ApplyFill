@@ -3,7 +3,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import Select from '../ui/AppSelect';
 import { ChevronDown, Trash2 } from 'lucide-react';
 
-import { COUNTRY_OPTIONS, STATE_OPTIONS, selectStyles } from '../../constants/location';
+import { selectStyles } from '../../constants/location';
 import DatePicker from '../ui/DatePicker';
 import ValidationDialog from '../ui/ValidationDialog';
 import Checkbox from '../ui/Checkbox';
@@ -12,6 +12,9 @@ import RepeatableSectionHeader from '../ui/RepeatableSectionHeader';
 import EntrySortControl from '../ui/EntrySortControl';
 import { readEntrySortOrder, sortEntries } from '../ui/entrySorting';
 import type { EntrySortOrder } from '../ui/entrySorting';
+import AddressFlow from '../ui/AddressFlow';
+import type { AddressValue } from '../ui/AddressFlow';
+import RichTextEditor from './RichTextEditor';
 
 export type SelectOption = {
   value: string;
@@ -65,12 +68,12 @@ const DATE_PRECISION_OPTIONS: Array<{ value: EducationDatePrecision; label: stri
   { value: 'Estimated', label: 'Estimated' }
 ];
 
-const createEducation = (id: number): EducationEntry => ({
+const createEducation = (id: number, defaultCountry: SelectOption | null): EducationEntry => ({
   id,
   level: null,
   fieldOfStudy: '',
   provider: '',
-  country: COUNTRY_OPTIONS.find((option) => option.value === 'United States') ?? null,
+  country: defaultCountry ? { ...defaultCountry } : null,
   city: '',
   state: null,
   isRemote: false,
@@ -85,11 +88,12 @@ const createEducation = (id: number): EducationEntry => ({
 });
 
 type EducationSectionProps = {
+  defaultCountry: SelectOption | null;
   educations: EducationEntry[];
   onChange: Dispatch<SetStateAction<EducationEntry[]>>;
 };
 
-export default function EducationSection({ educations, onChange }: EducationSectionProps) {
+export default function EducationSection({ defaultCountry, educations, onChange }: EducationSectionProps) {
   const [validationDialog, setValidationDialog] = useState<ValidationDialogState | null>(null);
   const [sortOrder, setSortOrder] = useState<EntrySortOrder>(() => readEntrySortOrder('applyfill.education-sort'));
   const setEducations = onChange;
@@ -97,7 +101,7 @@ export default function EducationSection({ educations, onChange }: EducationSect
   const addEducation = () => {
     setEducations((current) => [
       ...current.map((education) => ({ ...education, isEditing: false })),
-      createEducation(Date.now())
+      createEducation(Date.now(), defaultCountry)
     ]);
   };
 
@@ -440,6 +444,7 @@ export default function EducationSection({ educations, onChange }: EducationSect
             className="education-modal-dialog"
             closeLabel={education.isSaved ? `Close edit ${educationTitle}` : 'Close add education'}
             description="Add the education details once so they can be reused in applications and generated resumes."
+            dirtyKey={JSON.stringify(education)}
             initialFocusId={`${prefix}-level`}
             isOpen={!validationDialog}
             key={education.id}
@@ -447,6 +452,7 @@ export default function EducationSection({ educations, onChange }: EducationSect
             title={education.isSaved ? `Edit ${educationTitle}` : 'Add education'}
           >
             <form
+              autoComplete="on"
               className="page-stack education-modal-form"
               onSubmit={(event) => {
                 event.preventDefault();
@@ -500,52 +506,21 @@ export default function EducationSection({ educations, onChange }: EducationSect
                 <hr className="subtle-divider" />
               </div>
 
-              <div className="form-grid">
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" htmlFor={`${prefix}-country`}>Country</label>
-                  <Select
-                    inputId={`${prefix}-country`}
-                    options={COUNTRY_OPTIONS}
-                    styles={selectStyles}
-                    value={education.country}
-                    onChange={(option) => updateEducation(education.id, 'country', option as SelectOption | null)}
-                    isClearable
-                  />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <span className="form-label" aria-hidden="true">Remote Learning</span>
-                  <Checkbox
-                    checked={education.isRemote}
-                    label="This was remote"
-                    onChange={(event) => updateEducation(education.id, 'isRemote', event.target.checked)}
-                  />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" htmlFor={`${prefix}-city`}>City</label>
-                  <input
-                    id={`${prefix}-city`}
-                    className="form-input"
-                    type="text"
-                    value={education.city}
-                    onChange={(event) => updateEducation(education.id, 'city', event.target.value)}
-                    placeholder="Use remote if this was remote"
-                    disabled={education.isRemote}
-                  />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" htmlFor={`${prefix}-state`}>State/Province</label>
-                  <Select
-                    inputId={`${prefix}-state`}
-                    options={STATE_OPTIONS}
-                    styles={selectStyles}
-                    value={education.state}
-                    onChange={(option) => updateEducation(education.id, 'state', option as SelectOption | null)}
-                    placeholder="Select State"
-                    isClearable
-                    isDisabled={education.isRemote}
-                  />
-                </div>
-              </div>
+              <AddressFlow
+                idPrefix={prefix}
+                mode="locality"
+                onChange={(field, value) => updateEducation(
+                  education.id,
+                  field as keyof EducationEntry,
+                  value as EducationEntry[keyof EducationEntry]
+                )}
+                remoteControl={{
+                  checked: education.isRemote,
+                  label: 'This was remote',
+                  onChange: (checked) => updateEducation(education.id, 'isRemote', checked)
+                }}
+                value={education as AddressValue}
+              />
 
               <div>
                 <h5 className="section-title">Time Period</h5>
@@ -617,20 +592,17 @@ export default function EducationSection({ educations, onChange }: EducationSect
                 </div>
               </div>
 
-              <div className="form-group" style={{ marginBottom: '8px' }}>
-                <label className="form-label" htmlFor={`${prefix}-details`}>Additional Details</label>
-                <textarea
-                  id={`${prefix}-details`}
-                  className="form-input"
-                  value={education.additionalDetails}
-                  onChange={(event) => updateEducation(education.id, 'additionalDetails', event.target.value)}
-                  placeholder="Include relevant projects, achievements, affiliations, coursework, or honors."
-                  rows={5}
-                />
-              </div>
+              <RichTextEditor
+                label="Additional Details"
+                labelId={`${prefix}-details-label`}
+                onChange={(value) => updateEducation(education.id, 'additionalDetails', value)}
+                placeholder="Include relevant projects, achievements, affiliations, coursework, or honors."
+                toolbarId={`${prefix}-details-toolbar`}
+                value={education.additionalDetails}
+              />
 
               <div className="modal-form-actions">
-                <button className="btn btn-secondary" type="button" onClick={() => closeEducationForm(education)}>
+                <button className="btn btn-secondary" data-modal-close type="button" onClick={() => closeEducationForm(education)}>
                   Cancel
                 </button>
                 <button className="btn btn-primary" type="submit">Save Education</button>

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import type { SetStateAction } from 'react';
 import ProfileSection from '../components/resume/ProfileSection';
 import type { ProfileSectionData } from '../components/resume/ProfileSection';
-import SummarySection from '../components/resume/SummarySection';
 import ExperienceSection from '../components/resume/ExperienceSection';
 import type { ExperienceEntry } from '../components/resume/ExperienceSection';
 import ProjectsSection from '../components/resume/ProjectsSection';
@@ -13,14 +12,12 @@ import SkillsSection from '../components/resume/SkillsSection';
 import type { SkillEntry } from '../components/resume/SkillsSection';
 import ApplicationQuestionsSection from '../components/resume/ApplicationQuestionsSection';
 import type { ApplicationQuestionsData } from '../components/resume/ApplicationQuestionsSection';
-import { COUNTRY_OPTIONS } from '../constants/location';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 const STEPS = [
   { id: 'profile', label: 'Personal Info' },
   { id: 'education', label: 'Education' },
-  { id: 'summary', label: 'Professional Summary' },
   { id: 'experience', label: 'Work Experience' },
   { id: 'projects', label: 'Projects' },
   { id: 'skills', label: 'Skills' },
@@ -32,7 +29,6 @@ const PROFILE_BUILDER_STORAGE_KEY = 'applyfill.profile-builder.v1';
 type ProfileBuilderData = {
   profile: ProfileSectionData;
   education: EducationEntry[];
-  summary: string;
   experience: ExperienceEntry[];
   projects: ProjectEntry[];
   skills: SkillEntry[];
@@ -56,14 +52,13 @@ const DEFAULT_PROFILE_SECTION_DATA: ProfileSectionData = {
   city: '',
   state: null,
   postalCode: '',
-  country: COUNTRY_OPTIONS.find((option) => option.value === 'United States') ?? null,
+  country: null,
   webLinks: []
 };
 
 const DEFAULT_PROFILE_BUILDER_DATA: ProfileBuilderData = {
   profile: DEFAULT_PROFILE_SECTION_DATA,
   education: [],
-  summary: '',
   experience: [],
   projects: [],
   skills: [],
@@ -94,7 +89,6 @@ const normalizeProfileBuilderData = (data: Partial<ProfileBuilderData> | undefin
       .filter((link) => link.name.trim() || link.url.trim())
   },
   education: data?.education ?? [],
-  summary: data?.summary ?? '',
   experience: data?.experience ?? [],
   projects: data?.projects ?? [],
   skills: data?.skills ?? [],
@@ -119,7 +113,10 @@ const loadProfileBuilderState = (): ProfileBuilderState => {
     const storedStep = parsed.activeStep ?? 0;
     const isPreProjectsState = parsed.data !== undefined
       && !Object.prototype.hasOwnProperty.call(parsed.data, 'projects');
-    const migratedStep = isPreProjectsState && storedStep >= 4 ? storedStep + 1 : storedStep;
+    const hasLegacySummary = parsed.data !== undefined
+      && Object.prototype.hasOwnProperty.call(parsed.data, 'summary');
+    let migratedStep = isPreProjectsState && storedStep >= 4 ? storedStep + 1 : storedStep;
+    if (hasLegacySummary && migratedStep >= 3) migratedStep -= 1;
     const activeStep = Number.isInteger(storedStep)
       ? Math.min(Math.max(migratedStep, 0), STEPS.length - 1)
       : 0;
@@ -165,16 +162,6 @@ export default function ProfileEditor() {
       data: {
         ...current.data,
         education: resolveSetStateAction(action, current.data.education)
-      }
-    }));
-  };
-
-  const updateSummary = (summary: string) => {
-    setProfileBuilderState((current) => ({
-      ...current,
-      data: {
-        ...current.data,
-        summary
       }
     }));
   };
@@ -230,12 +217,11 @@ export default function ProfileEditor() {
   const renderStep = () => {
     switch (activeStep) {
       case 0: return <ProfileSection data={data.profile} onChange={updateProfile} />;
-      case 1: return <EducationSection educations={data.education} onChange={updateEducation} />;
-      case 2: return <SummarySection summary={data.summary} onChange={updateSummary} />;
-      case 3: return <ExperienceSection experiences={data.experience} onChange={updateExperience} />;
-      case 4: return <ProjectsSection projects={data.projects} onChange={updateProjects} />;
-      case 5: return <SkillsSection skills={data.skills} onChange={updateSkills} />;
-      case 6: return <ApplicationQuestionsSection data={data.applicationQuestions} onChange={updateApplicationQuestions} />;
+      case 1: return <EducationSection defaultCountry={data.profile.country} educations={data.education} onChange={updateEducation} />;
+      case 2: return <ExperienceSection defaultCountry={data.profile.country} experiences={data.experience} onChange={updateExperience} />;
+      case 3: return <ProjectsSection projects={data.projects} onChange={updateProjects} />;
+      case 4: return <SkillsSection skills={data.skills} onChange={updateSkills} />;
+      case 5: return <ApplicationQuestionsSection data={data.applicationQuestions} onChange={updateApplicationQuestions} />;
       default: return null;
     }
   };

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -48,31 +47,29 @@ namespace ResumeBuilder.Infrastructure.Migrations
                 name: "TargetJobUrl",
                 table: "ApplicationLogs");
 
-            migrationBuilder.AlterColumn<JsonDocument>(
-                name: "WarningsJson",
-                table: "ResumeLayoutAnalyses",
-                type: "jsonb",
-                nullable: true,
-                oldClrType: typeof(string),
-                oldType: "text",
-                oldNullable: true);
+            migrationBuilder.Sql("""
+                ALTER TABLE "ResumeLayoutAnalyses"
+                ALTER COLUMN "WarningsJson" TYPE jsonb
+                USING CASE
+                    WHEN "WarningsJson" IS NULL OR btrim("WarningsJson") = '' THEN NULL
+                    ELSE "WarningsJson"::jsonb
+                END;
 
-            migrationBuilder.AlterColumn<JsonDocument>(
-                name: "RecommendedAdjustmentsJson",
-                table: "ResumeLayoutAnalyses",
-                type: "jsonb",
-                nullable: true,
-                oldClrType: typeof(string),
-                oldType: "text",
-                oldNullable: true);
+                ALTER TABLE "ResumeLayoutAnalyses"
+                ALTER COLUMN "RecommendedAdjustmentsJson" TYPE jsonb
+                USING CASE
+                    WHEN "RecommendedAdjustmentsJson" IS NULL OR btrim("RecommendedAdjustmentsJson") = '' THEN NULL
+                    ELSE "RecommendedAdjustmentsJson"::jsonb
+                END;
 
-            migrationBuilder.AlterColumn<JsonDocument>(
-                name: "PacketJson",
-                table: "ApplicationPackets",
-                type: "jsonb",
-                nullable: true,
-                oldClrType: typeof(string),
-                oldType: "text");
+                ALTER TABLE "ApplicationPackets"
+                ALTER COLUMN "PacketJson" DROP NOT NULL,
+                ALTER COLUMN "PacketJson" TYPE jsonb
+                USING CASE
+                    WHEN "PacketJson" IS NULL OR btrim("PacketJson") = '' THEN NULL
+                    ELSE "PacketJson"::jsonb
+                END;
+                """);
 
             migrationBuilder.AddColumn<Guid>(
                 name: "JobTargetId",
@@ -207,33 +204,25 @@ namespace ResumeBuilder.Infrastructure.Migrations
                 name: "JobTargetId",
                 table: "ApplicationLogs");
 
-            migrationBuilder.AlterColumn<string>(
-                name: "WarningsJson",
-                table: "ResumeLayoutAnalyses",
-                type: "text",
-                nullable: true,
-                oldClrType: typeof(JsonDocument),
-                oldType: "jsonb",
-                oldNullable: true);
+            migrationBuilder.Sql("""
+                ALTER TABLE "ResumeLayoutAnalyses"
+                ALTER COLUMN "WarningsJson" TYPE text
+                USING "WarningsJson"::text;
 
-            migrationBuilder.AlterColumn<string>(
-                name: "RecommendedAdjustmentsJson",
-                table: "ResumeLayoutAnalyses",
-                type: "text",
-                nullable: true,
-                oldClrType: typeof(JsonDocument),
-                oldType: "jsonb",
-                oldNullable: true);
+                ALTER TABLE "ResumeLayoutAnalyses"
+                ALTER COLUMN "RecommendedAdjustmentsJson" TYPE text
+                USING "RecommendedAdjustmentsJson"::text;
 
-            migrationBuilder.AlterColumn<string>(
-                name: "PacketJson",
-                table: "ApplicationPackets",
-                type: "text",
-                nullable: false,
-                defaultValue: "",
-                oldClrType: typeof(JsonDocument),
-                oldType: "jsonb",
-                oldNullable: true);
+                UPDATE "ApplicationPackets"
+                SET "PacketJson" = '{}'::jsonb
+                WHERE "PacketJson" IS NULL;
+
+                ALTER TABLE "ApplicationPackets"
+                ALTER COLUMN "PacketJson" TYPE text
+                USING "PacketJson"::text,
+                ALTER COLUMN "PacketJson" SET DEFAULT '',
+                ALTER COLUMN "PacketJson" SET NOT NULL;
+                """);
 
             migrationBuilder.AddColumn<string>(
                 name: "CompanyName",

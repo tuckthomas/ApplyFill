@@ -1,11 +1,11 @@
 import AddButton from './AddButton';
 
 type RepeatableSectionHeaderProps = {
-  actionLabel: string;
+  actionLabel?: string;
   className?: string;
   description?: string;
   headingLevel?: 3 | 4;
-  onAdd: () => void;
+  onAdd?: () => void;
   title: string;
 };
 
@@ -26,7 +26,7 @@ export default function RepeatableSectionHeader({
         <Heading className="section-title">{title}</Heading>
         {description ? <p className="section-copy">{description}</p> : null}
       </div>
-      <AddButton onClick={onAdd}>{actionLabel}</AddButton>
+      {actionLabel && onAdd ? <AddButton onClick={onAdd}>{actionLabel}</AddButton> : null}
     </header>
   );
 }
