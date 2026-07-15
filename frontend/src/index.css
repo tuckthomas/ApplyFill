@@ -1802,6 +1802,79 @@ textarea.form-input {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.tracker-form-panel {
+  min-height: 620px;
+  padding: 32px;
+}
+
+.job-application-page-header {
+  justify-content: flex-start;
+}
+
+.tracker-form-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.tracker-form-tab {
+  background: var(--surface-color);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.94rem;
+  font-weight: 700;
+  padding: 10px 14px;
+}
+
+.tracker-form-tab:hover,
+.tracker-form-tab:focus-visible {
+  border-color: var(--primary-color);
+  color: var(--text-main);
+}
+
+.tracker-form-tab.is-active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  box-shadow: 0 6px 16px var(--primary-glow);
+  color: #ffffff;
+}
+
+.tracker-form-tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.tracker-disabled-tab-tooltip {
+  display: inline-flex;
+}
+
+.tracker-form-grid[hidden],
+.tracker-form-panel [role='tabpanel'][hidden] {
+  display: none;
+}
+
+.rich-text-label-row {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.rich-text-label-row .form-label {
+  margin-bottom: 0;
+}
+
+.tracker-import-description-button {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+
 .tracker-form-full-width {
   grid-column: 1 / -1;
 }
@@ -1830,7 +1903,7 @@ textarea.form-input {
   min-width: 220px;
 }
 
-.tracker-filters > :last-child {
+.tracker-status-filter {
   min-width: 180px;
   width: 180px;
 }
@@ -2013,6 +2086,10 @@ textarea.form-input {
 
   .tracker-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .tracker-form-panel {
+    padding: 24px;
   }
 
   .tracker-form-full-width {

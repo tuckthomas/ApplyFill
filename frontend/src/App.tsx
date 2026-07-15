@@ -9,6 +9,7 @@ const ResumeBuilder = lazy(() => import('./pages/ResumeBuilder'));
 const ProfileEditor = lazy(() => import('./pages/ProfileEditor'));
 const Resumes = lazy(() => import('./pages/Resumes'));
 const JobTracker = lazy(() => import('./pages/JobTracker'));
+const JobApplicationEditor = lazy(() => import('./pages/JobApplicationEditor'));
 const Settings = lazy(() => import('./pages/Settings'));
 
 function RouteFallback() {
@@ -34,6 +35,8 @@ function App() {
             <Route path="resumes/builder" element={<Suspense fallback={<RouteFallback />}><ResumeBuilder /></Suspense>} />
             <Route path="resumes" element={<Suspense fallback={<RouteFallback />}><Resumes /></Suspense>} />
             <Route path="job-tracker" element={<Suspense fallback={<RouteFallback />}><JobTracker /></Suspense>} />
+            <Route path="job-tracker/new" element={<Suspense fallback={<RouteFallback />}><JobApplicationEditor /></Suspense>} />
+            <Route path="job-tracker/:applicationId/edit" element={<Suspense fallback={<RouteFallback />}><JobApplicationEditor /></Suspense>} />
             <Route path="settings" element={<Suspense fallback={<RouteFallback />}><Settings /></Suspense>} />
           </Route>
         </Routes>

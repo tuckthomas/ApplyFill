@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, Settings, UserCircle, Sun, Moon, ChevronLeft, ChevronRight, Menu, BriefcaseBusiness } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, UserCircle, Sun, Moon, ChevronDown, ChevronLeft, ChevronRight, Menu, BriefcaseBusiness, PlusCircle } from 'lucide-react';
 import { ApplyFillLogo } from '../brand/ApplyFillLogo';
 import './MainLayout.css';
 
@@ -10,6 +10,7 @@ export function MainLayout() {
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark';
   });
+  const [isJobTrackerExpanded, setIsJobTrackerExpanded] = useState(() => location.pathname.startsWith('/job-tracker'));
 
   useEffect(() => {
     if (isDarkMode) {
@@ -38,7 +39,15 @@ export function MainLayout() {
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Profile', href: '/profile', icon: UserCircle },
     { name: 'Resumes', href: '/resumes', icon: FileText },
-    { name: 'Job Tracker', href: '/job-tracker', icon: BriefcaseBusiness },
+    {
+      name: 'Applications',
+      href: '/job-tracker',
+      icon: BriefcaseBusiness,
+      children: [
+        { name: 'Job Tracker', href: '/job-tracker', icon: BriefcaseBusiness },
+        { name: 'Add Application', href: '/job-tracker/new', icon: PlusCircle }
+      ]
+    },
     { name: 'Settings', href: '/settings', icon: Settings },
   ], []);
 
@@ -58,24 +67,41 @@ export function MainLayout() {
         </div>
 
         <nav className="sidebar-nav">
+            const closeMobileSidebar = () => {
+              if (window.matchMedia('(max-width: 900px)').matches) {
+                setIsSidebarExpanded(false);
+              }
+            };
+
           {navigation.map((item) => {
             const isActive = location.pathname === item.href || (item.href !== '/' && location.pathname.startsWith(item.href));
             return (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`nav-item ${isActive ? 'active' : ''}`}
-                aria-current={isActive ? 'page' : undefined}
-                data-tooltip={!isSidebarExpanded ? item.name : undefined}
-                onClick={() => {
-                  if (window.matchMedia('(max-width: 900px)').matches) {
-                    setIsSidebarExpanded(false);
-                  }
-                }}
-              >
-                <item.icon className="nav-icon" size={20} />
-                <span>{item.name}</span>
-              </Link>
+              <div className="nav-item-group" key={item.name}>
+                <div className="nav-parent-item">
+                  <Link to={item.href} className={`nav-item ${isActive ? 'active' : ''}`} aria-current={location.pathname === item.href ? 'page' : undefined} data-tooltip={!isSidebarExpanded ? item.name : undefined} onClick={closeMobileSidebar}>
+                    <item.icon className="nav-icon" size={20} />
+                    <span>{item.name}</span>
+                  </Link>
+                  {item.children && isSidebarExpanded && (
+                    <button className="nav-submenu-toggle" type="button" onClick={() => setIsJobTrackerExpanded((current) => !current)} aria-label={`${isJobTrackerExpanded ? 'Collapse' : 'Expand'} ${item.name} menu`} aria-controls="applications-submenu" aria-expanded={isJobTrackerExpanded} data-tooltip={`${isJobTrackerExpanded ? 'Collapse' : 'Expand'} ${item.name}`}>
+                      <ChevronDown size={18} aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+                {item.children && isSidebarExpanded && isJobTrackerExpanded && (
+                  <div id="applications-submenu" className="nav-submenu">
+                    {item.children.map((child) => {
+                      const isChildActive = location.pathname === child.href;
+                      return (
+                        <Link key={child.name} to={child.href} className={`nav-item nav-submenu-item${isChildActive ? ' active' : ''}`} aria-current={isChildActive ? 'page' : undefined} onClick={closeMobileSidebar}>
+                          <child.icon className="nav-icon" size={18} />
+                          <span>{child.name}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>

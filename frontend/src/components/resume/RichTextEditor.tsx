@@ -1,4 +1,4 @@
-import { type MouseEvent, useRef, useState } from 'react';
+import { type MouseEvent, type ReactNode, useRef, useState } from 'react';
 import ReactQuill, { type RangeStatic } from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import {
@@ -21,6 +21,7 @@ type RichTextEditorProps = {
   disabled?: boolean;
   isAiEnhancing?: boolean;
   label: string;
+  labelAction?: ReactNode;
   labelId: string;
   onAiEnhance?: () => void;
   onChange: (value: string) => void;
@@ -53,6 +54,7 @@ export default function RichTextEditor({
   disabled = false,
   isAiEnhancing = false,
   label,
+  labelAction,
   labelId,
   onAiEnhance,
   onChange,
@@ -157,9 +159,10 @@ export default function RichTextEditor({
 
   return (
     <div className="form-group" style={{ marginBottom: '8px' }}>
-      <label id={labelId} className="form-label">
-        {label}
-      </label>
+      <div className="rich-text-label-row">
+        <label id={labelId} className="form-label">{label}</label>
+        {labelAction}
+      </div>
       <div
         role="group"
         aria-labelledby={labelId}
