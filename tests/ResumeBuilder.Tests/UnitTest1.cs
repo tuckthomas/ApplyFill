@@ -75,4 +75,32 @@ public class UnitTest1
 
         Assert.Null(education.EndDateForAutofill);
     }
+
+    [Fact]
+    public void EstimatedProjectDatesResolveToMonthBoundariesForAutofill()
+    {
+        var project = new ResumeProject
+        {
+            StartDate = new DateTime(2023, 4, 18),
+            StartDatePrecision = EmploymentDatePrecision.Estimated,
+            EndDate = new DateTime(2024, 2, 7),
+            EndDatePrecision = EmploymentDatePrecision.Estimated
+        };
+
+        Assert.Equal(new DateTime(2023, 4, 1), project.StartDateForAutofill);
+        Assert.Equal(new DateTime(2024, 2, 29), project.EndDateForAutofill);
+    }
+
+    [Fact]
+    public void OngoingProjectOmitsEndDateForAutofill()
+    {
+        var project = new ResumeProject
+        {
+            IsOngoing = true,
+            EndDate = new DateTime(2026, 7, 1),
+            EndDatePrecision = EmploymentDatePrecision.Estimated
+        };
+
+        Assert.Null(project.EndDateForAutofill);
+    }
 }

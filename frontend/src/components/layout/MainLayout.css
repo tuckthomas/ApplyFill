@@ -33,7 +33,11 @@
   border-bottom: 1px solid var(--glass-border);
   flex-shrink: 0;
   overflow: hidden;
-  justify-content: space-between;
+  justify-content: center;
+}
+
+.sidebar.expanded .sidebar-header {
+  justify-content: flex-end;
 }
 
 .brand-logo {
@@ -187,10 +191,11 @@
   gap: 16px;
 }
 
-.header-breadcrumbs {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-main);
+.header-brand {
+  color: inherit;
+  display: inline-flex;
+  min-width: 0;
+  text-decoration: none;
 }
 
 .header-actions {

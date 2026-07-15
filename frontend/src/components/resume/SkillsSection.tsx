@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import Select from 'react-select';
+import Select from '../ui/AppSelect';
 import { Plus, Trash2 } from 'lucide-react';
 import { SKILL_SUGGESTIONS } from '../../constants/skillsTaxonomy';
 import { selectStyles } from '../../constants/location';

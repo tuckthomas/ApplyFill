@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<ResumeExperience> ResumeExperiences { get; set; }
     public DbSet<ResumeBullet> ResumeBullets { get; set; }
     public DbSet<ResumeEducation> ResumeEducations { get; set; }
+    public DbSet<ResumeProject> ResumeProjects { get; set; }
     public DbSet<ResumeSkill> ResumeSkills { get; set; }
     public DbSet<ResumeTemplate> ResumeTemplates { get; set; }
     public DbSet<ResumeLayoutAnalysis> ResumeLayoutAnalyses { get; set; }
@@ -97,6 +98,17 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EndDatePrecision).HasConversion<string>();
             entity.HasOne(e => e.Resume)
                 .WithMany(e => e.Educations)
+                .HasForeignKey(e => e.ResumeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ResumeProject>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.StartDatePrecision).HasConversion<string>();
+            entity.Property(e => e.EndDatePrecision).HasConversion<string>();
+            entity.HasOne(e => e.Resume)
+                .WithMany(e => e.Projects)
                 .HasForeignKey(e => e.ResumeId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

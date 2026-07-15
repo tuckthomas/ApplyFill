@@ -1,10 +1,18 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { AlertCircle, ChevronDown, ChevronUp, Plus, Trash2, X } from 'lucide-react';
-import Select from 'react-select';
+import { ChevronDown, Trash2 } from 'lucide-react';
+import Select from '../ui/AppSelect';
 
 import { COUNTRY_OPTIONS, STATE_OPTIONS, selectStyles } from '../../constants/location';
 import RichTextEditor from './RichTextEditor';
+import DatePicker from '../ui/DatePicker';
+import ValidationDialog from '../ui/ValidationDialog';
+import Checkbox from '../ui/Checkbox';
+import FormModal from '../ui/FormModal';
+import RepeatableSectionHeader from '../ui/RepeatableSectionHeader';
+import EntrySortControl from '../ui/EntrySortControl';
+import { readEntrySortOrder, sortEntries } from '../ui/entrySorting';
+import type { EntrySortOrder } from '../ui/entrySorting';
 
 type SelectOption = {
   value: string;
@@ -72,7 +80,6 @@ const createExperience = (id: number): ExperienceEntry => ({
   isSaved: false
 });
 
-const JOB_DETAILS_COLLAPSE_MS = 320;
 const DATE_PRECISION_OPTIONS: Array<{ value: EmploymentDatePrecision; label: string }> = [
   { value: 'Exact', label: 'Exact' },
   { value: 'Estimated', label: 'Estimated' }
@@ -85,8 +92,8 @@ type ExperienceSectionProps = {
 
 export default function ExperienceSection({ experiences, onChange }: ExperienceSectionProps) {
   const [enhancingField, setEnhancingField] = useState<{ id: number; field: RichTextField } | null>(null);
-  const [collapsingIds, setCollapsingIds] = useState<Set<number>>(() => new Set());
   const [validationDialog, setValidationDialog] = useState<ValidationDialogState | null>(null);
+  const [sortOrder, setSortOrder] = useState<EntrySortOrder>(() => readEntrySortOrder('applyfill.experience-sort'));
   const setExperiences = onChange;
 
   const updateExperience = <Key extends keyof ExperienceEntry>(
@@ -101,7 +108,10 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
 
   const addExperience = () => {
     const experience = createExperience(Date.now());
-    setExperiences((current) => [...current, experience]);
+    setExperiences((current) => [
+      ...current.map((entry) => ({ ...entry, isEditing: false })),
+      experience
+    ]);
   };
 
   const saveExperience = (id: number) => {
@@ -170,40 +180,23 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
   };
 
   const expandExperience = (id: number) => {
-    setCollapsingIds((current) => {
-      const next = new Set(current);
-      next.delete(id);
-      return next;
-    });
-    updateExperience(id, 'isEditing', true);
-  };
-
-  const collapseExperience = (id: number) => {
-    setCollapsingIds((current) => {
-      const next = new Set(current);
-      next.add(id);
-      return next;
-    });
-
-    window.setTimeout(() => {
-      setExperiences((current) => current.map((experience) => (
-        experience.id === id ? { ...experience, isEditing: false } : experience
-      )));
-      setCollapsingIds((current) => {
-        const next = new Set(current);
-        next.delete(id);
-        return next;
-      });
-    }, JOB_DETAILS_COLLAPSE_MS);
+    setExperiences((current) => current.map((experience) => ({
+      ...experience,
+      isEditing: experience.id === id
+    })));
   };
 
   const removeExperience = (id: number) => {
     setExperiences((current) => current.filter((experience) => experience.id !== id));
-    setCollapsingIds((current) => {
-      const next = new Set(current);
-      next.delete(id);
-      return next;
-    });
+  };
+
+  const closeExperienceForm = (experience: ExperienceEntry) => {
+    setValidationDialog(null);
+    if (experience.isSaved) {
+      updateExperience(experience.id, 'isEditing', false);
+    } else {
+      removeExperience(experience.id);
+    }
   };
 
   const setRewriteMessage = (id: number, message: string) => {
@@ -343,6 +336,24 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
     return { isValid, time: isValid ? time : null };
   };
 
+  const sortedExperiences = useMemo(() => sortEntries(experiences, sortOrder, {
+    getEndTime: (experience) => experience.isCurrentJob
+      ? Number.MAX_SAFE_INTEGER
+      : parseEmploymentDateValue(experience.endDate, experience.endDatePrecision, false).time,
+    getLabel: (experience) => experience.jobTitle,
+    getStartTime: (experience) => parseEmploymentDateValue(
+      experience.startDate,
+      experience.startDatePrecision,
+      true
+    ).time,
+    isDraft: (experience) => !experience.isSaved
+  }), [experiences, sortOrder]);
+
+  const changeSortOrder = (order: EntrySortOrder) => {
+    setSortOrder(order);
+    localStorage.setItem('applyfill.experience-sort', order);
+  };
+
   const getDatePlaceholder = (precision: EmploymentDatePrecision) => {
     return precision === 'Estimated' ? 'MM/YYYY' : 'MM/DD/YYYY';
   };
@@ -376,57 +387,33 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
   return (
     <div className="page-stack">
       {validationDialog ? (
-        <div className="validation-dialog-backdrop" role="presentation" onClick={() => setValidationDialog(null)}>
-          <section
-            aria-labelledby="experience-validation-title"
-            aria-modal="true"
-            className="validation-dialog"
-            role="dialog"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="validation-dialog-header">
-              <div className="validation-dialog-heading">
-                <AlertCircle size={22} aria-hidden="true" />
-                <h4 id="experience-validation-title">Missing or Invalid Job Information</h4>
-              </div>
-              <button
-                aria-label="Close validation message"
-                className="icon-button"
-                type="button"
-                onClick={() => setValidationDialog(null)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <p className="section-copy">
-              Fix these items for {validationDialog.jobLabel} before saving.
-            </p>
-            <ul className="validation-dialog-list">
-              {validationDialog.messages.map((message) => (
-                <li key={message}>{message}</li>
-              ))}
-            </ul>
-            <div className="validation-dialog-actions">
-              <button className="btn btn-secondary" type="button" onClick={() => setValidationDialog(null)}>
-                Review Fields
-              </button>
-            </div>
-          </section>
-        </div>
+        <ValidationDialog
+          closeLabel="Close job validation message"
+          description={`Fix these items for ${validationDialog.jobLabel} before saving.`}
+          messages={validationDialog.messages}
+          onClose={() => setValidationDialog(null)}
+          title="Missing or Invalid Job Information"
+          titleId="experience-validation-title"
+        />
       ) : null}
 
-      <div className="toolbar-row">
-        <div>
-          <h3 className="section-title">Work Experience</h3>
-          <p className="section-copy">
-            Add each role from your work history, starting with the most recent.
-          </p>
+      <RepeatableSectionHeader
+        actionLabel="Add Job"
+        description="Add each role from your work history, starting with the most recent."
+        onAdd={addExperience}
+        title="Work Experience"
+      />
+
+      {experiences.filter((experience) => experience.isSaved).length > 1 ? (
+        <div className="entry-sort-toolbar">
+          <EntrySortControl
+            alphaLabel="Job title"
+            inputId="experience-sort"
+            onChange={changeSortOrder}
+            value={sortOrder}
+          />
         </div>
-        <button className="btn btn-secondary btn-add-action" type="button" onClick={addExperience}>
-          <Plus size={18} />
-          Add Job
-        </button>
-      </div>
+      ) : null}
 
       {experiences.length === 0 ? (
         <section className="field-card job-empty-state" aria-label="No jobs added">
@@ -434,14 +421,13 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
         </section>
       ) : null}
 
-      {experiences.map((experience, index) => {
+      {sortedExperiences.map((experience, index) => {
         const prefix = `experience-${experience.id}`;
         const toolbarId = `${prefix}-toolbar`;
         const reasonToolbarId = `${prefix}-reason-toolbar`;
         const isEnhancingDescription = enhancingField?.id === experience.id && enhancingField.field === 'description';
         const isEnhancingReason = enhancingField?.id === experience.id && enhancingField.field === 'reasonForLeaving';
         const isSaved = experience.isSaved;
-        const isCollapsing = collapsingIds.has(experience.id);
         const experienceTitle = experience.jobTitle.trim() || 'Untitled role';
         const companyLabel = experience.company.trim() || 'Company not set';
         const removeLabel = experience.jobTitle.trim()
@@ -499,51 +485,23 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
         }
 
         return (
-          <section
-            className={`field-card job-transition-card ${isSaved ? 'job-expanded-card' : 'job-draft-card'}`}
+          <FormModal
+            className="experience-modal-dialog"
+            closeLabel={isSaved ? `Close edit ${experienceTitle}` : 'Close add job'}
+            description="Save the complete role once so it can be reused in applications and targeted resumes."
+            initialFocusId={`${prefix}-job-title`}
+            isOpen={!validationDialog}
             key={experience.id}
-            aria-labelledby={isSaved ? `${prefix}-title` : undefined}
-            id={`${prefix}-details-panel`}
+            onClose={() => closeExperienceForm(experience)}
+            title={isSaved ? `Edit ${experienceTitle}` : 'Add job'}
           >
-            <div className={isSaved ? 'job-summary-header' : 'job-draft-actions'}>
-              {isSaved ? (
-                <div className="job-summary-identity">
-                  <h4 className="job-summary-title" id={`${prefix}-title`}>
-                    {experienceTitle}
-                  </h4>
-                  <p className="job-summary-company">
-                    {companyLabel}
-                  </p>
-                </div>
-              ) : null}
-              <div className="job-summary-actions">
-                {isSaved ? (
-                  <button
-                    className="icon-button"
-                    type="button"
-                    onClick={() => collapseExperience(experience.id)}
-                    aria-expanded="true"
-                    aria-controls={`${prefix}-details-panel`}
-                    aria-label={`Collapse ${experienceTitle}`}
-                    data-tooltip={`Collapse ${experienceTitle}`}
-                    disabled={isCollapsing}
-                  >
-                    <ChevronUp size={20} />
-                  </button>
-                ) : null}
-                <button
-                  className="icon-button icon-button-danger"
-                  type="button"
-                  onClick={() => removeExperience(experience.id)}
-                  aria-label={removeLabel}
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            </div>
-
-            <div className={`job-details-motion ${isCollapsing ? 'job-details-exit' : ''}`}>
-              <div className="job-details-content page-stack">
+            <form
+              className="page-stack experience-modal-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                saveExperience(experience.id);
+              }}
+            >
                 <div className="form-grid">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label" htmlFor={`${prefix}-job-title`}>Job Title</label>
@@ -587,13 +545,12 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
                     )}
                     isSearchable={false}
                   />
-                  <input
+                  <DatePicker
                     id={`${prefix}-start-date`}
-                    type="text"
-                    className="form-input"
+                    ariaLabel="Start Date"
                     value={experience.startDate}
-                    onChange={(event) => updateExperience(experience.id, 'startDate', event.target.value)}
-                    inputMode="numeric"
+                    precision={experience.startDatePrecision}
+                    onChange={(value) => updateExperience(experience.id, 'startDate', value)}
                     placeholder={getDatePlaceholder(experience.startDatePrecision)}
                   />
                 </div>
@@ -620,15 +577,14 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
                     isDisabled={experience.isCurrentJob}
                     isSearchable={false}
                   />
-                  <input
+                  <DatePicker
                     id={`${prefix}-end-date`}
-                    type="text"
-                    className="form-input"
+                    ariaLabel="End Date"
                     value={experience.endDate}
-                    onChange={(event) => updateExperience(experience.id, 'endDate', event.target.value)}
+                    precision={experience.endDatePrecision}
+                    onChange={(value) => updateExperience(experience.id, 'endDate', value)}
                     disabled={experience.isCurrentJob}
-                    aria-required={!experience.isCurrentJob}
-                    inputMode="numeric"
+                    required={!experience.isCurrentJob}
                     placeholder={getDatePlaceholder(experience.endDatePrecision)}
                   />
                 </div>
@@ -636,14 +592,11 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
               </div>
               <div className="form-group current-job-field" style={{ marginBottom: 0 }}>
                 <span className="form-label" aria-hidden="true">Current Job</span>
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={experience.isCurrentJob}
-                    onChange={(event) => updateCurrentJob(experience.id, event.target.checked)}
-                  />
-                  I currently work here
-                </label>
+                <Checkbox
+                  checked={experience.isCurrentJob}
+                  label="I currently work here"
+                  onChange={(event) => updateCurrentJob(experience.id, event.target.checked)}
+                />
               </div>
             </div>
 
@@ -744,14 +697,11 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
               </div>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <span className="form-label" aria-hidden="true">Contact Permission</span>
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={experience.mayContactSupervisor}
-                    onChange={(event) => updateExperience(experience.id, 'mayContactSupervisor', event.target.checked)}
-                  />
-                  May prospective employer contact?
-                </label>
+                <Checkbox
+                  checked={experience.mayContactSupervisor}
+                  label="May prospective employer contact?"
+                  onChange={(event) => updateExperience(experience.id, 'mayContactSupervisor', event.target.checked)}
+                />
               </div>
             </div>
 
@@ -782,7 +732,7 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
               value={experience.reasonForLeaving}
             />
 
-                <div className="toolbar-row">
+                <div className="toolbar-row experience-modal-actions">
               {experience.rewriteMessage ? (
                 <p className="section-copy" role="status">
                   {experience.rewriteMessage}
@@ -790,13 +740,15 @@ export default function ExperienceSection({ experiences, onChange }: ExperienceS
               ) : (
                 <span />
               )}
-              <button className="btn btn-secondary" type="button" onClick={() => saveExperience(experience.id)}>
-                Save Job
-              </button>
-                </div>
+              <div className="modal-form-actions">
+                <button className="btn btn-secondary" type="button" onClick={() => closeExperienceForm(experience)}>
+                  Cancel
+                </button>
+                <button className="btn btn-primary" type="submit">Save Job</button>
               </div>
-            </div>
-          </section>
+                </div>
+            </form>
+          </FormModal>
         );
       })}
     </div>

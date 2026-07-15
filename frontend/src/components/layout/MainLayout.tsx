@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, Settings, UserCircle, Sun, Moon, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, UserCircle, Sun, Moon, ChevronLeft, ChevronRight, Menu, BriefcaseBusiness } from 'lucide-react';
 import { ApplyFillLogo } from '../brand/ApplyFillLogo';
 import './MainLayout.css';
 
@@ -36,28 +36,22 @@ export function MainLayout() {
 
   const navigation = useMemo(() => [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { name: 'Profile', href: '/profile', icon: UserCircle },
     { name: 'Resumes', href: '/resumes', icon: FileText },
+    { name: 'Job Tracker', href: '/job-tracker', icon: BriefcaseBusiness },
     { name: 'Settings', href: '/settings', icon: Settings },
   ], []);
-
-  const currentSection = location.pathname.startsWith('/profile')
-    ? 'Profile'
-    : navigation.find((item) => (
-      item.href === '/'
-        ? location.pathname === '/'
-        : location.pathname.startsWith(item.href)
-    ))?.name ?? 'Dashboard';
 
   return (
     <div className={`layout-container ${isSidebarExpanded ? 'sidebar-open' : 'sidebar-closed'}`}>
       <aside className={`sidebar ${isSidebarExpanded ? 'expanded' : 'collapsed'}`}>
         <div className="sidebar-header">
-          {isSidebarExpanded ? <ApplyFillLogo /> : <ApplyFillLogo showWordmark={false} />}
-          <button 
+          <button
             className="icon-button" 
             onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
             type="button"
             aria-label={isSidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+            data-tooltip={isSidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
           >
             {isSidebarExpanded ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
           </button>
@@ -99,9 +93,9 @@ export function MainLayout() {
             >
               <Menu size={20} />
             </button>
-            <div className="header-breadcrumbs">
-              <span>{currentSection}</span>
-            </div>
+            <Link className="header-brand" to="/" aria-label="Go to ApplyFill dashboard">
+              <ApplyFillLogo />
+            </Link>
           </div>
           <div className="header-actions">
             <button 

@@ -5,10 +5,14 @@ import type { ProfileSectionData } from '../components/resume/ProfileSection';
 import SummarySection from '../components/resume/SummarySection';
 import ExperienceSection from '../components/resume/ExperienceSection';
 import type { ExperienceEntry } from '../components/resume/ExperienceSection';
+import ProjectsSection from '../components/resume/ProjectsSection';
+import type { ProjectEntry } from '../components/resume/ProjectsSection';
 import EducationSection from '../components/resume/EducationSection';
 import type { EducationEntry } from '../components/resume/EducationSection';
 import SkillsSection from '../components/resume/SkillsSection';
 import type { SkillEntry } from '../components/resume/SkillsSection';
+import ApplicationQuestionsSection from '../components/resume/ApplicationQuestionsSection';
+import type { ApplicationQuestionsData } from '../components/resume/ApplicationQuestionsSection';
 import { COUNTRY_OPTIONS } from '../constants/location';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
@@ -18,7 +22,9 @@ const STEPS = [
   { id: 'education', label: 'Education' },
   { id: 'summary', label: 'Professional Summary' },
   { id: 'experience', label: 'Work Experience' },
-  { id: 'skills', label: 'Skills' }
+  { id: 'projects', label: 'Projects' },
+  { id: 'skills', label: 'Skills' },
+  { id: 'application-questions', label: 'Application Questions' }
 ];
 
 const PROFILE_BUILDER_STORAGE_KEY = 'applyfill.profile-builder.v1';
@@ -28,7 +34,9 @@ type ProfileBuilderData = {
   education: EducationEntry[];
   summary: string;
   experience: ExperienceEntry[];
+  projects: ProjectEntry[];
   skills: SkillEntry[];
+  applicationQuestions: ApplicationQuestionsData;
 };
 
 type ProfileBuilderState = {
@@ -49,7 +57,7 @@ const DEFAULT_PROFILE_SECTION_DATA: ProfileSectionData = {
   state: null,
   postalCode: '',
   country: COUNTRY_OPTIONS.find((option) => option.value === 'United States') ?? null,
-  webLinks: [{ id: 1, name: '', url: '' }]
+  webLinks: []
 };
 
 const DEFAULT_PROFILE_BUILDER_DATA: ProfileBuilderData = {
@@ -57,7 +65,13 @@ const DEFAULT_PROFILE_BUILDER_DATA: ProfileBuilderData = {
   education: [],
   summary: '',
   experience: [],
-  skills: []
+  projects: [],
+  skills: [],
+  applicationQuestions: {
+    raceEthnicity: null,
+    veteranStatus: null,
+    disabilityStatus: null
+  }
 };
 
 const DEFAULT_PROFILE_BUILDER_STATE: ProfileBuilderState = {
@@ -74,13 +88,20 @@ const normalizeProfileBuilderData = (data: Partial<ProfileBuilderData> | undefin
   profile: {
     ...DEFAULT_PROFILE_SECTION_DATA,
     ...(data?.profile ?? {}),
-    alternativeNames: data?.profile?.alternativeNames ?? DEFAULT_PROFILE_SECTION_DATA.alternativeNames,
-    webLinks: data?.profile?.webLinks ?? DEFAULT_PROFILE_SECTION_DATA.webLinks
+    alternativeNames: (data?.profile?.alternativeNames ?? DEFAULT_PROFILE_SECTION_DATA.alternativeNames)
+      .filter((name) => name.name.trim()),
+    webLinks: (data?.profile?.webLinks ?? DEFAULT_PROFILE_SECTION_DATA.webLinks)
+      .filter((link) => link.name.trim() || link.url.trim())
   },
   education: data?.education ?? [],
   summary: data?.summary ?? '',
   experience: data?.experience ?? [],
-  skills: data?.skills ?? []
+  projects: data?.projects ?? [],
+  skills: data?.skills ?? [],
+  applicationQuestions: {
+    ...DEFAULT_PROFILE_BUILDER_DATA.applicationQuestions,
+    ...(data?.applicationQuestions ?? {})
+  }
 });
 
 const loadProfileBuilderState = (): ProfileBuilderState => {
@@ -95,8 +116,12 @@ const loadProfileBuilderState = (): ProfileBuilderState => {
     }
 
     const parsed = JSON.parse(storedValue) as Partial<ProfileBuilderState>;
-    const activeStep = Number.isInteger(parsed.activeStep)
-      ? Math.min(Math.max(parsed.activeStep ?? 0, 0), STEPS.length - 1)
+    const storedStep = parsed.activeStep ?? 0;
+    const isPreProjectsState = parsed.data !== undefined
+      && !Object.prototype.hasOwnProperty.call(parsed.data, 'projects');
+    const migratedStep = isPreProjectsState && storedStep >= 4 ? storedStep + 1 : storedStep;
+    const activeStep = Number.isInteger(storedStep)
+      ? Math.min(Math.max(migratedStep, 0), STEPS.length - 1)
       : 0;
 
     return {
@@ -164,12 +189,32 @@ export default function ProfileEditor() {
     }));
   };
 
+  const updateProjects = (action: SetStateAction<ProjectEntry[]>) => {
+    setProfileBuilderState((current) => ({
+      ...current,
+      data: {
+        ...current.data,
+        projects: resolveSetStateAction(action, current.data.projects)
+      }
+    }));
+  };
+
   const updateSkills = (action: SetStateAction<SkillEntry[]>) => {
     setProfileBuilderState((current) => ({
       ...current,
       data: {
         ...current.data,
         skills: resolveSetStateAction(action, current.data.skills)
+      }
+    }));
+  };
+
+  const updateApplicationQuestions = (action: SetStateAction<ApplicationQuestionsData>) => {
+    setProfileBuilderState((current) => ({
+      ...current,
+      data: {
+        ...current.data,
+        applicationQuestions: resolveSetStateAction(action, current.data.applicationQuestions)
       }
     }));
   };
@@ -188,7 +233,9 @@ export default function ProfileEditor() {
       case 1: return <EducationSection educations={data.education} onChange={updateEducation} />;
       case 2: return <SummarySection summary={data.summary} onChange={updateSummary} />;
       case 3: return <ExperienceSection experiences={data.experience} onChange={updateExperience} />;
-      case 4: return <SkillsSection skills={data.skills} onChange={updateSkills} />;
+      case 4: return <ProjectsSection projects={data.projects} onChange={updateProjects} />;
+      case 5: return <SkillsSection skills={data.skills} onChange={updateSkills} />;
+      case 6: return <ApplicationQuestionsSection data={data.applicationQuestions} onChange={updateApplicationQuestions} />;
       default: return null;
     }
   };
@@ -204,7 +251,11 @@ export default function ProfileEditor() {
 
       <section className="surface-panel" style={{ padding: '32px' }} aria-label="Profile builder steps">
         <div className="page-stack">
-          <nav className="wizard-progress-meter" aria-label="Profile builder progress">
+          <nav
+            className="wizard-progress-meter"
+            aria-label="Profile builder progress"
+            style={{ gridTemplateColumns: `repeat(${STEPS.length}, minmax(0, 1fr))` }}
+          >
             {STEPS.map((step, index) => {
               const isComplete = index < activeStep;
               const isCurrent = index === activeStep;

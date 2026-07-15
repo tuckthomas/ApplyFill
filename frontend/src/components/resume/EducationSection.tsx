@@ -1,9 +1,17 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import Select from 'react-select';
-import { AlertCircle, ChevronDown, ChevronUp, Plus, Trash2, X } from 'lucide-react';
+import Select from '../ui/AppSelect';
+import { ChevronDown, Trash2 } from 'lucide-react';
 
 import { COUNTRY_OPTIONS, STATE_OPTIONS, selectStyles } from '../../constants/location';
+import DatePicker from '../ui/DatePicker';
+import ValidationDialog from '../ui/ValidationDialog';
+import Checkbox from '../ui/Checkbox';
+import FormModal from '../ui/FormModal';
+import RepeatableSectionHeader from '../ui/RepeatableSectionHeader';
+import EntrySortControl from '../ui/EntrySortControl';
+import { readEntrySortOrder, sortEntries } from '../ui/entrySorting';
+import type { EntrySortOrder } from '../ui/entrySorting';
 
 export type SelectOption = {
   value: string;
@@ -83,10 +91,14 @@ type EducationSectionProps = {
 
 export default function EducationSection({ educations, onChange }: EducationSectionProps) {
   const [validationDialog, setValidationDialog] = useState<ValidationDialogState | null>(null);
+  const [sortOrder, setSortOrder] = useState<EntrySortOrder>(() => readEntrySortOrder('applyfill.education-sort'));
   const setEducations = onChange;
 
   const addEducation = () => {
-    setEducations((current) => [...current, createEducation(Date.now())]);
+    setEducations((current) => [
+      ...current.map((education) => ({ ...education, isEditing: false })),
+      createEducation(Date.now())
+    ]);
   };
 
   const removeEducation = (id: number) => {
@@ -190,11 +202,23 @@ export default function EducationSection({ educations, onChange }: EducationSect
   };
 
   const expandEducation = (id: number) => {
-    updateEducation(id, 'isEditing', true);
+    setEducations((current) => current.map((education) => ({
+      ...education,
+      isEditing: education.id === id
+    })));
   };
 
   const collapseEducation = (id: number) => {
     updateEducation(id, 'isEditing', false);
+  };
+
+  const closeEducationForm = (education: EducationEntry) => {
+    setValidationDialog(null);
+    if (education.isSaved) {
+      collapseEducation(education.id);
+    } else {
+      removeEducation(education.id);
+    }
   };
 
   const getEducationTitle = (education: EducationEntry) => {
@@ -278,6 +302,24 @@ export default function EducationSection({ educations, onChange }: EducationSect
     return { isValid, time: isValid ? time : null };
   };
 
+  const sortedEducations = useMemo(() => sortEntries(educations, sortOrder, {
+    getEndTime: (education) => education.isCurrentlyEnrolled
+      ? Number.MAX_SAFE_INTEGER
+      : parseEducationDateValue(education.endDate, education.endDatePrecision, false).time,
+    getLabel: (education) => education.provider,
+    getStartTime: (education) => parseEducationDateValue(
+      education.startDate,
+      education.startDatePrecision,
+      true
+    ).time,
+    isDraft: (education) => !education.isSaved
+  }), [educations, sortOrder]);
+
+  const changeSortOrder = (order: EntrySortOrder) => {
+    setSortOrder(order);
+    localStorage.setItem('applyfill.education-sort', order);
+  };
+
   const getDatePlaceholder = (precision: EducationDatePrecision) => {
     return precision === 'Estimated' ? 'MM/YYYY' : 'MM/DD/YYYY';
   };
@@ -301,57 +343,33 @@ export default function EducationSection({ educations, onChange }: EducationSect
   return (
     <div className="page-stack">
       {validationDialog ? (
-        <div className="validation-dialog-backdrop" role="presentation" onClick={() => setValidationDialog(null)}>
-          <section
-            aria-labelledby="education-validation-title"
-            aria-modal="true"
-            className="validation-dialog"
-            role="dialog"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="validation-dialog-header">
-              <div className="validation-dialog-heading">
-                <AlertCircle size={22} aria-hidden="true" />
-                <h4 id="education-validation-title">Missing or Invalid Education Information</h4>
-              </div>
-              <button
-                aria-label="Close education validation message"
-                className="icon-button"
-                type="button"
-                onClick={() => setValidationDialog(null)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <p className="section-copy">
-              Fix these items for {validationDialog.educationLabel} before saving.
-            </p>
-            <ul className="validation-dialog-list">
-              {validationDialog.messages.map((message) => (
-                <li key={message}>{message}</li>
-              ))}
-            </ul>
-            <div className="validation-dialog-actions">
-              <button className="btn btn-secondary" type="button" onClick={() => setValidationDialog(null)}>
-                Review Fields
-              </button>
-            </div>
-          </section>
-        </div>
+        <ValidationDialog
+          closeLabel="Close education validation message"
+          description={`Fix these items for ${validationDialog.educationLabel} before saving.`}
+          messages={validationDialog.messages}
+          onClose={() => setValidationDialog(null)}
+          title="Missing or Invalid Education Information"
+          titleId="education-validation-title"
+        />
       ) : null}
 
-      <div className="toolbar-row">
-        <div>
-          <h3 className="section-title">Education</h3>
-          <p className="section-copy">
-            Add degrees, diplomas, online courses, and vocational training used for job applications.
-          </p>
+      <RepeatableSectionHeader
+        actionLabel="Add Education"
+        description="Add degrees, diplomas, online courses, and vocational training used for job applications."
+        onAdd={addEducation}
+        title="Education"
+      />
+
+      {educations.filter((education) => education.isSaved).length > 1 ? (
+        <div className="entry-sort-toolbar">
+          <EntrySortControl
+            alphaLabel="School"
+            inputId="education-sort"
+            onChange={changeSortOrder}
+            value={sortOrder}
+          />
         </div>
-        <button className="btn btn-secondary btn-add-action" type="button" onClick={addEducation}>
-          <Plus size={18} />
-          Add Education
-        </button>
-      </div>
+      ) : null}
 
       {educations.length === 0 ? (
         <section className="field-card job-empty-state" aria-label="No education added">
@@ -359,7 +377,7 @@ export default function EducationSection({ educations, onChange }: EducationSect
         </section>
       ) : null}
 
-      {educations.map((education, index) => {
+      {sortedEducations.map((education, index) => {
         const prefix = `education-${education.id}`;
         const educationTitle = getEducationTitle(education);
         const providerLabel = education.provider.trim() || 'Provider not set';
@@ -418,45 +436,28 @@ export default function EducationSection({ educations, onChange }: EducationSect
         }
 
         return (
-          <section
-            className={`field-card job-transition-card ${education.isSaved ? 'job-expanded-card' : 'job-draft-card'}`}
+          <FormModal
+            className="education-modal-dialog"
+            closeLabel={education.isSaved ? `Close edit ${educationTitle}` : 'Close add education'}
+            description="Add the education details once so they can be reused in applications and generated resumes."
+            initialFocusId={`${prefix}-level`}
+            isOpen={!validationDialog}
             key={education.id}
-            aria-labelledby={education.isSaved ? `${prefix}-title` : undefined}
-            id={`${prefix}-details-panel`}
+            onClose={() => closeEducationForm(education)}
+            title={education.isSaved ? `Edit ${educationTitle}` : 'Add education'}
           >
-            <div className={education.isSaved ? 'job-summary-header' : 'job-draft-actions'}>
-              {education.isSaved ? (
-                <div className="job-summary-identity">
-                  <h4 className="job-summary-title" id={`${prefix}-title`}>{educationTitle}</h4>
-                  <p className="job-summary-company">{providerLabel}</p>
-                </div>
-              ) : null}
-              <div className="job-summary-actions">
-                {education.isSaved ? (
-                  <button
-                    className="icon-button"
-                    type="button"
-                    onClick={() => collapseEducation(education.id)}
-                    aria-expanded="true"
-                    aria-controls={`${prefix}-details-panel`}
-                    aria-label={`Collapse ${educationTitle}`}
-                    data-tooltip={`Collapse ${educationTitle}`}
-                  >
-                    <ChevronUp size={20} />
-                  </button>
-                ) : null}
-                <button
-                  className="icon-button icon-button-danger"
-                  type="button"
-                  onClick={() => removeEducation(education.id)}
-                  aria-label={removeLabel}
-                >
-                  <Trash2 size={18} />
-                </button>
+            <form
+              className="page-stack education-modal-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                saveEducation(education.id);
+              }}
+            >
+              <div>
+                <h5 className="section-title">Education Details</h5>
+                <hr className="subtle-divider" />
               </div>
-            </div>
 
-            <div className="page-stack">
               <div className="form-grid">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" htmlFor={`${prefix}-level`}>Level of Education</label>
@@ -513,14 +514,11 @@ export default function EducationSection({ educations, onChange }: EducationSect
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <span className="form-label" aria-hidden="true">Remote Learning</span>
-                  <label className="checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={education.isRemote}
-                      onChange={(event) => updateEducation(education.id, 'isRemote', event.target.checked)}
-                    />
-                    This was remote
-                  </label>
+                  <Checkbox
+                    checked={education.isRemote}
+                    label="This was remote"
+                    onChange={(event) => updateEducation(education.id, 'isRemote', event.target.checked)}
+                  />
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" htmlFor={`${prefix}-city`}>City</label>
@@ -568,13 +566,12 @@ export default function EducationSection({ educations, onChange }: EducationSect
                       onChange={(option) => updateDatePrecision(education.id, 'startDate', option?.value ?? 'Exact')}
                       isSearchable={false}
                     />
-                    <input
+                    <DatePicker
                       id={`${prefix}-start-date`}
-                      type="text"
-                      className="form-input"
+                      ariaLabel="From date"
                       value={education.startDate}
-                      onChange={(event) => updateEducation(education.id, 'startDate', event.target.value)}
-                      inputMode="numeric"
+                      precision={education.startDatePrecision}
+                      onChange={(value) => updateEducation(education.id, 'startDate', value)}
                       placeholder={getDatePlaceholder(education.startDatePrecision)}
                     />
                   </div>
@@ -597,15 +594,14 @@ export default function EducationSection({ educations, onChange }: EducationSect
                       isDisabled={education.isCurrentlyEnrolled}
                       isSearchable={false}
                     />
-                    <input
+                    <DatePicker
                       id={`${prefix}-end-date`}
-                      type="text"
-                      className="form-input"
+                      ariaLabel="To date"
                       value={education.endDate}
-                      onChange={(event) => updateEducation(education.id, 'endDate', event.target.value)}
+                      precision={education.endDatePrecision}
+                      onChange={(value) => updateEducation(education.id, 'endDate', value)}
                       disabled={education.isCurrentlyEnrolled}
-                      aria-required={!education.isCurrentlyEnrolled}
-                      inputMode="numeric"
+                      required={!education.isCurrentlyEnrolled}
                       placeholder={getDatePlaceholder(education.endDatePrecision)}
                     />
                   </div>
@@ -613,14 +609,11 @@ export default function EducationSection({ educations, onChange }: EducationSect
                 </div>
                 <div className="form-group current-job-field" style={{ marginBottom: 0 }}>
                   <span className="form-label" aria-hidden="true">Currently Enrolled</span>
-                  <label className="checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={education.isCurrentlyEnrolled}
-                      onChange={(event) => updateCurrentEnrollment(education.id, event.target.checked)}
-                    />
-                    I am currently enrolled
-                  </label>
+                  <Checkbox
+                    checked={education.isCurrentlyEnrolled}
+                    label="I am currently enrolled"
+                    onChange={(event) => updateCurrentEnrollment(education.id, event.target.checked)}
+                  />
                 </div>
               </div>
 
@@ -636,14 +629,14 @@ export default function EducationSection({ educations, onChange }: EducationSect
                 />
               </div>
 
-              <div className="toolbar-row">
-                <span />
-                <button className="btn btn-secondary" type="button" onClick={() => saveEducation(education.id)}>
-                  Save Education
+              <div className="modal-form-actions">
+                <button className="btn btn-secondary" type="button" onClick={() => closeEducationForm(education)}>
+                  Cancel
                 </button>
+                <button className="btn btn-primary" type="submit">Save Education</button>
               </div>
-            </div>
-          </section>
+            </form>
+          </FormModal>
         );
       })}
     </div>

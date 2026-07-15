@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import Select from 'react-select';
-import { Trash2, Plus } from 'lucide-react';
+import Select from '../ui/AppSelect';
 import { COUNTRY_OPTIONS, STATE_OPTIONS, selectStyles } from '../../constants/location';
+import FormModal from '../ui/FormModal';
+import RepeatableEntryCard from '../ui/RepeatableEntryCard';
+import RepeatableSectionHeader from '../ui/RepeatableSectionHeader';
 
 export type AlternativeName = {
   id: number;
@@ -51,6 +54,9 @@ type ProfileSectionProps = {
 };
 
 export default function ProfileSection({ data, onChange }: ProfileSectionProps) {
+  const [alternativeNameDraft, setAlternativeNameDraft] = useState<AlternativeName | null>(null);
+  const [webLinkDraft, setWebLinkDraft] = useState<WebLink | null>(null);
+
   const setAlternativeNames = (updater: SetStateAction<AlternativeName[]>) => {
     onChange((current) => ({
       ...current,
@@ -77,37 +83,61 @@ export default function ProfileSection({ data, onChange }: ProfileSectionProps) 
   };
 
   const addAlternativeName = () => {
-    const alternativeName = { id: Date.now(), name: '', context: null };
-    setAlternativeNames((current) => [...current, alternativeName]);
+    setAlternativeNameDraft({ id: Date.now(), name: '', context: null });
   };
 
   const removeAlternativeName = (id: number) => {
     setAlternativeNames((current) => current.filter((name) => name.id !== id));
   };
 
-  const updateAlternativeName = (
-    id: number,
-    field: 'name' | 'context',
-    value: string | SelectOption | null
-  ) => {
-    setAlternativeNames((current) => current.map((name) => (
-      name.id === id ? { ...name, [field]: value } : name
-    )));
+  const editAlternativeName = (alternativeName: AlternativeName) => {
+    setAlternativeNameDraft({ ...alternativeName });
+  };
+
+  const saveAlternativeName = () => {
+    if (!alternativeNameDraft?.name.trim()) return;
+
+    const savedName = { ...alternativeNameDraft, name: alternativeNameDraft.name.trim() };
+    setAlternativeNames((current) => {
+      const withoutBlankEntries = current.filter((name) => name.name.trim());
+      return current.some((name) => name.id === savedName.id)
+        ? withoutBlankEntries.map((name) => name.id === savedName.id ? savedName : name)
+        : [...withoutBlankEntries, savedName];
+    });
+    setAlternativeNameDraft(null);
   };
 
   const addWebLink = () => {
-    setWebLinks((current) => [...current, { id: Date.now(), name: '', url: '' }]);
+    setWebLinkDraft({ id: Date.now(), name: '', url: '' });
   };
 
   const removeWebLink = (id: number) => {
     setWebLinks((current) => current.filter(link => link.id !== id));
   };
 
-  const updateWebLink = (id: number, field: 'name' | 'url', value: string) => {
-    setWebLinks((current) => current.map(link =>
-      link.id === id ? { ...link, [field]: value } : link
-    ));
+  const editWebLink = (webLink: WebLink) => {
+    setWebLinkDraft({ ...webLink });
   };
+
+  const saveWebLink = () => {
+    if (!webLinkDraft?.name.trim() || !webLinkDraft.url.trim()) return;
+
+    const savedLink = {
+      ...webLinkDraft,
+      name: webLinkDraft.name.trim(),
+      url: webLinkDraft.url.trim()
+    };
+    setWebLinks((current) => {
+      const withoutBlankEntries = current.filter((link) => link.name.trim() || link.url.trim());
+      return current.some((link) => link.id === savedLink.id)
+        ? withoutBlankEntries.map((link) => link.id === savedLink.id ? savedLink : link)
+        : [...withoutBlankEntries, savedLink];
+    });
+    setWebLinkDraft(null);
+  };
+
+  const savedAlternativeNames = data.alternativeNames.filter((name) => name.name.trim());
+  const savedWebLinks = data.webLinks.filter((link) => link.name.trim() || link.url.trim());
 
   return (
     <div className="page-stack">
@@ -117,6 +147,121 @@ export default function ProfileSection({ data, onChange }: ProfileSectionProps) 
         Enter your core details. These will appear at the top of your resume.
         </p>
       </div>
+
+      <FormModal
+        className="repeatable-entry-modal"
+        closeLabel="Close alternative name form"
+        description="Save another name and its context for reuse in job applications."
+        initialFocusId="alternative-name-value"
+        isOpen={Boolean(alternativeNameDraft)}
+        onClose={() => setAlternativeNameDraft(null)}
+        title={data.alternativeNames.some((name) => name.id === alternativeNameDraft?.id)
+          ? 'Edit alternative name'
+          : 'Add alternative name'}
+      >
+        {alternativeNameDraft ? (
+          <form
+            className="page-stack repeatable-entry-modal-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              saveAlternativeName();
+            }}
+          >
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" htmlFor="alternative-name-value">Alternative Name *</label>
+              <input
+                autoComplete="off"
+                className="form-input"
+                id="alternative-name-value"
+                onChange={(event) => setAlternativeNameDraft((current) => current
+                  ? { ...current, name: event.target.value }
+                  : current)}
+                placeholder="e.g. Jane M. Smith"
+                required
+                type="text"
+                value={alternativeNameDraft.name}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" htmlFor="alternative-name-context">Context (Optional)</label>
+              <Select
+                inputId="alternative-name-context"
+                isClearable
+                onChange={(option) => setAlternativeNameDraft((current) => current
+                  ? { ...current, context: option as SelectOption | null }
+                  : current)}
+                options={ALTERNATIVE_NAME_CONTEXT_OPTIONS}
+                placeholder="Select context"
+                styles={selectStyles}
+                value={alternativeNameDraft.context}
+              />
+            </div>
+            <div className="modal-form-actions">
+              <button className="btn btn-secondary" onClick={() => setAlternativeNameDraft(null)} type="button">
+                Cancel
+              </button>
+              <button className="btn btn-primary" type="submit">Save Name</button>
+            </div>
+          </form>
+        ) : null}
+      </FormModal>
+
+      <FormModal
+        className="repeatable-entry-modal"
+        closeLabel="Close web link form"
+        description="Save a professional link for reuse in applications and generated resumes."
+        initialFocusId="web-link-name"
+        isOpen={Boolean(webLinkDraft)}
+        onClose={() => setWebLinkDraft(null)}
+        title={data.webLinks.some((link) => link.id === webLinkDraft?.id)
+          ? 'Edit web link'
+          : 'Add web link'}
+      >
+        {webLinkDraft ? (
+          <form
+            className="page-stack repeatable-entry-modal-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              saveWebLink();
+            }}
+          >
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" htmlFor="web-link-name">Link Type or Name *</label>
+              <input
+                className="form-input"
+                id="web-link-name"
+                onChange={(event) => setWebLinkDraft((current) => current
+                  ? { ...current, name: event.target.value }
+                  : current)}
+                placeholder="e.g. LinkedIn or Portfolio"
+                required
+                type="text"
+                value={webLinkDraft.name}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" htmlFor="web-link-url">URL *</label>
+              <input
+                className="form-input"
+                id="web-link-url"
+                onChange={(event) => setWebLinkDraft((current) => current
+                  ? { ...current, url: event.target.value }
+                  : current)}
+                placeholder="https://..."
+                required
+                type="url"
+                value={webLinkDraft.url}
+              />
+            </div>
+            <div className="modal-form-actions">
+              <button className="btn btn-secondary" onClick={() => setWebLinkDraft(null)} type="button">
+                Cancel
+              </button>
+              <button className="btn btn-primary" type="submit">Save Link</button>
+            </div>
+          </form>
+        ) : null}
+      </FormModal>
       
       <div className="form-grid">
         <div className="profile-name-grid">
@@ -182,58 +327,31 @@ export default function ProfileSection({ data, onChange }: ProfileSectionProps) 
           />
         </div>
 
-        <div className="form-grid-full toolbar-row">
-          <h4 className="section-title">Alternative Names</h4>
-          <button
-            onClick={addAlternativeName}
-            className="btn btn-secondary btn-add-action"
-            type="button"
-          >
-            <Plus size={18} /> Add Name
-          </button>
-        </div>
+        <RepeatableSectionHeader
+          actionLabel="Add Name"
+          className="form-grid-full"
+          headingLevel={4}
+          onAdd={addAlternativeName}
+          title="Alternative Names"
+        />
         <hr className="form-grid-full subtle-divider" />
 
-        {data.alternativeNames.length === 0 ? (
+        {savedAlternativeNames.length === 0 ? (
           <div className="form-grid-full field-card profile-empty-state" aria-label="No alternative names added">
             <p className="section-copy">No alternative names added</p>
           </div>
         ) : null}
 
-        {data.alternativeNames.map((name, index) => (
-          <div key={name.id} className="form-grid-full profile-repeat-row">
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label" htmlFor={`alternative-name-${name.id}`}>Alternative Name</label>
-              <input
-                id={`alternative-name-${name.id}`}
-                type="text"
-                className="form-input"
-                placeholder="e.g. Jane M. Smith"
-                value={name.name}
-                onChange={(event) => updateAlternativeName(name.id, 'name', event.target.value)}
-                autoComplete="off"
-              />
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label" htmlFor={`alternative-name-context-${name.id}`}>Context (Optional)</label>
-              <Select
-                inputId={`alternative-name-context-${name.id}`}
-                options={ALTERNATIVE_NAME_CONTEXT_OPTIONS}
-                styles={selectStyles}
-                placeholder="Select context"
-                value={name.context}
-                onChange={(option) => updateAlternativeName(name.id, 'context', option as SelectOption | null)}
-                isClearable
-              />
-            </div>
-            <button
-              onClick={() => removeAlternativeName(name.id)}
-              className="icon-button icon-button-danger"
-              type="button"
-              aria-label={`Remove alternative name ${index + 1}`}
-            >
-              <Trash2 size={18} />
-            </button>
+        {savedAlternativeNames.map((name) => (
+          <div className="form-grid-full" key={name.id}>
+            <RepeatableEntryCard
+              editLabel={`Edit ${name.name}`}
+              onEdit={() => editAlternativeName(name)}
+              onRemove={() => removeAlternativeName(name.id)}
+              removeLabel={`Remove ${name.name}`}
+              subtitle={name.context?.label || 'Context not specified'}
+              title={name.name}
+            />
           </div>
         ))}
 
@@ -314,50 +432,33 @@ export default function ProfileSection({ data, onChange }: ProfileSectionProps) 
           />
         </div>
         
-        <div className="form-grid-full toolbar-row">
-          <h4 className="section-title">Web Links</h4>
-          <button 
-            onClick={addWebLink}
-            className="btn btn-secondary btn-add-action"
-            type="button"
-          >
-            <Plus size={18} /> Add Link
-          </button>
-        </div>
+        <RepeatableSectionHeader
+          actionLabel="Add Link"
+          className="form-grid-full"
+          headingLevel={4}
+          onAdd={addWebLink}
+          title="Web Links"
+        />
         <hr className="form-grid-full subtle-divider" />
         
-        {data.webLinks.map((link, index) => (
-          <div key={link.id} className="form-grid-full profile-repeat-row profile-web-link-row">
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label" htmlFor={`web-link-name-${link.id}`}>{index === 0 ? 'Link Type/Name' : 'Link Type/Name'}</label>
-              <input 
-                id={`web-link-name-${link.id}`}
-                type="text" 
-                className="form-input" 
-                placeholder="e.g. LinkedIn, Portfolio" 
-                value={link.name}
-                onChange={(e) => updateWebLink(link.id, 'name', e.target.value)}
-              />
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label" htmlFor={`web-link-url-${link.id}`}>URL</label>
-              <input 
-                id={`web-link-url-${link.id}`}
-                type="url" 
-                className="form-input" 
-                placeholder="https://..." 
-                value={link.url}
-                onChange={(e) => updateWebLink(link.id, 'url', e.target.value)}
-              />
-            </div>
-            <button 
-              onClick={() => removeWebLink(link.id)}
-              className="icon-button icon-button-danger"
-              type="button"
-              aria-label={`Remove web link ${index + 1}`}
-            >
-              <Trash2 size={18} />
-            </button>
+        {savedWebLinks.length === 0 ? (
+          <div className="form-grid-full field-card profile-empty-state" aria-label="No web links added">
+            <p className="section-copy">No web links added</p>
+          </div>
+        ) : null}
+
+        {savedWebLinks.map((link) => (
+          <div className="form-grid-full" key={link.id}>
+            <RepeatableEntryCard
+              editLabel={`Edit ${link.name || link.url}`}
+              onEdit={() => editWebLink(link)}
+              onRemove={() => removeWebLink(link.id)}
+              removeLabel={`Remove ${link.name || link.url}`}
+              subtitle={(
+                <a href={link.url} rel="noreferrer" target="_blank">{link.url}</a>
+              )}
+              title={link.name || 'Web link'}
+            />
           </div>
         ))}
       </div>

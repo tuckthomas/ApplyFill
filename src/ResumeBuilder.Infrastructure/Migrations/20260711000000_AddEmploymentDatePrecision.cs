@@ -1,10 +1,14 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using ResumeBuilder.Infrastructure.Data;
 
 #nullable disable
 
 namespace ResumeBuilder.Infrastructure.Migrations
 {
     /// <inheritdoc />
+    [DbContext(typeof(AppDbContext))]
+    [Migration("20260711000000_AddEmploymentDatePrecision")]
     public partial class AddEmploymentDatePrecision : Migration
     {
         /// <inheritdoc />

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { FileText, Plus } from 'lucide-react';
+import { FileText } from 'lucide-react';
+import AddButton from '../components/ui/AddButton';
 
 export default function Resumes() {
   const navigate = useNavigate();
@@ -11,10 +12,7 @@ export default function Resumes() {
           <h2 className="page-title">Resume Versions</h2>
           <p className="page-copy">Manage targeted resumes, export status, and document versions.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate('/resumes/builder')} type="button">
-          <Plus size={18} />
-          New Resume
-        </button>
+        <AddButton onClick={() => navigate('/resumes/builder')}>New Resume</AddButton>
       </header>
 
       <section className="surface-panel" style={{ padding: '24px' }} aria-labelledby="resume-versions-title">

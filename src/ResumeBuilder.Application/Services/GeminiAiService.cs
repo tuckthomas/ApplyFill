@@ -38,6 +38,13 @@ public class GeminiAiService : IAiService
         return await CallGeminiAsync(prompt, cancellationToken);
     }
 
+    public async Task<string> EnhanceProjectDescriptionAsync(string description, CancellationToken cancellationToken = default)
+    {
+        var prompt = $"Rewrite the following resume project description into concise, achievement-focused bullet points. Emphasize the problem, the candidate's contribution, technologies or methods used, and measurable outcomes without inventing facts. Return ONLY an HTML string using <ul> and <li> tags with no markdown, commentary, or backticks.\n\nDescription: {description}";
+
+        return await CallGeminiAsync(prompt, cancellationToken);
+    }
+
     private async Task<string> CallGeminiAsync(string prompt, CancellationToken cancellationToken)
     {
         var apiKey = _configuration["Gemini:ApiKey"] ?? _configuration["GEMINI_API_KEY"];

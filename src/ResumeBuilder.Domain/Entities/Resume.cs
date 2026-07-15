@@ -17,6 +17,7 @@ public class Resume
     public User User { get; set; } = null!;
     public ICollection<ResumeExperience> Experiences { get; set; } = new List<ResumeExperience>();
     public ICollection<ResumeEducation> Educations { get; set; } = new List<ResumeEducation>();
+    public ICollection<ResumeProject> Projects { get; set; } = new List<ResumeProject>();
     public ICollection<ResumeSkill> Skills { get; set; } = new List<ResumeSkill>();
     public ICollection<ResumeLayoutAnalysis> LayoutAnalyses { get; set; } = new List<ResumeLayoutAnalysis>();
     public ICollection<ResumeDocument> Documents { get; set; } = new List<ResumeDocument>();

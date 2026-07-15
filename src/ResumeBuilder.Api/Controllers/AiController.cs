@@ -85,6 +85,29 @@ public class AiController : ControllerBase
             return StatusCode(500, $"An error occurred while enhancing the experience description: {ex.Message}");
         }
     }
+
+    [HttpPost("enhance-project")]
+    public async Task<IActionResult> EnhanceProject([FromBody] EnhanceProjectRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Description))
+        {
+            return BadRequest("Description is required.");
+        }
+
+        try
+        {
+            var enhancedDescription = await _aiService.EnhanceProjectDescriptionAsync(request.Description, cancellationToken);
+            return Ok(new { EnhancedDescription = enhancedDescription });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(503, ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"An error occurred while enhancing the project description: {ex.Message}");
+        }
+    }
 }
 
 public class EnhanceBulletRequest
@@ -99,6 +122,11 @@ public class SuggestSummaryRequest
 }
 
 public class EnhanceExperienceRequest
+{
+    public string Description { get; set; } = string.Empty;
+}
+
+public class EnhanceProjectRequest
 {
     public string Description { get; set; } = string.Empty;
 }

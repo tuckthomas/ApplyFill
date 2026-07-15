@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { FileText } from 'lucide-react';
+import Checkbox from '../components/ui/Checkbox';
 
 export default function ResumeBuilder() {
   const navigate = useNavigate();
@@ -35,15 +36,10 @@ export default function ResumeBuilder() {
             <h4 className="section-title">Select Content</h4>
             <p className="section-copy">Choose which profile sections to include.</p>
             <hr className="subtle-divider" />
-            <label className="checkbox-row">
-              <input type="checkbox" defaultChecked /> Include summary
-            </label>
-            <label className="checkbox-row">
-              <input type="checkbox" defaultChecked /> Include all experience
-            </label>
-            <label className="checkbox-row">
-              <input type="checkbox" defaultChecked /> Include all education
-            </label>
+            <Checkbox defaultChecked label="Include summary" />
+            <Checkbox defaultChecked label="Include all experience" />
+            <Checkbox defaultChecked label="Include all projects" />
+            <Checkbox defaultChecked label="Include all education" />
           </div>
 
           <div className="toolbar-row" style={{ marginTop: 'auto' }}>

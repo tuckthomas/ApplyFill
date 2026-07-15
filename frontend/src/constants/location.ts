@@ -53,6 +53,13 @@ export const selectStyles = {
     ...base,
     height: 'calc(var(--field-height) - 2px)'
   }),
+  indicatorSeparator: (base: any) => ({
+    ...base,
+    backgroundColor: 'var(--field-border)',
+    marginBottom: '10px',
+    marginTop: '10px',
+    width: '1px'
+  }),
   dropdownIndicator: (base: any) => ({
     ...base,
     cursor: 'pointer',
