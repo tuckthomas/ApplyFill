@@ -10,11 +10,14 @@ import ValidationDialog from '../ui/ValidationDialog';
 import Checkbox from '../ui/Checkbox';
 import FormModal from '../ui/FormModal';
 import RepeatableSectionHeader from '../ui/RepeatableSectionHeader';
+import RepeatableEmptyState from '../ui/RepeatableEmptyState';
 import EntrySortControl from '../ui/EntrySortControl';
 import { readEntrySortOrder, sortEntries } from '../ui/entrySorting';
 import type { EntrySortOrder } from '../ui/entrySorting';
 import AddressFlow from '../ui/AddressFlow';
 import type { AddressValue } from '../ui/AddressFlow';
+import { useDateFormatPreference } from '../../features/preferences/dateFormatPreference';
+import { formatExactDateForDisplay } from '../ui/datePickerUtils';
 
 type SelectOption = {
   value: string;
@@ -94,6 +97,7 @@ type ExperienceSectionProps = {
 };
 
 export default function ExperienceSection({ defaultCountry, experiences, onChange }: ExperienceSectionProps) {
+  const { dateFormat } = useDateFormatPreference();
   const [enhancingField, setEnhancingField] = useState<{ id: number; field: RichTextField } | null>(null);
   const [validationDialog, setValidationDialog] = useState<ValidationDialogState | null>(null);
   const [sortOrder, setSortOrder] = useState<EntrySortOrder>(() => readEntrySortOrder('applyfill.experience-sort'));
@@ -290,7 +294,7 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
       return '';
     }
 
-    return precision === 'Estimated' ? `Estimated ${value}` : value;
+    return precision === 'Estimated' ? `Estimated ${value}` : formatExactDateForDisplay(value, dateFormat);
   };
 
   const parseEmploymentDateValue = (
@@ -357,10 +361,6 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
     localStorage.setItem('applyfill.experience-sort', order);
   };
 
-  const getDatePlaceholder = (precision: EmploymentDatePrecision) => {
-    return precision === 'Estimated' ? 'MM/YYYY' : 'MM/DD/YYYY';
-  };
-
   const getDateHint = (fieldLabel: string, precision: EmploymentDatePrecision) => {
     if (precision === 'Exact') {
       return `${fieldLabel} will be used exactly as entered.`;
@@ -374,7 +374,7 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
   const getDateValidationMessage = (fieldLabel: string, precision: EmploymentDatePrecision) => {
     return precision === 'Estimated'
       ? `${fieldLabel} must use MM/YYYY when Estimated is selected.`
-      : `${fieldLabel} must use MM/DD/YYYY when Exact is selected.`;
+      : `${fieldLabel} must use ${dateFormat} when Exact is selected.`;
   };
 
   const formatLocation = (experience: ExperienceEntry) => {
@@ -419,9 +419,7 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
       ) : null}
 
       {experiences.length === 0 ? (
-        <section className="field-card job-empty-state" aria-label="No jobs added">
-          <h4 className="section-title">No jobs added</h4>
-        </section>
+        <RepeatableEmptyState title="No Work Experience Added" />
       ) : null}
 
       {sortedExperiences.map((experience, index) => {
@@ -556,7 +554,6 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
                     value={experience.startDate}
                     precision={experience.startDatePrecision}
                     onChange={(value) => updateExperience(experience.id, 'startDate', value)}
-                    placeholder={getDatePlaceholder(experience.startDatePrecision)}
                   />
                 </div>
                 <p className="field-hint">{getDateHint('Start Date', experience.startDatePrecision)}</p>
@@ -590,7 +587,6 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
                     onChange={(value) => updateExperience(experience.id, 'endDate', value)}
                     disabled={experience.isCurrentJob}
                     required={!experience.isCurrentJob}
-                    placeholder={getDatePlaceholder(experience.endDatePrecision)}
                   />
                 </div>
                 <p className="field-hint">{getDateHint('End Date', experience.endDatePrecision)}</p>

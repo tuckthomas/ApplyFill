@@ -9,12 +9,15 @@ import ValidationDialog from '../ui/ValidationDialog';
 import Checkbox from '../ui/Checkbox';
 import FormModal from '../ui/FormModal';
 import RepeatableSectionHeader from '../ui/RepeatableSectionHeader';
+import RepeatableEmptyState from '../ui/RepeatableEmptyState';
 import EntrySortControl from '../ui/EntrySortControl';
 import { readEntrySortOrder, sortEntries } from '../ui/entrySorting';
 import type { EntrySortOrder } from '../ui/entrySorting';
 import AddressFlow from '../ui/AddressFlow';
 import type { AddressValue } from '../ui/AddressFlow';
 import RichTextEditor from './RichTextEditor';
+import { useDateFormatPreference } from '../../features/preferences/dateFormatPreference';
+import { formatExactDateForDisplay } from '../ui/datePickerUtils';
 
 export type SelectOption = {
   value: string;
@@ -94,6 +97,7 @@ type EducationSectionProps = {
 };
 
 export default function EducationSection({ defaultCountry, educations, onChange }: EducationSectionProps) {
+  const { dateFormat } = useDateFormatPreference();
   const [validationDialog, setValidationDialog] = useState<ValidationDialogState | null>(null);
   const [sortOrder, setSortOrder] = useState<EntrySortOrder>(() => readEntrySortOrder('applyfill.education-sort'));
   const setEducations = onChange;
@@ -243,7 +247,7 @@ export default function EducationSection({ defaultCountry, educations, onChange 
       return '';
     }
 
-    return precision === 'Estimated' ? `Estimated ${value}` : value;
+    return precision === 'Estimated' ? `Estimated ${value}` : formatExactDateForDisplay(value, dateFormat);
   };
 
   const formatLocation = (education: EducationEntry) => {
@@ -324,10 +328,6 @@ export default function EducationSection({ defaultCountry, educations, onChange 
     localStorage.setItem('applyfill.education-sort', order);
   };
 
-  const getDatePlaceholder = (precision: EducationDatePrecision) => {
-    return precision === 'Estimated' ? 'MM/YYYY' : 'MM/DD/YYYY';
-  };
-
   const getDateHint = (fieldLabel: string, precision: EducationDatePrecision) => {
     if (precision === 'Exact') {
       return `${fieldLabel} will be used exactly as entered.`;
@@ -341,7 +341,7 @@ export default function EducationSection({ defaultCountry, educations, onChange 
   const getDateValidationMessage = (fieldLabel: string, precision: EducationDatePrecision) => {
     return precision === 'Estimated'
       ? `${fieldLabel} must use MM/YYYY when Estimated is selected.`
-      : `${fieldLabel} must use MM/DD/YYYY when Exact is selected.`;
+      : `${fieldLabel} must use ${dateFormat} when Exact is selected.`;
   };
 
   return (
@@ -376,9 +376,7 @@ export default function EducationSection({ defaultCountry, educations, onChange 
       ) : null}
 
       {educations.length === 0 ? (
-        <section className="field-card job-empty-state" aria-label="No education added">
-          <h4 className="section-title">No education added</h4>
-        </section>
+        <RepeatableEmptyState title="No Education Added" />
       ) : null}
 
       {sortedEducations.map((education, index) => {
@@ -547,7 +545,6 @@ export default function EducationSection({ defaultCountry, educations, onChange 
                       value={education.startDate}
                       precision={education.startDatePrecision}
                       onChange={(value) => updateEducation(education.id, 'startDate', value)}
-                      placeholder={getDatePlaceholder(education.startDatePrecision)}
                     />
                   </div>
                   <p className="field-hint">{getDateHint('From', education.startDatePrecision)}</p>
@@ -577,7 +574,6 @@ export default function EducationSection({ defaultCountry, educations, onChange 
                       onChange={(value) => updateEducation(education.id, 'endDate', value)}
                       disabled={education.isCurrentlyEnrolled}
                       required={!education.isCurrentlyEnrolled}
-                      placeholder={getDatePlaceholder(education.endDatePrecision)}
                     />
                   </div>
                   <p className="field-hint">{getDateHint('To', education.endDatePrecision)}</p>

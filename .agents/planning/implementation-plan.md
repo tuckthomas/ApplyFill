@@ -1,5 +1,7 @@
 # Resume Builder & Agent-Ready Application Web App
 
+> **Planning status:** This document describes intended architecture and future phases. It is not an implementation inventory. For the currently delivered frontend behavior, routes, persistence boundaries, and screenshots, read the root `README.md`; for actively tracked work, read `../tasks/task.md`.
+
 ## Goal
 Build a modern, AI-integrated resume and job-application support platform. The core product will focus on a premium structured resume-building workflow, PDF-first resume output, a .NET-owned document generation pipeline, optional Google Drive / OneDrive storage, and optional agent-ready integrations for advanced users who want to run their own local automation environment.
 
@@ -22,8 +24,8 @@ The application should also not attempt to become a full Google Docs / Microsoft
 
 ## Product Direction Decisions
 
-### 0. Licensing Constraint: Permissive Open Source Only
-All third-party libraries and packages used in the core product should be open source under a permissive license that allows commercial resale of the application without revenue thresholds, paid seats, source-disclosure requirements, or commercial-use restrictions. Acceptable license families include MIT, Apache-2.0, BSD, PostgreSQL-style, and similarly permissive licenses, subject to review of each dependency and its transitive dependencies.
+### 0. Dependency Licensing Constraint
+ApplyFill is currently source-available under its repository `LICENSE`; this planning document does not grant commercial resale or alter those terms. New runtime dependencies should nevertheless use permissive licenses that are compatible with the project's intended distribution model. Acceptable license families include MIT, Apache-2.0, BSD, PostgreSQL-style, and similarly permissive licenses, subject to review of each dependency and its transitive dependencies.
 
 Do not use commercial document libraries or libraries with revenue-triggered commercial license requirements in the core product. Avoid LGPL/GPL/AGPL dependencies in the application runtime unless a future legal review explicitly approves a narrow use case.
 

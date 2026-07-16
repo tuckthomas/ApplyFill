@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, Settings, UserCircle, Sun, Moon, ChevronDown, ChevronLeft, ChevronRight, Menu, BriefcaseBusiness, PlusCircle } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, UserCircle, Sun, Moon, ChevronLeft, ChevronRight, Menu, BriefcaseBusiness, PlusCircle, Wand2, X } from 'lucide-react';
 import { ApplyFillLogo } from '../brand/ApplyFillLogo';
 import './MainLayout.css';
 
 export function MainLayout() {
   const location = useLocation();
+  const isDashboard = location.pathname === '/';
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark';
   });
-  const [isJobTrackerExpanded, setIsJobTrackerExpanded] = useState(() => location.pathname.startsWith('/job-tracker'));
+  const [expandedNavGroup, setExpandedNavGroup] = useState<string | null>(() => {
+    if (location.pathname.startsWith('/job-tracker')) return 'applications';
+    if (location.pathname.startsWith('/job-profile')) return 'job-profile';
+    return null;
+  });
 
   useEffect(() => {
     if (isDarkMode) {
@@ -37,12 +42,22 @@ export function MainLayout() {
 
   const navigation = useMemo(() => [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'Profile', href: '/profile', icon: UserCircle },
-    { name: 'Resumes', href: '/resumes', icon: FileText },
+    {
+      name: 'Job Profile',
+      href: '/job-profile',
+      icon: UserCircle,
+      groupId: 'job-profile',
+      children: [
+        { name: 'Job Profile', href: '/job-profile', icon: UserCircle },
+        { name: 'Job Profile Builder', href: '/job-profile/builder', icon: Wand2 }
+      ]
+    },
+    { name: 'Resume Builder', href: '/resumes', icon: FileText },
     {
       name: 'Applications',
       href: '/job-tracker',
       icon: BriefcaseBusiness,
+      groupId: 'applications',
       children: [
         { name: 'Job Tracker', href: '/job-tracker', icon: BriefcaseBusiness },
         { name: 'Add Application', href: '/job-tracker/new', icon: PlusCircle }
@@ -51,10 +66,25 @@ export function MainLayout() {
     { name: 'Settings', href: '/settings', icon: Settings },
   ], []);
 
+  useEffect(() => {
+    const activeGroup = navigation.find((item) => (
+      item.groupId && item.href !== '/' && location.pathname.startsWith(item.href)
+    ));
+
+    if (activeGroup?.groupId) setExpandedNavGroup(activeGroup.groupId);
+  }, [location.pathname, navigation]);
+
+  const toggleNavGroup = (groupId: string) => {
+    setExpandedNavGroup((current) => current === groupId ? null : groupId);
+  };
+
   return (
     <div className={`layout-container ${isSidebarExpanded ? 'sidebar-open' : 'sidebar-closed'}`}>
-      <aside className={`sidebar ${isSidebarExpanded ? 'expanded' : 'collapsed'}`}>
+      <aside className={`sidebar ${isSidebarExpanded ? 'expanded' : 'collapsed'}`} aria-label="Primary navigation">
         <div className="sidebar-header">
+          <Link className="sidebar-mobile-brand" to="/" aria-label="Go to ApplyFill dashboard">
+            <ApplyFillLogo />
+          </Link>
           <button
             className="icon-button" 
             onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
@@ -62,43 +92,86 @@ export function MainLayout() {
             aria-label={isSidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
             data-tooltip={isSidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
           >
-            {isSidebarExpanded ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+            <span className="sidebar-desktop-toggle-icon" aria-hidden="true">
+              {isSidebarExpanded ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+            </span>
+            <X className="sidebar-mobile-close-icon" size={22} aria-hidden="true" />
           </button>
         </div>
 
         <nav className="sidebar-nav">
+          {navigation.map((item) => {
+            const isActive = location.pathname === item.href || (item.href !== '/' && location.pathname.startsWith(item.href));
+            const isGroupExpanded = item.groupId === expandedNavGroup;
             const closeMobileSidebar = () => {
               if (window.matchMedia('(max-width: 900px)').matches) {
                 setIsSidebarExpanded(false);
               }
             };
 
-          {navigation.map((item) => {
-            const isActive = location.pathname === item.href || (item.href !== '/' && location.pathname.startsWith(item.href));
             return (
               <div className="nav-item-group" key={item.name}>
-                <div className="nav-parent-item">
-                  <Link to={item.href} className={`nav-item ${isActive ? 'active' : ''}`} aria-current={location.pathname === item.href ? 'page' : undefined} data-tooltip={!isSidebarExpanded ? item.name : undefined} onClick={closeMobileSidebar}>
-                    <item.icon className="nav-icon" size={20} />
+                {item.children && item.groupId && !isSidebarExpanded ? (
+                  <Link
+                    to={item.children[0]?.href ?? item.href}
+                    className={`nav-item${isActive ? ' active' : ''}`}
+                    aria-label={item.name}
+                    aria-current={location.pathname === (item.children[0]?.href ?? item.href) ? 'page' : undefined}
+                    data-tooltip={item.name}
+                    onClick={closeMobileSidebar}
+                  >
+                    <item.icon className="nav-icon" size={20} aria-hidden="true" />
                     <span>{item.name}</span>
                   </Link>
-                  {item.children && isSidebarExpanded && (
-                    <button className="nav-submenu-toggle" type="button" onClick={() => setIsJobTrackerExpanded((current) => !current)} aria-label={`${isJobTrackerExpanded ? 'Collapse' : 'Expand'} ${item.name} menu`} aria-controls="applications-submenu" aria-expanded={isJobTrackerExpanded} data-tooltip={`${isJobTrackerExpanded ? 'Collapse' : 'Expand'} ${item.name}`}>
-                      <ChevronDown size={18} aria-hidden="true" />
-                    </button>
-                  )}
-                </div>
-                {item.children && isSidebarExpanded && isJobTrackerExpanded && (
-                  <div id="applications-submenu" className="nav-submenu">
-                    {item.children.map((child) => {
-                      const isChildActive = location.pathname === child.href;
-                      return (
-                        <Link key={child.name} to={child.href} className={`nav-item nav-submenu-item${isChildActive ? ' active' : ''}`} aria-current={isChildActive ? 'page' : undefined} onClick={closeMobileSidebar}>
-                          <child.icon className="nav-icon" size={18} />
-                          <span>{child.name}</span>
-                        </Link>
-                      );
-                    })}
+                ) : item.children && item.groupId ? (
+                  <button
+                    className={`nav-item nav-parent-toggle${isActive ? ' active' : ''}`}
+                    type="button"
+                    onClick={() => toggleNavGroup(item.groupId)}
+                    aria-label={item.name}
+                    aria-controls={`${item.groupId}-submenu`}
+                    aria-expanded={isGroupExpanded}
+                  >
+                    <item.icon className="nav-icon" size={20} aria-hidden="true" />
+                    <span>{item.name}</span>
+                    <ChevronRight className="nav-parent-chevron" size={18} aria-hidden="true" />
+                  </button>
+                ) : (
+                  <Link
+                    to={item.href}
+                    className={`nav-item ${isActive ? 'active' : ''}`}
+                    aria-label={item.name}
+                    aria-current={location.pathname === item.href ? 'page' : undefined}
+                    data-tooltip={!isSidebarExpanded ? item.name : undefined}
+                    onClick={closeMobileSidebar}
+                  >
+                    <item.icon className="nav-icon" size={20} aria-hidden="true" />
+                    <span>{item.name}</span>
+                  </Link>
+                )}
+                {item.children && item.groupId && isSidebarExpanded && (
+                  <div
+                    id={`${item.groupId}-submenu`}
+                    className={`nav-submenu-region${isGroupExpanded ? ' is-open' : ''}`}
+                    aria-hidden={!isGroupExpanded}
+                  >
+                    <div className="nav-submenu">
+                      {item.children.map((child) => {
+                        const isChildActive = location.pathname === child.href;
+                        return (
+                          <Link
+                            key={child.name}
+                            to={child.href}
+                            className={`nav-item nav-submenu-item${isChildActive ? ' active' : ''}`}
+                            aria-current={isChildActive ? 'page' : undefined}
+                            onClick={closeMobileSidebar}
+                          >
+                            <child.icon className="nav-icon" size={18} aria-hidden="true" />
+                            <span>{child.name}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -134,19 +207,19 @@ export function MainLayout() {
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
             <Link
-              className={`icon-button header-profile-action ${location.pathname.startsWith('/profile') ? 'active' : ''}`}
-              to="/profile"
-              aria-label="Open profile"
-              aria-current={location.pathname.startsWith('/profile') ? 'page' : undefined}
-              data-tooltip="Profile"
+              className={`icon-button header-profile-action ${location.pathname === '/settings' ? 'active' : ''}`}
+              to="/settings"
+              aria-label="Open account settings"
+              aria-current={location.pathname === '/settings' ? 'page' : undefined}
+              data-tooltip="Account settings"
             >
               <UserCircle size={22} />
             </Link>
           </div>
         </header>
 
-        <main className="content-area animate-fade-in">
-          <div className="content-wrapper">
+        <main className={`content-area animate-fade-in${isDashboard ? ' content-area-dashboard' : ''}`}>
+          <div className={`content-wrapper${isDashboard ? ' content-wrapper-dashboard' : ''}`}>
             <Outlet />
           </div>
         </main>

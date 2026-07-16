@@ -4,9 +4,21 @@ import { Download, Loader2 } from 'lucide-react';
 import Select from '../ui/AppSelect';
 import RichTextEditor from '../resume/RichTextEditor';
 import DatePicker from '../ui/DatePicker';
+import TabbedForm from '../ui/TabbedForm';
+import AddressFlow from '../ui/AddressFlow';
+import type { AddressValue } from '../ui/AddressFlow';
 import { selectStyles } from '../../constants/location';
-import { getStatusOption, STATUS_OPTIONS } from './jobApplication';
-import type { JobApplicationFormState, StatusOption } from './jobApplication';
+import {
+  getStatusOption,
+  getWorkplaceTypeOption,
+  STATUS_OPTIONS,
+  WORKPLACE_TYPE_OPTIONS
+} from './jobApplication';
+import type {
+  JobApplicationFormState,
+  StatusOption,
+  WorkplaceTypeOption
+} from './jobApplication';
 
 type JobApplicationFormProps = {
   error: string;
@@ -38,62 +50,38 @@ export default function JobApplicationForm({
   }, [mode]);
 
   return (
-    <section className="surface-panel tracker-form-panel" aria-label="Application form">
-      <form noValidate onSubmit={onSubmit}>
-        <div className="tracker-form-tabs" role="tablist" aria-label="Application form sections">
-          <button
-            id={`${idPrefix}-details-tab`}
-            className={`tracker-form-tab${activeTab === 'details' ? ' is-active' : ''}`}
-            type="button"
-            role="tab"
-            aria-controls={`${idPrefix}-details-panel`}
-            aria-selected={activeTab === 'details'}
-            onClick={() => setActiveTab('details')}
-          >
-            Application details
-          </button>
-          {mode === 'add' ? (
-            <span
-              className="tracker-disabled-tab-tooltip"
-              data-tooltip="Save the application before adding notes."
-              tabIndex={0}
-              role="note"
-              aria-label="Notes unavailable. Save the application before adding notes."
-            >
-              <button
-                id={`${idPrefix}-notes-tab`}
-                className="tracker-form-tab"
-                type="button"
-                role="tab"
-                aria-controls={`${idPrefix}-notes-panel`}
-                aria-selected={false}
-                disabled
-              >
-                Notes
-              </button>
-            </span>
-          ) : (
-            <button
-              id={`${idPrefix}-notes-tab`}
-              className={`tracker-form-tab${activeTab === 'notes' ? ' is-active' : ''}`}
-              type="button"
-              role="tab"
-              aria-controls={`${idPrefix}-notes-panel`}
-              aria-selected={activeTab === 'notes'}
-              onClick={() => setActiveTab('notes')}
-            >
-              Notes
-            </button>
-          )}
-        </div>
-
-        <div
-          id={`${idPrefix}-details-panel`}
-          role="tabpanel"
-          aria-labelledby={`${idPrefix}-details-tab`}
-          hidden={activeTab !== 'details'}
-          className="tracker-form-grid"
-        >
+    <form className="tracker-form-panel" noValidate onSubmit={onSubmit} aria-label="Application form">
+      <TabbedForm
+        activeTab={activeTab}
+        ariaLabel="Application form sections"
+        onTabChange={(tabId) => setActiveTab(tabId as 'details' | 'notes')}
+        tabs={[
+          { id: 'details', label: 'Application Details' },
+          { id: 'notes', label: 'Notes', disabled: mode === 'add', disabledReason: mode === 'add' ? 'Save the application before adding notes.' : undefined }
+        ]}
+        footer={(
+          <>
+            {error && <p className="form-error-message" role="alert">{error}</p>}
+            <div className="toolbar-row tracker-form-actions">
+              <span className="section-copy">Required fields are marked with an asterisk.</span>
+              <div className="modal-form-actions">
+                <button className="btn btn-secondary" type="button" onClick={onCancel}>Cancel</button>
+                <button className="btn btn-primary" type="submit">{mode === 'add' ? 'Save Application' : 'Save Changes'}</button>
+              </div>
+            </div>
+          </>
+        )}
+      >
+        {({ activeTab: selectedTab, panelId, tabId }) => selectedTab === 'details' ? (
+          <div id={panelId} role="tabpanel" aria-labelledby={tabId} className="tracker-form-grid">
+          <div className="form-group">
+            <label className="form-label" htmlFor={`${idPrefix}-applied-date`}>Application date</label>
+            <DatePicker id={`${idPrefix}-applied-date`} ariaLabel="Application date" precision="Exact" value={value.appliedDate} onChange={(nextValue) => onChange('appliedDate', nextValue)} />
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor={`${idPrefix}-job-url`}>Job posting URL</label>
+            <input id={`${idPrefix}-job-url`} className="form-input" type="url" placeholder="https://..." value={value.targetJobUrl} onChange={(event) => onChange('targetJobUrl', event.target.value)} />
+          </div>
           <div className="form-group">
             <label className="form-label" htmlFor={`${idPrefix}-company`}>Company *</label>
             <input id={`${idPrefix}-company`} className="form-input" type="text" value={value.companyName} onChange={(event) => onChange('companyName', event.target.value)} autoComplete="organization" required />
@@ -103,20 +91,35 @@ export default function JobApplicationForm({
             <input id={`${idPrefix}-job-title`} className="form-input" type="text" value={value.jobTitle} onChange={(event) => onChange('jobTitle', event.target.value)} required />
           </div>
           <div className="form-group">
-            <label className="form-label" htmlFor={`${idPrefix}-location`}>Location</label>
-            <input id={`${idPrefix}-location`} className="form-input" type="text" placeholder="City, State or Remote" value={value.location} onChange={(event) => onChange('location', event.target.value)} />
+            <label className="form-label" htmlFor={`${idPrefix}-workplace-type`}>Workplace type</label>
+            <Select<WorkplaceTypeOption>
+              inputId={`${idPrefix}-workplace-type`}
+              isSearchable={false}
+              onChange={(option) => onChange('workplaceType', option?.value ?? null)}
+              options={WORKPLACE_TYPE_OPTIONS}
+              placeholder="Select workplace type"
+              styles={selectStyles}
+              value={getWorkplaceTypeOption(value.workplaceType)}
+            />
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor={`${idPrefix}-status`}>Status</label>
             <Select inputId={`${idPrefix}-status`} options={STATUS_OPTIONS} styles={selectStyles} value={getStatusOption(value.status)} onChange={(option) => onChange('status', (option as StatusOption).value)} />
           </div>
-          <div className="form-group">
-            <label className="form-label" htmlFor={`${idPrefix}-applied-date`}>Application date</label>
-            <DatePicker id={`${idPrefix}-applied-date`} ariaLabel="Application date" precision="Exact" value={value.appliedDate} onChange={(nextValue) => onChange('appliedDate', nextValue)} />
-          </div>
-          <div className="form-group">
-            <label className="form-label" htmlFor={`${idPrefix}-job-url`}>Job posting URL</label>
-            <input id={`${idPrefix}-job-url`} className="form-input" type="url" placeholder="https://..." value={value.targetJobUrl} onChange={(event) => onChange('targetJobUrl', event.target.value)} />
+          <div className="tracker-form-full-width tracker-location-section">
+            <div>
+              <h3 className="section-title">Location</h3>
+              <hr className="subtle-divider" />
+            </div>
+            <AddressFlow
+              idPrefix={`${idPrefix}-application-location`}
+              mode="locality"
+              onChange={(field, nextValue) => onChange(
+                field as keyof JobApplicationFormState,
+                nextValue as JobApplicationFormState[keyof JobApplicationFormState]
+              )}
+              value={value as AddressValue}
+            />
           </div>
           <div className="tracker-form-full-width">
             <RichTextEditor
@@ -141,21 +144,13 @@ export default function JobApplicationForm({
             />
             {jobDescriptionError && <p className="form-error-message" role="alert">{jobDescriptionError}</p>}
           </div>
-        </div>
-
-        <div id={`${idPrefix}-notes-panel`} role="tabpanel" aria-labelledby={`${idPrefix}-notes-tab`} hidden={activeTab !== 'notes'}>
-          <RichTextEditor label="Notes" labelId={`${idPrefix}-notes-label`} toolbarId={`${idPrefix}-notes-toolbar`} value={value.notes} onChange={(nextValue) => onChange('notes', nextValue)} placeholder="Recruiter name, next steps, or other reminders" quillClassName="rich-text-quill-tracker" />
-        </div>
-
-        {error && <p className="form-error-message" role="alert">{error}</p>}
-        <div className="toolbar-row tracker-form-actions">
-          <span className="section-copy">Required fields are marked with an asterisk.</span>
-          <div className="modal-form-actions">
-            <button className="btn btn-secondary" type="button" onClick={onCancel}>Cancel</button>
-            <button className="btn btn-primary" type="submit">{mode === 'add' ? 'Save Application' : 'Save Changes'}</button>
           </div>
-        </div>
-      </form>
-    </section>
+        ) : (
+          <div id={panelId} role="tabpanel" aria-labelledby={tabId}>
+            <RichTextEditor label="Notes" labelId={`${idPrefix}-notes-label`} toolbarId={`${idPrefix}-notes-toolbar`} value={value.notes} onChange={(nextValue) => onChange('notes', nextValue)} placeholder="Recruiter name, next steps, or other reminders" quillClassName="rich-text-quill-tracker" />
+          </div>
+        )}
+      </TabbedForm>
+    </form>
   );
 }

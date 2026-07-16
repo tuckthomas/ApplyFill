@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
-import { formatExactDateValue, normalizeExactDateValue } from './datePickerUtils';
+import { useDateFormatPreference } from '../../features/preferences/dateFormatPreference';
+import {
+  formatExactDateForDisplay,
+  formatExactDateValue,
+  normalizeExactDateValue,
+  parseExactDateInput
+} from './datePickerUtils';
 
 export type DatePrecision = 'Exact' | 'Estimated';
 
@@ -59,12 +65,16 @@ export default function DatePicker({
   required = false,
   value
 }: DatePickerProps) {
+  const { dateFormat } = useDateFormatPreference();
   const pickerRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [viewDate, setViewDate] = useState(() => getInitialViewDate(value, precision));
   const normalizedValue = precision === 'Exact' ? normalizeExactDateValue(value) : value;
   const selectedDate = parseDateValue(normalizedValue, precision);
-  const displayPlaceholder = placeholder ?? (precision === 'Exact' ? 'MM/DD/YYYY' : 'MM/YYYY');
+  const displayValue = precision === 'Exact'
+    ? formatExactDateForDisplay(normalizedValue, dateFormat)
+    : normalizedValue;
+  const displayPlaceholder = placeholder ?? (precision === 'Exact' ? dateFormat : 'MM/YYYY');
 
   useEffect(() => {
     setViewDate(getInitialViewDate(value, precision));
@@ -140,11 +150,16 @@ export default function DatePicker({
           id={id}
           inputMode="numeric"
           maxLength={precision === 'Exact' ? 10 : 7}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => {
+            const nextValue = event.target.value;
+            onChange(precision === 'Exact'
+              ? parseExactDateInput(nextValue, dateFormat) ?? nextValue
+              : nextValue);
+          }}
           placeholder={displayPlaceholder}
           required={required}
           type="text"
-          value={normalizedValue}
+          value={displayValue}
         />
         <button
           aria-expanded={isOpen}

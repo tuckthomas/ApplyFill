@@ -12,9 +12,9 @@
     <a href="https://react.dev/"><img src="https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React 19" /></a>
     <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript_6-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript 6" /></a>
     <a href="https://vite.dev/"><img src="https://img.shields.io/badge/Vite_8-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite 8" /></a>
-    <a href="https://dotnet.microsoft.com/"><img src="https://img.shields.io/badge/.NET_9-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 9" /></a>
+    <a href="https://dotnet.microsoft.com/"><img src="https://img.shields.io/badge/.NET_10_(LTS)-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 10 LTS" /></a>
     <a href="https://www.postgresql.org/"><img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" /></a>
-    <a href="https://www.npgsql.org/efcore/"><img src="https://img.shields.io/badge/EF_Core_9-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt="Entity Framework Core 9" /></a>
+    <a href="https://www.npgsql.org/efcore/"><img src="https://img.shields.io/badge/EF_Core_10-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt="Entity Framework Core 10" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-Personal_Local_Use-334155?style=for-the-badge" alt="ApplyFill Personal Local-Use License" /></a>
   </p>
 
@@ -26,7 +26,7 @@
 
 Most applicant-tracking systems ask for the same names, addresses, schools, jobs, dates, skills, demographic answers, and project details repeatedly. ApplyFill is being built around a different workflow: collect a complete source profile once, preserve it as structured data, and reuse the appropriate fields whenever a job application or targeted resume needs them.
 
-The application currently provides a substantial profile-building workflow and a local job tracker. The longer-term product direction is to use the resulting structured profile for targeted resume generation and user-controlled agentic application assistance.
+The application currently provides a customizable dashboard, a substantial profile-building workflow with a review screen, a local job tracker, regional date preferences, and early resume-workspace routes. The longer-term product direction is to use the resulting structured profile for targeted resume generation and user-controlled agentic application assistance.
 
 ## Project Roadmap
 
@@ -38,7 +38,7 @@ flowchart LR
     persistence["Persistent Accounts<br/>Profile APIs, authentication, PostgreSQL sync"]
     resumes["Targeted Resumes<br/>Job analysis, content selection, PDF and DOCX"]
     applications["Application Assistance<br/>Field mapping, review, confirmation, audit trail"]
-    ecosystem["Search Workspace<br/>Dashboard widgets, storage integrations, insights"]
+    ecosystem["Search Workspace<br/>Storage integrations, reminders, insights"]
 
     foundation --> persistence --> resumes --> applications --> ecosystem
 
@@ -57,7 +57,7 @@ flowchart LR
 | Persistent accounts | Next | Connect profile and tracker workflows to authenticated APIs, PostgreSQL persistence, migration-safe records, and recoverable user data. |
 | Targeted resumes | Planned | Analyze a target job, select relevant source-profile content, generate tailored documents, preview layouts, and export PDF/DOCX versions. |
 | Application assistance | Planned | Map saved answers into application fields with explicit user review, confirmation controls, and an auditable application history. |
-| Search workspace | Later | Add configurable dashboard widgets, optional document-storage integrations, reminders, and job-search progress insights. |
+| Search workspace | Later | Add optional document-storage integrations, reminders, and job-search progress insights. |
 
 Diagram key: green is implemented, blue is the next major phase, and gray is planned. Scope and ordering may evolve as privacy, accessibility, and data-integrity requirements are validated.
 
@@ -75,7 +75,7 @@ Diagram key: green is implemented, blue is the next major phase, and gray is pla
 
 ### Reusable Profile Builder
 
-The profile wizard provides clickable progress navigation and automatically preserves the current browser session as the user moves between sections.
+The Job Profile area includes a review screen and a profile wizard. The wizard provides clickable progress navigation and automatically preserves the current browser session as the user moves between sections.
 
 - **Personal information:** First, optional middle, and last names; email; phone; repeatable alternative names; country-aware addresses; and repeatable web links.
 - **Education:** Degrees, diplomas, courses, vocational training, providers, locations, exact or estimated dates, current enrollment, and rich-text details.
@@ -85,6 +85,12 @@ The profile wizard provides clickable progress navigation and automatically pres
 - **Application questions:** Optional race and ethnicity, veteran-status, and disability-status answers for application automation. These answers are not intended for generated resumes.
 
 Repeatable records are added and edited in a shared modal workflow with validation, unsaved-change protection, responsive layouts, and consistent destructive actions. Education and employment records can be sorted with the most recent entry first by default.
+
+### Dashboard And Preferences
+
+- **Customizable dashboard:** A responsive widget grid starts with an application-pipeline board. Users can add editable rich-text note widgets, rearrange or resize widgets while editing, and reset the dashboard layout.
+- **Regional preferences:** Settings include a persisted choice between month/day/year and day/month/year date formats.
+- **Theme and navigation:** The shared application shell supports responsive navigation and a persisted light or dark theme.
 
 ### Job Tracker
 
@@ -100,7 +106,19 @@ Resume-version and builder routes establish the interface for target-specific re
 
 ---
 
-## Profile Builder Gallery
+## Application Gallery
+
+The following screenshots were captured from the current frontend in July 2026.
+
+| Dashboard | Job Profile review |
+| --- | --- |
+| ![ApplyFill dashboard with application pipeline](frontend/public/readme/gallery/dashboard.png) | ![ApplyFill Job Profile overview](frontend/public/readme/gallery/profile-overview.png) |
+| Job Profile wizard | Job tracker |
+| ![ApplyFill Job Profile wizard](frontend/public/readme/gallery/profile-wizard.png) | ![ApplyFill job tracker](frontend/public/readme/gallery/job-tracker.png) |
+| Resume workspace | Settings |
+| ![ApplyFill resume workspace](frontend/public/readme/gallery/resumes.png) | ![ApplyFill settings](frontend/public/readme/gallery/settings.png) |
+
+### Profile Builder Detail Gallery
 
 | Personal information | Education details |
 | --- | --- |
@@ -120,10 +138,10 @@ ApplyFill separates the interactive client from the domain and persistence layer
 | --- | --- | --- |
 | Frontend | React 19, TypeScript 6, Vite 8, React Router 7 | Profile wizard, job tracker, resume workspace, responsive application shell |
 | UI foundation | React Select, Quill 2, Lucide React, shared CSS tokens and primitives | Accessible selects, rich text, dates, modals, tooltips, checkboxes, icons, and consistent states |
-| API | ASP.NET Core 9, OpenAPI, typed `HttpClient` | HTTP endpoints, development authentication, AI-service boundary |
+| API | ASP.NET Core 10, OpenAPI, typed `HttpClient` | HTTP endpoints, development authentication, AI-service boundary |
 | Application | .NET class library | Service contracts and application-level integrations |
 | Domain | .NET class library | Users, profiles, resumes, projects, skills, job targets, application packets, and logs |
-| Infrastructure | Entity Framework Core 9, Npgsql | PostgreSQL persistence, entity mappings, and migrations |
+| Infrastructure | Entity Framework Core 10, Npgsql | PostgreSQL persistence, entity mappings, and migrations |
 | Worker | .NET Worker Service | Background-processing host reserved for asynchronous workflows |
 | Verification | TypeScript compiler, Oxlint, xUnit, Coverlet | Frontend checks and backend test/coverage foundation |
 
@@ -144,7 +162,7 @@ This distinction matters for local users: clearing site data currently removes b
 ApplyFill/
 |-- frontend/                         # React and Vite client
 |   |-- public/
-|   |   `-- readme/profile-builder/  # README screenshots
+|   |   `-- readme/                  # README gallery screenshots
 |   `-- src/
 |       |-- components/
 |       |   |-- brand/               # Reusable ApplyFill branding
@@ -174,8 +192,8 @@ Repository-specific implementation guidance lives in [`.agents/`](.agents/README
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) 22 or newer
-- [npm](https://www.npmjs.com/) 10 or newer
-- [.NET SDK 9](https://dotnet.microsoft.com/download/dotnet/9.0)
+- [pnpm](https://pnpm.io/) 11 or newer
+- [.NET SDK 10 (LTS)](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [PostgreSQL](https://www.postgresql.org/download/) for the backend API
 - A Gemini API key only when testing optional AI-assisted editing
 
@@ -192,8 +210,8 @@ cd ApplyFill
 
 ```powershell
 cd frontend
-npm ci
-npm run dev -- --host 127.0.0.1
+pnpm install --frozen-lockfile
+pnpm dev -- --host 127.0.0.1
 ```
 
 Open [http://127.0.0.1:5173](http://127.0.0.1:5173). Vite will select another port if `5173` is already occupied.
@@ -238,10 +256,10 @@ The key belongs in backend environment configuration or .NET user secrets, never
 
 ```powershell
 cd frontend
-npm run dev       # Start the Vite development server
-npm run build     # Type-check and produce a production bundle
-npm run lint      # Run Oxlint
-npm run preview   # Preview the production bundle locally
+pnpm dev       # Start the Vite development server
+pnpm build     # Type-check and produce a production bundle
+pnpm lint      # Run Oxlint
+pnpm preview   # Preview the production bundle locally
 ```
 
 ### Backend
@@ -251,6 +269,8 @@ dotnet restore
 dotnet build
 dotnet test
 ```
+
+The solution targets .NET 10 LTS. Use `dotnet --version` to confirm that a 10.x SDK is active before restoring or building.
 
 To add a database migration after changing the persistence model:
 
@@ -269,8 +289,11 @@ ApplyFill is under active development.
 | Area | Status |
 | --- | --- |
 | Reusable profile wizard | Implemented in the frontend |
+| Job Profile review screen | Implemented with local profile data |
+| Customizable dashboard | Implemented with browser-local widgets and layouts |
 | Responsive light and dark themes | Implemented |
 | Job-application tracker | Implemented with browser-local persistence |
+| Regional date-format preference | Implemented with browser-local persistence |
 | AI-assisted experience/project editing | Implemented through backend endpoints |
 | PostgreSQL domain model and migrations | Implemented |
 | Profile and tracker persistence APIs | Planned |

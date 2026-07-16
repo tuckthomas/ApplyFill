@@ -4,6 +4,7 @@ import Select from '../ui/AppSelect';
 import { selectStyles } from '../../constants/location';
 import FormModal from '../ui/FormModal';
 import RepeatableEntryCard from '../ui/RepeatableEntryCard';
+import RepeatableEmptyState from '../ui/RepeatableEmptyState';
 import RepeatableSectionHeader from '../ui/RepeatableSectionHeader';
 import AddressFlow from '../ui/AddressFlow';
 import type { AddressValue } from '../ui/AddressFlow';
@@ -415,9 +416,7 @@ export default function ProfileSection({ data, onChange }: ProfileSectionProps) 
         <hr className="form-grid-full subtle-divider" />
 
         {savedAlternativeNames.length === 0 ? (
-          <div className="form-grid-full field-card profile-empty-state" aria-label="No alternative names added">
-            <p className="section-copy">No alternative names added</p>
-          </div>
+          <RepeatableEmptyState className="form-grid-full" title="No Alternative Names Added" />
         ) : null}
 
         {savedAlternativeNames.map((name) => (
@@ -443,9 +442,7 @@ export default function ProfileSection({ data, onChange }: ProfileSectionProps) 
         <hr className="form-grid-full subtle-divider" />
 
         {!hasAddress ? (
-          <div className="form-grid-full field-card profile-empty-state" aria-label="No address added">
-            <p className="section-copy">No address added</p>
-          </div>
+          <RepeatableEmptyState className="form-grid-full" title="No Address Added" />
         ) : (
           <div className="form-grid-full">
             <RepeatableEntryCard
@@ -469,9 +466,7 @@ export default function ProfileSection({ data, onChange }: ProfileSectionProps) 
         <hr className="form-grid-full subtle-divider" />
         
         {savedWebLinks.length === 0 ? (
-          <div className="form-grid-full field-card profile-empty-state" aria-label="No web links added">
-            <p className="section-copy">No web links added</p>
-          </div>
+          <RepeatableEmptyState className="form-grid-full" title="No Web Links Added" />
         ) : null}
 
         {savedWebLinks.map((link) => (

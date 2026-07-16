@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Resume> Resumes { get; set; }
     public DbSet<Address> Addresses { get; set; }
     public DbSet<WebLink> WebLinks { get; set; }
+    public DbSet<ProfileConsent> ProfileConsents { get; set; }
     public DbSet<ResumeExperience> ResumeExperiences { get; set; }
     public DbSet<ResumeBullet> ResumeBullets { get; set; }
     public DbSet<ResumeEducation> ResumeEducations { get; set; }
@@ -54,6 +55,22 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.HasOne(e => e.UserProfile)
                 .WithMany(e => e.WebLinks)
+                .HasForeignKey(e => e.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProfileConsent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ConsentType).HasMaxLength(100);
+            entity.Property(e => e.DisclosureVersion).HasMaxLength(100);
+            entity.Property(e => e.DisclosureSha256).HasMaxLength(64);
+            entity.Property(e => e.CaptureMethod).HasMaxLength(100);
+            entity.Property(e => e.IpAddress).HasMaxLength(64);
+            entity.Property(e => e.UserAgent).HasMaxLength(2048);
+            entity.HasIndex(e => new { e.UserProfileId, e.ConsentType, e.DisclosureVersion }).IsUnique();
+            entity.HasOne(e => e.UserProfile)
+                .WithMany(e => e.Consents)
                 .HasForeignKey(e => e.UserProfileId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

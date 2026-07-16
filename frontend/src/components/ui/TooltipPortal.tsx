@@ -15,6 +15,9 @@ type TooltipState = {
 const TOOLTIP_OFFSET = 10;
 const VIEWPORT_MARGIN = 12;
 const MIN_ARROW_INSET = 12;
+const HOVER_SHOW_DELAY = 500;
+const HIDE_DELAY = 140;
+const TOOLTIP_ID = 'applyfill-tooltip';
 
 const getTooltipTarget = (target: EventTarget | null) => {
   if (!(target instanceof Element)) {
@@ -92,6 +95,101 @@ export default function TooltipPortal() {
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const activeTargetRef = useRef<HTMLElement | null>(null);
   const activeTextRef = useRef('');
+  const dismissedTargetRef = useRef<HTMLElement | null>(null);
+  const focusedTargetRef = useRef<HTMLElement | null>(null);
+  const pointerTargetRef = useRef<HTMLElement | null>(null);
+  const pendingTargetRef = useRef<HTMLElement | null>(null);
+  const isKeyboardInteractionRef = useRef(true);
+  const isTooltipHoveredRef = useRef(false);
+  const showTimerRef = useRef<number | null>(null);
+  const hideTimerRef = useRef<number | null>(null);
+
+  const clearShowTimer = () => {
+    if (showTimerRef.current !== null) {
+      window.clearTimeout(showTimerRef.current);
+      showTimerRef.current = null;
+    }
+    pendingTargetRef.current = null;
+  };
+
+  const clearHideTimer = () => {
+    if (hideTimerRef.current !== null) {
+      window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  };
+
+  const detachTooltipDescription = () => {
+    const target = activeTargetRef.current;
+    if (!target) return;
+    const descriptions = (target.getAttribute('aria-describedby') ?? '')
+      .split(/\s+/)
+      .filter((id) => id && id !== TOOLTIP_ID);
+    if (descriptions.length) {
+      target.setAttribute('aria-describedby', descriptions.join(' '));
+    } else {
+      target.removeAttribute('aria-describedby');
+    }
+  };
+
+  const hideTooltipNow = () => {
+    clearShowTimer();
+    clearHideTimer();
+    detachTooltipDescription();
+    activeTargetRef.current = null;
+    activeTextRef.current = '';
+    isTooltipHoveredRef.current = false;
+    setTooltip(null);
+  };
+
+  const showTooltipNow = (element: HTMLElement, text: string) => {
+    clearShowTimer();
+    clearHideTimer();
+    if (activeTargetRef.current && activeTargetRef.current !== element) {
+      detachTooltipDescription();
+    }
+    activeTargetRef.current = element;
+    activeTextRef.current = text;
+    const descriptions = new Set(
+      (element.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean)
+    );
+    descriptions.add(TOOLTIP_ID);
+    element.setAttribute('aria-describedby', [...descriptions].join(' '));
+    setTooltip(getInitialTooltipPosition(element, text));
+  };
+
+  const scheduleTooltip = (element: HTMLElement, text: string, delay: number) => {
+    clearHideTimer();
+    if (dismissedTargetRef.current === element || activeTargetRef.current === element) return;
+    if (activeTargetRef.current && activeTargetRef.current !== element) {
+      hideTooltipNow();
+    }
+    clearShowTimer();
+    pendingTargetRef.current = element;
+    if (delay === 0) {
+      showTooltipNow(element, text);
+      return;
+    }
+    showTimerRef.current = window.setTimeout(() => {
+      if (pendingTargetRef.current === element) showTooltipNow(element, text);
+    }, delay);
+  };
+
+  const scheduleHide = () => {
+    const activeTarget = activeTargetRef.current;
+    const pendingTarget = pendingTargetRef.current;
+    const retainedTarget = activeTarget ?? pendingTarget;
+    if (!retainedTarget) return;
+    if (
+      pointerTargetRef.current === retainedTarget
+      || focusedTargetRef.current === retainedTarget
+      || isTooltipHoveredRef.current
+    ) {
+      return;
+    }
+    clearHideTimer();
+    hideTimerRef.current = window.setTimeout(hideTooltipNow, HIDE_DELAY);
+  };
 
   const updatePosition = () => {
     const activeTarget = activeTargetRef.current;
@@ -117,61 +215,101 @@ export default function TooltipPortal() {
   });
 
   useEffect(() => {
-    const showTooltip = (event: Event) => {
+    const handlePointerOver = (event: PointerEvent | MouseEvent) => {
+      if ('pointerType' in event && event.pointerType === 'touch') return;
       const target = getTooltipTarget(event.target);
-      if (!target) {
-        return;
-      }
+      if (!target) return;
+      const relatedTarget = event.relatedTarget;
+      if (relatedTarget instanceof Node && target.element.contains(relatedTarget)) return;
 
-      activeTargetRef.current = target.element;
-      activeTextRef.current = target.text;
-      setTooltip(getInitialTooltipPosition(target.element, target.text));
+      pointerTargetRef.current = target.element;
+      clearHideTimer();
+      scheduleTooltip(target.element, target.text, HOVER_SHOW_DELAY);
     };
 
-    const hideTooltip = (event: Event) => {
-      if (!activeTargetRef.current) {
+    const handlePointerOut = (event: PointerEvent | MouseEvent) => {
+      const target = getTooltipTarget(event.target);
+      if (!target) return;
+      const nextTarget = event.relatedTarget;
+      if (nextTarget instanceof Node && target.element.contains(nextTarget)) return;
+      if (nextTarget instanceof Node && tooltipRef.current?.contains(nextTarget)) {
+        pointerTargetRef.current = null;
         return;
       }
 
-      const nextTarget = 'relatedTarget' in event ? event.relatedTarget : null;
-      if (nextTarget instanceof Node && activeTargetRef.current.contains(nextTarget)) {
-        return;
+      if (pointerTargetRef.current === target.element) pointerTargetRef.current = null;
+      if (pendingTargetRef.current === target.element) clearShowTimer();
+      if (
+        dismissedTargetRef.current === target.element
+        && focusedTargetRef.current !== target.element
+      ) {
+        dismissedTargetRef.current = null;
       }
-
-      activeTargetRef.current = null;
-      activeTextRef.current = '';
-      setTooltip(null);
+      scheduleHide();
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      isKeyboardInteractionRef.current = true;
       if (event.key === 'Escape') {
-        activeTargetRef.current = null;
-        activeTextRef.current = '';
-        setTooltip(null);
+        dismissedTargetRef.current = activeTargetRef.current ?? pendingTargetRef.current;
+        hideTooltipNow();
       }
     };
 
-    document.addEventListener('pointerenter', showTooltip, true);
-    document.addEventListener('pointerleave', hideTooltip, true);
-    document.addEventListener('pointerover', showTooltip, true);
-    document.addEventListener('pointerout', hideTooltip, true);
-    document.addEventListener('mouseover', showTooltip, true);
-    document.addEventListener('mouseout', hideTooltip, true);
-    document.addEventListener('focusin', showTooltip);
-    document.addEventListener('focusout', hideTooltip);
+    const handlePointerDown = () => {
+      isKeyboardInteractionRef.current = false;
+      hideTooltipNow();
+    };
+
+    const handleFocusIn = (event: FocusEvent) => {
+      const target = getTooltipTarget(event.target);
+      if (!target) return;
+      focusedTargetRef.current = target.element;
+      clearHideTimer();
+      if (isKeyboardInteractionRef.current) {
+        scheduleTooltip(target.element, target.text, 0);
+      }
+    };
+
+    const handleFocusOut = (event: FocusEvent) => {
+      const target = getTooltipTarget(event.target);
+      if (!target) return;
+      const nextTarget = event.relatedTarget;
+      if (nextTarget instanceof Node && target.element.contains(nextTarget)) return;
+      if (focusedTargetRef.current === target.element) focusedTargetRef.current = null;
+      if (
+        dismissedTargetRef.current === target.element
+        && pointerTargetRef.current !== target.element
+      ) {
+        dismissedTargetRef.current = null;
+      }
+      scheduleHide();
+    };
+
+    document.addEventListener('pointerover', handlePointerOver, true);
+    document.addEventListener('pointerout', handlePointerOut, true);
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener('mouseover', handlePointerOver, true);
+    document.addEventListener('mouseout', handlePointerOut, true);
+    document.addEventListener('mousedown', handlePointerDown, true);
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
     document.addEventListener('keydown', handleKeyDown);
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, true);
 
     return () => {
-      document.removeEventListener('pointerenter', showTooltip, true);
-      document.removeEventListener('pointerleave', hideTooltip, true);
-      document.removeEventListener('pointerover', showTooltip, true);
-      document.removeEventListener('pointerout', hideTooltip, true);
-      document.removeEventListener('mouseover', showTooltip, true);
-      document.removeEventListener('mouseout', hideTooltip, true);
-      document.removeEventListener('focusin', showTooltip);
-      document.removeEventListener('focusout', hideTooltip);
+      clearShowTimer();
+      clearHideTimer();
+      detachTooltipDescription();
+      document.removeEventListener('pointerover', handlePointerOver, true);
+      document.removeEventListener('pointerout', handlePointerOut, true);
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('mouseover', handlePointerOver, true);
+      document.removeEventListener('mouseout', handlePointerOut, true);
+      document.removeEventListener('mousedown', handlePointerDown, true);
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
       document.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
@@ -186,6 +324,15 @@ export default function TooltipPortal() {
     <div
       className="tooltip-portal"
       data-placement={tooltip.placement}
+      id={TOOLTIP_ID}
+      onPointerEnter={() => {
+        isTooltipHoveredRef.current = true;
+        clearHideTimer();
+      }}
+      onPointerLeave={() => {
+        isTooltipHoveredRef.current = false;
+        scheduleHide();
+      }}
       ref={tooltipRef}
       role="tooltip"
       style={{

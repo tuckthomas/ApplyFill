@@ -10,6 +10,10 @@ import ValidationDialog from '../ui/ValidationDialog';
 import Checkbox from '../ui/Checkbox';
 import FormModal from '../ui/FormModal';
 import RepeatableSectionHeader from '../ui/RepeatableSectionHeader';
+import RepeatableEmptyState from '../ui/RepeatableEmptyState';
+import { useDateFormatPreference } from '../../features/preferences/dateFormatPreference';
+import type { DateFormatPreference } from '../../features/preferences/dateFormatPreference';
+import { formatExactDateForDisplay } from '../ui/datePickerUtils';
 
 type SelectOption = {
   value: string;
@@ -129,6 +133,7 @@ const parseProjectDateValue = (
 };
 
 export default function ProjectsSection({ projects, onChange }: ProjectsSectionProps) {
+  const { dateFormat } = useDateFormatPreference();
   const [validationDialog, setValidationDialog] = useState<ValidationDialogState | null>(null);
   const [enhancingProjectId, setEnhancingProjectId] = useState<number | null>(null);
 
@@ -187,10 +192,10 @@ export default function ProjectsSection({ projects, onChange }: ProjectsSectionP
       messages.push('Project URL must be a valid HTTP or HTTPS address.');
     }
     if (project.startDate && !startDate.isValid) {
-      messages.push(getDateValidationMessage('Start Date', project.startDatePrecision));
+      messages.push(getDateValidationMessage('Start Date', project.startDatePrecision, dateFormat));
     }
     if (!project.isOngoing && project.endDate && !endDate.isValid) {
-      messages.push(getDateValidationMessage('End Date', project.endDatePrecision));
+      messages.push(getDateValidationMessage('End Date', project.endDatePrecision, dateFormat));
     }
     if (!project.isOngoing && startDate.time !== null && endDate.time !== null && endDate.time < startDate.time) {
       messages.push('End Date cannot be before Start Date.');
@@ -278,7 +283,7 @@ export default function ProjectsSection({ projects, onChange }: ProjectsSectionP
 
   const formatDisplayDate = (value: string, precision: ProjectDatePrecision) => {
     if (!value) return '';
-    return precision === 'Estimated' ? `Estimated ${value}` : value;
+    return precision === 'Estimated' ? `Estimated ${value}` : formatExactDateForDisplay(value, dateFormat);
   };
 
   const formatDateRange = (project: ProjectEntry) => {
@@ -290,10 +295,6 @@ export default function ProjectsSection({ projects, onChange }: ProjectsSectionP
       : formatDisplayDate(project.endDate, project.endDatePrecision) || 'End not set';
     return `${startDate} - ${endDate}`;
   };
-
-  const getDatePlaceholder = (precision: ProjectDatePrecision) => (
-    precision === 'Estimated' ? 'MM/YYYY' : 'MM/DD/YYYY'
-  );
 
   const getDateHint = (fieldLabel: string, precision: ProjectDatePrecision) => {
     if (precision === 'Exact') return `${fieldLabel} will be used exactly as entered.`;
@@ -323,9 +324,7 @@ export default function ProjectsSection({ projects, onChange }: ProjectsSectionP
       />
 
       {projects.length === 0 ? (
-        <section className="field-card job-empty-state" aria-label="No projects added">
-          <h4 className="section-title">No projects added</h4>
-        </section>
+        <RepeatableEmptyState title="No Projects Added" />
       ) : null}
 
       {projects.map((project, index) => {
@@ -418,7 +417,7 @@ export default function ProjectsSection({ projects, onChange }: ProjectsSectionP
                     <label className="form-label" htmlFor={`${prefix}-start-date`}>Start Date</label>
                     <div className="date-input-row">
                       <Select aria-label="Start Date Precision" className="date-precision-select" inputId={`${prefix}-start-date-precision`} options={DATE_PRECISION_OPTIONS} styles={selectStyles} value={DATE_PRECISION_OPTIONS.find((option) => option.value === project.startDatePrecision)} onChange={(option) => updateDatePrecision(project.id, 'startDate', option?.value ?? 'Exact')} isSearchable={false} />
-                      <DatePicker id={`${prefix}-start-date`} ariaLabel="Start Date" value={project.startDate} precision={project.startDatePrecision} onChange={(value) => updateProject(project.id, 'startDate', value)} placeholder={getDatePlaceholder(project.startDatePrecision)} />
+                      <DatePicker id={`${prefix}-start-date`} ariaLabel="Start Date" value={project.startDate} precision={project.startDatePrecision} onChange={(value) => updateProject(project.id, 'startDate', value)} />
                     </div>
                     <p className="field-hint">{getDateHint('Start Date', project.startDatePrecision)}</p>
                   </div>
@@ -429,7 +428,7 @@ export default function ProjectsSection({ projects, onChange }: ProjectsSectionP
                     <label className="form-label" htmlFor={`${prefix}-end-date`}>End Date</label>
                     <div className="date-input-row">
                       <Select aria-label="End Date Precision" className="date-precision-select" inputId={`${prefix}-end-date-precision`} options={DATE_PRECISION_OPTIONS} styles={selectStyles} value={DATE_PRECISION_OPTIONS.find((option) => option.value === project.endDatePrecision)} onChange={(option) => updateDatePrecision(project.id, 'endDate', option?.value ?? 'Exact')} isDisabled={project.isOngoing} isSearchable={false} />
-                      <DatePicker id={`${prefix}-end-date`} ariaLabel="End Date" value={project.endDate} precision={project.endDatePrecision} onChange={(value) => updateProject(project.id, 'endDate', value)} disabled={project.isOngoing} placeholder={getDatePlaceholder(project.endDatePrecision)} />
+                      <DatePicker id={`${prefix}-end-date`} ariaLabel="End Date" value={project.endDate} precision={project.endDatePrecision} onChange={(value) => updateProject(project.id, 'endDate', value)} disabled={project.isOngoing} />
                     </div>
                     <p className="field-hint">{getDateHint('End Date', project.endDatePrecision)}</p>
                   </div>
@@ -471,8 +470,12 @@ export default function ProjectsSection({ projects, onChange }: ProjectsSectionP
   );
 }
 
-function getDateValidationMessage(fieldLabel: string, precision: ProjectDatePrecision) {
+function getDateValidationMessage(
+  fieldLabel: string,
+  precision: ProjectDatePrecision,
+  dateFormat: DateFormatPreference
+) {
   return precision === 'Estimated'
     ? `${fieldLabel} must use MM/YYYY when Estimated is selected.`
-    : `${fieldLabel} must use MM/DD/YYYY when Exact is selected.`;
+    : `${fieldLabel} must use ${dateFormat} when Exact is selected.`;
 }

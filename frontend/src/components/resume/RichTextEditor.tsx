@@ -19,6 +19,7 @@ const NO_TOOLBAR_MODULES = {
 type RichTextEditorProps = {
   aiLabel?: string;
   disabled?: boolean;
+  hideLabel?: boolean;
   isAiEnhancing?: boolean;
   label: string;
   labelAction?: ReactNode;
@@ -27,7 +28,9 @@ type RichTextEditorProps = {
   onChange: (value: string) => void;
   placeholder: string;
   quillClassName?: string;
+  readOnly?: boolean;
   toolbarId: string;
+  toolbarVariant?: 'standard' | 'basic' | 'hidden';
   value: string;
 };
 
@@ -52,6 +55,7 @@ const EMPTY_FORMAT_STATE: RichTextFormatState = {
 export default function RichTextEditor({
   aiLabel = 'Rewrite with AI',
   disabled = false,
+  hideLabel = false,
   isAiEnhancing = false,
   label,
   labelAction,
@@ -60,7 +64,9 @@ export default function RichTextEditor({
   onChange,
   placeholder,
   quillClassName = '',
+  readOnly = false,
   toolbarId,
+  toolbarVariant = 'standard',
   value
 }: RichTextEditorProps) {
   const quillRef = useRef<ReactQuill>(null);
@@ -160,46 +166,53 @@ export default function RichTextEditor({
   return (
     <div className="form-group" style={{ marginBottom: '8px' }}>
       <div className="rich-text-label-row">
-        <label id={labelId} className="form-label">{label}</label>
+        <label id={labelId} className={hideLabel ? 'form-label sr-only' : 'form-label'}>{label}</label>
         {labelAction}
       </div>
       <div
         role="group"
         aria-labelledby={labelId}
         aria-disabled={disabled || undefined}
+        aria-readonly={readOnly || undefined}
         className={disabled ? 'rich-text-disabled rich-text-shell' : 'rich-text-shell'}
       >
-        <div className="rich-text-toolbar" id={toolbarId}>
+        {toolbarVariant !== 'hidden' ? <div className="rich-text-toolbar" id={toolbarId}>
           <button className={formatButtonClass('bold', 'ql-bold')} type="button" aria-label="Bold" aria-pressed={activeFormats.bold} data-tooltip="Bold" data-format-active={activeFormats.bold} disabled={disabled} onMouseDown={handleToolbarMouseDown} onClick={() => toggleFormat('bold')}>
             <Bold aria-hidden="true" />
           </button>
           <button className={formatButtonClass('italic', 'ql-italic')} type="button" aria-label="Italic" aria-pressed={activeFormats.italic} data-tooltip="Italic" data-format-active={activeFormats.italic} disabled={disabled} onMouseDown={handleToolbarMouseDown} onClick={() => toggleFormat('italic')}>
             <Italic aria-hidden="true" />
           </button>
-          <button className={formatButtonClass('underline', 'ql-underline')} type="button" aria-label="Underline" aria-pressed={activeFormats.underline} data-tooltip="Underline" data-format-active={activeFormats.underline} disabled={disabled} onMouseDown={handleToolbarMouseDown} onClick={() => toggleFormat('underline')}>
-            <Underline aria-hidden="true" />
-          </button>
-          <button className={formatButtonClass('orderedList', 'ql-list')} type="button" value="ordered" aria-label="Numbered list" aria-pressed={activeFormats.orderedList} data-tooltip="Numbered list" data-format-active={activeFormats.orderedList} disabled={disabled} onMouseDown={handleToolbarMouseDown} onClick={() => toggleFormat('orderedList')}>
-            <ListOrdered aria-hidden="true" />
-          </button>
-          <button className={formatButtonClass('bulletedList', 'ql-list')} type="button" value="bullet" aria-label="Bulleted list" aria-pressed={activeFormats.bulletedList} data-tooltip="Bulleted list" data-format-active={activeFormats.bulletedList} disabled={disabled} onMouseDown={handleToolbarMouseDown} onClick={() => toggleFormat('bulletedList')}>
-            <List aria-hidden="true" />
-          </button>
+          {toolbarVariant === 'standard' ? (
+            <>
+              <button className={formatButtonClass('underline', 'ql-underline')} type="button" aria-label="Underline" aria-pressed={activeFormats.underline} data-tooltip="Underline" data-format-active={activeFormats.underline} disabled={disabled} onMouseDown={handleToolbarMouseDown} onClick={() => toggleFormat('underline')}>
+                <Underline aria-hidden="true" />
+              </button>
+              <button className={formatButtonClass('orderedList', 'ql-list')} type="button" value="ordered" aria-label="Numbered list" aria-pressed={activeFormats.orderedList} data-tooltip="Numbered list" data-format-active={activeFormats.orderedList} disabled={disabled} onMouseDown={handleToolbarMouseDown} onClick={() => toggleFormat('orderedList')}>
+                <ListOrdered aria-hidden="true" />
+              </button>
+              <button className={formatButtonClass('bulletedList', 'ql-list')} type="button" value="bullet" aria-label="Bulleted list" aria-pressed={activeFormats.bulletedList} data-tooltip="Bulleted list" data-format-active={activeFormats.bulletedList} disabled={disabled} onMouseDown={handleToolbarMouseDown} onClick={() => toggleFormat('bulletedList')}>
+                <List aria-hidden="true" />
+              </button>
+            </>
+          ) : null}
           <button className="ql-clean" type="button" aria-label="Clear formatting" data-tooltip="Clear formatting" disabled={disabled} onMouseDown={handleToolbarMouseDown} onClick={clearFormatting}>
             <RemoveFormatting aria-hidden="true" />
           </button>
-          <button
-            className="rich-text-ai-toolbar-button"
-            type="button"
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={onAiEnhance}
-            disabled={isAiButtonDisabled}
-            aria-label={aiLabel}
-            data-tooltip={aiLabel}
-          >
-            {isAiEnhancing ? <Loader2 size={18} className="animate-spin" /> : <Wand2 size={18} />}
-          </button>
-        </div>
+          {toolbarVariant === 'standard' ? (
+            <button
+              className="rich-text-ai-toolbar-button"
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={onAiEnhance}
+              disabled={isAiButtonDisabled}
+              aria-label={aiLabel}
+              data-tooltip={aiLabel}
+            >
+              {isAiEnhancing ? <Loader2 size={18} className="animate-spin" /> : <Wand2 size={18} />}
+            </button>
+          ) : null}
+        </div> : null}
         <ReactQuill
           ref={quillRef}
           theme="snow"
@@ -208,7 +221,7 @@ export default function RichTextEditor({
           onChange={handleEditorChange}
           modules={NO_TOOLBAR_MODULES}
           placeholder={placeholder}
-          readOnly={disabled}
+          readOnly={disabled || readOnly}
           onChangeSelection={rememberSelection}
           onFocus={rememberSelection}
         />

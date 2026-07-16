@@ -4,6 +4,7 @@ import Select from '../ui/AppSelect';
 import { Plus, Trash2 } from 'lucide-react';
 import { SKILL_SUGGESTIONS } from '../../constants/skillsTaxonomy';
 import { selectStyles } from '../../constants/location';
+import RepeatableEmptyState from '../ui/RepeatableEmptyState';
 
 export type SkillLevel = 'Novice' | 'Intermediate' | 'Advanced' | 'Expert';
 
@@ -160,9 +161,7 @@ export default function SkillsSection({ skills, onChange }: SkillsSectionProps) 
       </div>
 
       {skills.length === 0 ? (
-        <section className="field-card job-empty-state" aria-label="No skills added">
-          <h4 className="section-title">No skills added</h4>
-        </section>
+        <RepeatableEmptyState title="No Skills Added" />
       ) : (
         <div className="skill-card-grid" aria-label="Selected skills">
           {skills.map((skill, index) => (

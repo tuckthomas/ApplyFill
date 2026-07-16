@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AlertTriangle, Pencil, Trash2, X } from 'lucide-react';
+import Button from './Button';
 import ModalRenderer from './ModalRenderer';
 
 const FOCUSABLE_SELECTOR = [
@@ -41,7 +42,6 @@ export default function FormModal({
   const currentDirtyKeyRef = useRef(dirtyKey);
   const dialogRef = useRef<HTMLElement>(null);
   const dirtyBaselineRef = useRef<string | undefined>(undefined);
-  const dirtyRef = useRef(false);
   const initialFocusIdRef = useRef(initialFocusId);
   const onCloseRef = useRef(onClose);
   const requestCloseRef = useRef<() => void>(() => undefined);
@@ -61,14 +61,17 @@ export default function FormModal({
   }, [showDiscardPrompt]);
 
   const closeWithoutPrompt = () => {
-    dirtyRef.current = false;
     showDiscardPromptRef.current = false;
     setShowDiscardPrompt(false);
     onCloseRef.current();
   };
 
   const requestClose = () => {
-    if (dirtyRef.current) {
+    const hasUnsavedChanges = dirtyBaselineRef.current !== undefined
+      && currentDirtyKeyRef.current !== undefined
+      && currentDirtyKeyRef.current !== dirtyBaselineRef.current;
+
+    if (hasUnsavedChanges) {
       showDiscardPromptRef.current = true;
       setShowDiscardPrompt(true);
       window.requestAnimationFrame(() => {
@@ -77,10 +80,6 @@ export default function FormModal({
       return;
     }
     closeWithoutPrompt();
-  };
-
-  const markDirty = () => {
-    dirtyRef.current = true;
   };
 
   const keepEditing = () => {
@@ -94,7 +93,6 @@ export default function FormModal({
     if (!isOpen) return undefined;
 
     dirtyBaselineRef.current = currentDirtyKeyRef.current;
-    dirtyRef.current = false;
     setShowDiscardPrompt(false);
 
     returnFocusRef.current = document.activeElement instanceof HTMLElement
@@ -167,11 +165,6 @@ export default function FormModal({
     };
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen || dirtyBaselineRef.current === undefined || dirtyKey === undefined) return;
-    if (dirtyKey !== dirtyBaselineRef.current) dirtyRef.current = true;
-  }, [dirtyKey, isOpen]);
-
   const titleId = `form-modal-${generatedTitleId.replace(/:/g, '')}`;
   const dialogClasses = ['modal-dialog', className].filter(Boolean).join(' ');
 
@@ -188,7 +181,6 @@ export default function FormModal({
           aria-labelledby={titleId}
           aria-modal="true"
           className={dialogClasses}
-          onChangeCapture={markDirty}
           onClickCapture={(event) => {
             const target = event.target as HTMLElement;
             if (!target.closest('[data-modal-close]')) return;
@@ -196,7 +188,6 @@ export default function FormModal({
             event.stopPropagation();
             requestClose();
           }}
-          onInputCapture={markDirty}
           ref={dialogRef}
           role="dialog"
           tabIndex={-1}
@@ -238,19 +229,18 @@ export default function FormModal({
                 <p className="section-copy">The information entered in this window has not been saved.</p>
               </div>
               <div className="modal-form-actions">
-                <button
-                  className="btn btn-secondary"
+                <Button
                   data-confirm-cancel
                   onClick={keepEditing}
-                  type="button"
+                  variant="secondary"
                 >
                   <Pencil aria-hidden="true" size={18} />
                   Keep Editing
-                </button>
-                <button className="btn btn-danger" onClick={closeWithoutPrompt} type="button">
+                </Button>
+                <Button onClick={closeWithoutPrompt} variant="danger">
                   <Trash2 aria-hidden="true" size={18} />
                   Discard Changes
-                </button>
+                </Button>
               </div>
             </section>
           </div>

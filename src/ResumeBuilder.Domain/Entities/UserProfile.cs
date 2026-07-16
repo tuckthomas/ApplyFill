@@ -13,6 +13,7 @@ public class UserProfile
     public Guid? AddressId { get; set; }
     public Address? Address { get; set; }
     public ICollection<WebLink> WebLinks { get; set; } = new List<WebLink>();
+    public ICollection<ProfileConsent> Consents { get; set; } = new List<ProfileConsent>();
     public WorkAuthorization? WorkAuthorizationStatus { get; set; }
     public bool? RequiresSponsorship { get; set; }
     public string? DesiredCompensation { get; set; }

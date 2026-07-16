@@ -1,4 +1,17 @@
-import { KeyRound, ShieldCheck, Cloud, FileText } from 'lucide-react';
+import { CalendarDays, KeyRound, ShieldCheck, Cloud, FileText } from 'lucide-react';
+import AppSelect from '../components/ui/AppSelect';
+import { useDateFormatPreference } from '../features/preferences/dateFormatPreference';
+import type { DateFormatPreference } from '../features/preferences/dateFormatPreference';
+
+type DateFormatOption = {
+  label: string;
+  value: DateFormatPreference;
+};
+
+const DATE_FORMAT_OPTIONS: DateFormatOption[] = [
+  { label: 'Month/day/year (MM/DD/YYYY)', value: 'MM/DD/YYYY' },
+  { label: 'Day/month/year (DD/MM/YYYY)', value: 'DD/MM/YYYY' }
+];
 
 const settingsSections = [
   {
@@ -28,14 +41,38 @@ const settingsSections = [
 ];
 
 export default function Settings() {
+  const { dateFormat, setDateFormat } = useDateFormatPreference();
+
   return (
     <div className="page-stack">
       <header className="page-header">
         <div>
           <h2 className="page-title">Settings</h2>
-          <p className="page-copy">Control provider, export, storage, and security boundaries.</p>
+          <p className="page-copy">Control regional preferences, providers, exports, storage, and security boundaries.</p>
         </div>
       </header>
+
+      <section className="surface-panel settings-preferences-panel" aria-labelledby="regional-preferences-title">
+        <div className="settings-preferences-heading">
+          <CalendarDays aria-hidden="true" size={24} />
+          <div>
+            <h3 className="section-title" id="regional-preferences-title">Regional Preferences</h3>
+            <p className="section-copy">Control how dates are entered and displayed throughout ApplyFill.</p>
+          </div>
+        </div>
+        <div className="form-group settings-date-format-field">
+          <label className="form-label" htmlFor="date-format-preference">Date Format</label>
+          <AppSelect<DateFormatOption>
+            inputId="date-format-preference"
+            isSearchable={false}
+            onChange={(option) => {
+              if (option) setDateFormat(option.value);
+            }}
+            options={DATE_FORMAT_OPTIONS}
+            value={DATE_FORMAT_OPTIONS.find((option) => option.value === dateFormat)}
+          />
+        </div>
+      </section>
 
       <section className="responsive-grid" aria-label="Application settings">
         {settingsSections.map((section) => {

@@ -11,6 +11,10 @@ builder.Services.AddInfrastructureServices(builder.Configuration);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddCors(options => options.AddPolicy("LocalFrontend", policy => policy
+    .WithOrigins("http://127.0.0.1:5173", "http://localhost:5173")
+    .AllowAnyHeader()
+    .AllowAnyMethod()));
 
 builder.Services.AddHttpClient<ResumeBuilder.Application.Services.IAiService, ResumeBuilder.Application.Services.GeminiAiService>();
 
@@ -42,6 +46,8 @@ if (app.Environment.IsDevelopment())
         await db.SaveChangesAsync();
     }
 }
+
+if (app.Environment.IsDevelopment()) app.UseCors("LocalFrontend");
 
 app.UseHttpsRedirection();
 app.UseAuthorization();

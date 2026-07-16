@@ -9,7 +9,7 @@ export default function Resumes() {
     <div className="page-stack">
       <header className="page-header">
         <div>
-          <h2 className="page-title">Resume Versions</h2>
+          <h2 className="page-title">Resume Builder</h2>
           <p className="page-copy">Manage targeted resumes, export status, and document versions.</p>
         </div>
         <AddButton onClick={() => navigate('/resumes/builder')}>New Resume</AddButton>

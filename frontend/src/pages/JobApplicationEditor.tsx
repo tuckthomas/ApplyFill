@@ -3,15 +3,22 @@ import type { FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import JobApplicationForm from '../components/job-tracker/JobApplicationForm';
-import { createEmptyApplicationForm, loadApplications, saveApplications } from '../components/job-tracker/jobApplication';
+import {
+  createEmptyApplicationForm,
+  formatJobApplicationLocation,
+  loadApplications,
+  saveApplications
+} from '../components/job-tracker/jobApplication';
 import type { JobApplication, JobApplicationFormState } from '../components/job-tracker/jobApplication';
+import { loadProfileBuilderState } from '../features/profile/profileBuilder';
 
 const createApplication = (value: JobApplicationFormState, id: string): JobApplication => ({
   ...value,
   id,
   companyName: value.companyName.trim(),
   jobTitle: value.jobTitle.trim(),
-  location: value.location.trim(),
+  location: formatJobApplicationLocation(value),
+  city: value.city.trim(),
   targetJobUrl: value.targetJobUrl.trim(),
   notes: value.notes.trim()
 });
@@ -22,7 +29,10 @@ export default function JobApplicationEditor() {
   const applications = loadApplications();
   const existingApplication = applicationId ? applications.find((application) => application.id === applicationId) : undefined;
   const mode = existingApplication ? 'edit' : 'add';
-  const [formState, setFormState] = useState<JobApplicationFormState>(existingApplication ?? createEmptyApplicationForm);
+  const defaultCountry = loadProfileBuilderState().data.profile.country;
+  const [formState, setFormState] = useState<JobApplicationFormState>(() => (
+    existingApplication ?? createEmptyApplicationForm(defaultCountry)
+  ));
   const [formError, setFormError] = useState('');
   const [jobDescriptionError, setJobDescriptionError] = useState('');
   const [isImportingJobDescription, setIsImportingJobDescription] = useState(false);
@@ -52,7 +62,7 @@ export default function JobApplicationEditor() {
     saveApplications(existingApplication
       ? applications.map((currentApplication) => currentApplication.id === existingApplication.id ? application : currentApplication)
       : [...applications, application]);
-    navigate('/job-tracker');
+    navigate(`/job-tracker/${application.id}/edit`, { replace: true });
   };
 
   const importJobDescription = async () => {
@@ -85,15 +95,17 @@ export default function JobApplicationEditor() {
 
   return (
     <div className="page-stack">
-      <header className="page-header job-application-page-header">
+      <div className="job-application-heading">
         <button className="icon-button" type="button" onClick={() => navigate('/job-tracker')} aria-label="Back to Job Tracker" data-tooltip="Back to Job Tracker">
           <ArrowLeft size={22} aria-hidden="true" />
         </button>
-        <div>
+        <header className="page-header job-application-page-header">
+          <div>
           <h2 className="page-title">{mode === 'add' ? 'Add Application' : 'Edit Application'}</h2>
           <p className="page-copy">Capture the application once so it can later connect to resumes and application packets.</p>
-        </div>
-      </header>
+          </div>
+        </header>
+      </div>
       <JobApplicationForm
         error={formError}
         isImportingJobDescription={isImportingJobDescription}

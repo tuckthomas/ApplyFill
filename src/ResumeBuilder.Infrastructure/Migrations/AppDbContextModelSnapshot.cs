@@ -191,6 +191,58 @@ namespace ResumeBuilder.Infrastructure.Migrations
                     b.ToTable("JobTargets");
                 });
 
+            modelBuilder.Entity("ResumeBuilder.Domain.Entities.ProfileConsent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CaptureMethod")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ConsentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("ConsentedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisclosureSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("DisclosureText")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DisclosureVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<Guid>("UserProfileId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserProfileId", "ConsentType", "DisclosureVersion")
+                        .IsUnique();
+
+                    b.ToTable("ProfileConsents");
+                });
+
             modelBuilder.Entity("ResumeBuilder.Domain.Entities.Resume", b =>
                 {
                     b.Property<Guid>("Id")
@@ -798,6 +850,17 @@ namespace ResumeBuilder.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("ResumeBuilder.Domain.Entities.ProfileConsent", b =>
+                {
+                    b.HasOne("ResumeBuilder.Domain.Entities.UserProfile", "UserProfile")
+                        .WithMany("Consents")
+                        .HasForeignKey("UserProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("UserProfile");
+                });
+
             modelBuilder.Entity("ResumeBuilder.Domain.Entities.Resume", b =>
                 {
                     b.HasOne("ResumeBuilder.Domain.Entities.User", "User")
@@ -969,6 +1032,8 @@ namespace ResumeBuilder.Infrastructure.Migrations
 
             modelBuilder.Entity("ResumeBuilder.Domain.Entities.UserProfile", b =>
                 {
+                    b.Navigation("Consents");
+
                     b.Navigation("WebLinks");
                 });
 #pragma warning restore 612, 618

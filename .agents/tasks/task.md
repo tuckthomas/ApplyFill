@@ -12,15 +12,17 @@
     - `[ ]` Implement local account creation (email/password) (Deferred)
     - `[ ]` Implement Google OAuth sign-in (Deferred)
   - `[/]` Core UI
-    - `[x]` Build Resume Builder Dashboard
-    - `[x]` Build Structured Resume Builder Wizard (Profile, Summary, Experience, Education, Skills)
+  - `[x]` Build customizable dashboard with an application-pipeline widget and editable text widgets
+  - `[x]` Build Job Profile review screen and structured wizard (personal information, education, experience, projects, skills, and application questions)
+  - `[x]` Build browser-local Job Tracker and application editor
+  - `[x]` Add persisted theme and date-format preferences
     - `[x]` Add basic layout/theme using Premium Vanilla CSS
   - `[x]` AI Integration
-    - `[x]` Implement basic AI bullet enhancement endpoint using Gemini BYOK
-    - `[x]` Add UI controls for AI assistance
+  - `[x]` Implement backend-managed Gemini enhancement endpoints for experience and project descriptions
+  - `[x]` Add UI controls for AI-assisted editing
   - `[x]` Preview & Templates
-    - `[x]` Implement initial simple template structure
-    - `[x]` Build live preview component in frontend
+  - `[ ]` Implement initial resume template structure
+  - `[ ]` Build live preview component in frontend
 
 - `[x]` Phase 1.5: UI Light Mode Refactor
   - `[x]` Update `index.css` with new light theme variables and card styles
