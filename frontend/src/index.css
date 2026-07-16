@@ -1332,6 +1332,14 @@ textarea.form-input {
   width: min(100%, 820px);
 }
 
+.job-application-modal-dialog {
+  width: min(100%, 980px);
+}
+
+.job-application-modal-dialog .tracker-form-panel {
+  min-height: 0;
+}
+
 .address-modal-form {
   margin-top: 8px;
 }

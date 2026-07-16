@@ -15,10 +15,10 @@ import {
   useSensors
 } from '@dnd-kit/core';
 import type { CollisionDetection, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
-import { BriefcaseBusiness, CalendarDays, GripVertical, MapPin, Plus } from 'lucide-react';
+import { BriefcaseBusiness, CalendarDays, ExternalLink, GripVertical, MapPin, Plus } from 'lucide-react';
 import type { StylesConfig } from 'react-select';
-import { useNavigate } from 'react-router-dom';
 import AppSelect from '../../ui/AppSelect';
+import JobApplicationModal from '../../job-tracker/JobApplicationModal';
 import { formatExactDateForDisplay } from '../../ui/datePickerUtils';
 import { selectStyles } from '../../../constants/location';
 import { useDateFormatPreference } from '../../../features/preferences/dateFormatPreference';
@@ -31,6 +31,7 @@ import type {
 
 type ApplicationPipelineWidgetProps = {
   applications: JobApplication[];
+  onApplicationSave: (application: JobApplication) => void;
   onStatusChange: (id: string, status: JobApplicationStatus) => void;
 };
 
@@ -55,10 +56,11 @@ const stopDragStart = (event: SyntheticEvent) => event.stopPropagation();
 
 type PipelineCardProps = {
   application: JobApplication;
+  onOpen: () => void;
   onStatusChange: (status: JobApplicationStatus) => void;
 };
 
-function PipelineCard({ application, onStatusChange }: PipelineCardProps) {
+function PipelineCard({ application, onOpen, onStatusChange }: PipelineCardProps) {
   const { dateFormat } = useDateFormatPreference();
   const { attributes, isDragging, listeners, setNodeRef } = useDraggable({
     id: application.id,
@@ -81,6 +83,19 @@ function PipelineCard({ application, onStatusChange }: PipelineCardProps) {
           <strong>{application.jobTitle}</strong>
           <span>{application.companyName}</span>
         </div>
+        <button
+          aria-label={`Open ${application.jobTitle} at ${application.companyName}`}
+          className="icon-button pipeline-card-open-button"
+          data-tooltip="Open application"
+          onClick={onOpen}
+          onKeyDown={stopDragStart}
+          onMouseDown={stopDragStart}
+          onPointerDown={stopDragStart}
+          onTouchStart={stopDragStart}
+          type="button"
+        >
+          <ExternalLink aria-hidden="true" size={16} />
+        </button>
       </div>
       <div className="pipeline-card-meta">
         <span><MapPin aria-hidden="true" size={14} />{application.location || 'Location not recorded'}</span>
@@ -139,11 +154,12 @@ function PipelineCardDragPreview({ application }: { application: JobApplication 
 
 type PipelineColumnProps = {
   applications: JobApplication[];
+  onOpenApplication: (application: JobApplication) => void;
   onStatusChange: (id: string, status: JobApplicationStatus) => void;
   status: JobApplicationStatus;
 };
 
-function PipelineColumn({ applications, onStatusChange, status }: PipelineColumnProps) {
+function PipelineColumn({ applications, onOpenApplication, onStatusChange, status }: PipelineColumnProps) {
   const { isOver, setNodeRef } = useDroppable({ id: status });
 
   return (
@@ -165,6 +181,7 @@ function PipelineColumn({ applications, onStatusChange, status }: PipelineColumn
           <PipelineCard
             application={application}
             key={application.id}
+            onOpen={() => onOpenApplication(application)}
             onStatusChange={(nextStatus) => onStatusChange(application.id, nextStatus)}
           />
         )) : <p className="pipeline-column-empty">No applications</p>}
@@ -175,10 +192,12 @@ function PipelineColumn({ applications, onStatusChange, status }: PipelineColumn
 
 export default function ApplicationPipelineWidget({
   applications,
+  onApplicationSave,
   onStatusChange
 }: ApplicationPipelineWidgetProps) {
-  const navigate = useNavigate();
   const [activeApplicationId, setActiveApplicationId] = useState<string | null>(null);
+  const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState<JobApplication | undefined>();
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
@@ -214,6 +233,11 @@ export default function ApplicationPipelineWidget({
     if (application && application.status !== nextStatus) onStatusChange(application.id, nextStatus);
   };
 
+  const openApplicationModal = (application?: JobApplication) => {
+    setSelectedApplication(application);
+    setIsApplicationModalOpen(true);
+  };
+
   return (
     <div className="application-pipeline-widget">
       <div className="pipeline-toolbar">
@@ -221,7 +245,7 @@ export default function ApplicationPipelineWidget({
           <BriefcaseBusiness aria-hidden="true" size={18} />
           <span>{applications.length} tracked {applications.length === 1 ? 'application' : 'applications'}</span>
         </div>
-        <button className="btn btn-primary pipeline-add-button" onClick={() => navigate('/job-tracker/new')} type="button">
+        <button className="btn btn-primary pipeline-add-button" onClick={() => openApplicationModal()} type="button">
           <Plus aria-hidden="true" size={18} />
           Add Application
         </button>
@@ -233,15 +257,18 @@ export default function ApplicationPipelineWidget({
         onDragStart={handleDragStart}
         sensors={sensors}
       >
-        <div className="pipeline-board" role="region" aria-label="Job application Kanban board" tabIndex={0}>
-          {STATUS_OPTIONS.map(({ value }) => (
-            <PipelineColumn
-              applications={applicationsByStatus[value]}
-              key={value}
-              onStatusChange={onStatusChange}
-              status={value}
-            />
-          ))}
+        <div className="pipeline-board-scroll" role="region" aria-label="Job application Kanban board" tabIndex={0}>
+          <div className="pipeline-board">
+            {STATUS_OPTIONS.map(({ value }) => (
+              <PipelineColumn
+                applications={applicationsByStatus[value]}
+                key={value}
+                onOpenApplication={openApplicationModal}
+                onStatusChange={onStatusChange}
+                status={value}
+              />
+            ))}
+          </div>
         </div>
         {createPortal(
           <DragOverlay dropAnimation={null} zIndex={1400}>
@@ -250,6 +277,14 @@ export default function ApplicationPipelineWidget({
           document.body
         )}
       </DndContext>
+      {isApplicationModalOpen ? (
+        <JobApplicationModal
+          application={selectedApplication}
+          key={selectedApplication?.id ?? 'new'}
+          onClose={() => setIsApplicationModalOpen(false)}
+          onSave={onApplicationSave}
+        />
+      ) : null}
     </div>
   );
 }

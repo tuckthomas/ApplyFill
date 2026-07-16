@@ -1,7 +1,7 @@
 import type { LayoutItem, ResponsiveLayouts } from 'react-grid-layout';
 
 export type DashboardBreakpoint = 'lg' | 'md' | 'sm' | 'xs';
-export type DashboardWidgetType = 'text' | 'application-pipeline';
+export type DashboardWidgetType = 'text' | 'application-pipeline' | 'application-snapshot' | 'status-distribution' | 'application-activity';
 
 export type DashboardWidgetInstance = {
   content?: string;
@@ -42,6 +42,24 @@ export const DASHBOARD_WIDGETS: DashboardWidgetDefinition[] = [
     title: 'Application Pipeline',
     description: 'A Kanban view of every tracked job application.',
     allowMultiple: false
+  },
+  {
+    id: 'application-snapshot',
+    title: 'Search Snapshot',
+    description: 'See your tracked, in-progress, interviewing, and offer totals at a glance.',
+    allowMultiple: false
+  },
+  {
+    id: 'status-distribution',
+    title: 'Status Distribution',
+    description: 'Compare the number of applications in each stage of your pipeline.',
+    allowMultiple: false
+  },
+  {
+    id: 'application-activity',
+    title: 'Application Activity',
+    description: 'Track applications submitted across the last six months.',
+    allowMultiple: false
   }
 ];
 
@@ -55,19 +73,31 @@ export const DEFAULT_WIDGET_INSTANCES: DashboardWidgetInstance[] = [
 const DEFAULT_ITEMS: Record<DashboardBreakpoint, Record<DashboardWidgetType, Omit<LayoutItem, 'i' | 'y'>>> = {
   lg: {
     text: { x: 0, w: 7, h: 4, minW: 3, minH: 3 },
-    'application-pipeline': { x: 0, w: 12, h: 11, minW: 6, minH: 7 }
+    'application-pipeline': { x: 0, w: 12, h: 11, minW: 6, minH: 7 },
+    'application-snapshot': { x: 0, w: 6, h: 6, minW: 4, minH: 5 },
+    'status-distribution': { x: 0, w: 6, h: 6, minW: 4, minH: 4 },
+    'application-activity': { x: 0, w: 6, h: 6, minW: 4, minH: 4 }
   },
   md: {
     text: { x: 0, w: 6, h: 4, minW: 3, minH: 3 },
-    'application-pipeline': { x: 0, w: 8, h: 11, minW: 4, minH: 7 }
+    'application-pipeline': { x: 0, w: 8, h: 11, minW: 4, minH: 7 },
+    'application-snapshot': { x: 0, w: 4, h: 6, minW: 3, minH: 5 },
+    'status-distribution': { x: 0, w: 4, h: 6, minW: 3, minH: 4 },
+    'application-activity': { x: 0, w: 4, h: 6, minW: 3, minH: 4 }
   },
   sm: {
     text: { x: 0, w: 4, h: 4, minW: 2, minH: 3 },
-    'application-pipeline': { x: 0, w: 4, h: 11, minW: 2, minH: 7 }
+    'application-pipeline': { x: 0, w: 4, h: 11, minW: 2, minH: 7 },
+    'application-snapshot': { x: 0, w: 4, h: 6, minW: 2, minH: 5 },
+    'status-distribution': { x: 0, w: 4, h: 6, minW: 2, minH: 4 },
+    'application-activity': { x: 0, w: 4, h: 6, minW: 2, minH: 4 }
   },
   xs: {
     text: { x: 0, w: 1, h: 5, minW: 1, minH: 4 },
-    'application-pipeline': { x: 0, w: 1, h: 12, minW: 1, minH: 8 }
+    'application-pipeline': { x: 0, w: 1, h: 12, minW: 1, minH: 8 },
+    'application-snapshot': { x: 0, w: 1, h: 7, minW: 1, minH: 5 },
+    'status-distribution': { x: 0, w: 1, h: 7, minW: 1, minH: 5 },
+    'application-activity': { x: 0, w: 1, h: 7, minW: 1, minH: 5 }
   }
 };
 

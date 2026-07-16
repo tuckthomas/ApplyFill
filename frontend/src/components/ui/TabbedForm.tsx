@@ -24,30 +24,31 @@ type TabTransitionProviderProps = {
 
 export function TabTransitionProvider({ activeTab, children, idPrefix }: TabTransitionProviderProps) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const regionRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<number | null>(null);
   const timerRef = useRef<number | null>(null);
   const initializedRef = useRef(false);
+  const previousHeightRef = useRef(0);
   const [transitionHeight, setTransitionHeight] = useState<number | null>(null);
 
   useLayoutEffect(() => {
     const panel = panelRef.current;
-    const region = regionRef.current;
-    if (!panel || !region) return;
+    if (!panel) return;
 
     const nextHeight = panel.getBoundingClientRect().height;
     if (!initializedRef.current) {
       initializedRef.current = true;
+      previousHeightRef.current = nextHeight;
       return;
     }
 
-    const currentHeight = region.getBoundingClientRect().height;
-    if (Math.abs(nextHeight - currentHeight) < 1) return;
+    const previousHeight = previousHeightRef.current;
+    previousHeightRef.current = nextHeight;
+    if (Math.abs(nextHeight - previousHeight) < 1) return;
 
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
     if (timerRef.current) window.clearTimeout(timerRef.current);
 
-    setTransitionHeight(currentHeight);
+    setTransitionHeight(previousHeight);
     frameRef.current = requestAnimationFrame(() => setTransitionHeight(nextHeight));
     timerRef.current = window.setTimeout(() => setTransitionHeight(null), 220);
 
@@ -66,7 +67,7 @@ export function TabTransitionProvider({ activeTab, children, idPrefix }: TabTran
 
   return (
     <TabTransitionContext.Provider value={context}>
-      <div ref={regionRef} className="tabbed-form__transition-region" style={regionStyle}>
+      <div className="tabbed-form__transition-region" style={regionStyle}>
         <div ref={panelRef} className="tabbed-form__transition-panel">
           {children(context)}
         </div>

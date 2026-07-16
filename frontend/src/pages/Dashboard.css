@@ -239,6 +239,179 @@
   padding: 14px;
 }
 
+.application-snapshot-widget {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 16px;
+}
+
+.application-snapshot-stat {
+  background: var(--panel-color);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 88px;
+  padding: 14px;
+}
+
+.application-snapshot-stat span,
+.application-activity-description {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.application-snapshot-stat strong {
+  color: var(--text-main);
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
+.application-snapshot-stat.is-offer strong {
+  color: var(--success-color);
+}
+
+.status-distribution-widget,
+.application-activity-widget {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px;
+}
+
+.status-distribution-total {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.status-distribution-total strong {
+  color: var(--text-main);
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
+.status-distribution-total span {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.status-distribution-list {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.status-distribution-label {
+  align-items: center;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  margin-bottom: 5px;
+}
+
+.status-distribution-label > span:not(.status-distribution-dot) {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-distribution-label strong {
+  color: var(--text-main);
+  font-size: 0.86rem;
+}
+
+.status-distribution-dot {
+  background: var(--text-soft);
+  border-radius: 50%;
+  height: 8px;
+  width: 8px;
+}
+
+.status-distribution-track {
+  background: var(--panel-color);
+  border-radius: 999px;
+  height: 7px;
+  overflow: hidden;
+}
+
+.status-distribution-fill {
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  min-width: 0;
+  transition: width 180ms ease;
+}
+
+.status-applied { background: var(--primary-color); }
+.status-interviewing { background: var(--warning-color); }
+.status-offer-received { background: var(--success-color); }
+.status-rejected { background: var(--danger-color); }
+.status-saved,
+.status-withdrawn { background: var(--text-soft); }
+
+.application-activity-description {
+  margin: 0 0 16px;
+}
+
+.application-activity-chart {
+  align-items: end;
+  display: grid;
+  flex: 1 1 auto;
+  gap: 10px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  min-height: 130px;
+}
+
+.application-activity-month {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  justify-content: end;
+  min-width: 0;
+}
+
+.application-activity-count,
+.application-activity-label {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.application-activity-bar-track {
+  align-items: end;
+  background: var(--panel-color);
+  border-radius: 6px 6px 2px 2px;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 82px;
+  overflow: hidden;
+  width: min(100%, 38px);
+}
+
+.application-activity-bar {
+  background: linear-gradient(180deg, var(--primary-color), color-mix(in srgb, var(--primary-color) 65%, var(--success-color)));
+  border-radius: inherit;
+  display: block;
+  transition: height 180ms ease;
+  width: 100%;
+}
+
 .pipeline-toolbar {
   align-items: center;
   display: flex;
@@ -260,7 +433,16 @@
 .pipeline-add-button {
   height: 44px;
   padding-inline: 16px;
+  position: sticky;
+  right: 0;
   width: 180px;
+  z-index: 3;
+}
+
+.pipeline-board-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: auto;
 }
 
 .pipeline-board {
@@ -271,10 +453,6 @@
   min-height: 0;
   min-width: 1320px;
   overflow: visible;
-}
-
-.application-pipeline-widget:has(.pipeline-board) {
-  overflow-x: auto;
 }
 
 .pipeline-column {
@@ -415,7 +593,7 @@
   align-items: flex-start;
   display: grid;
   gap: 6px;
-  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-columns: 30px minmax(0, 1fr) 30px;
 }
 
 .pipeline-card-drag-handle {
@@ -435,12 +613,17 @@
   background: transparent;
   border: 0;
   color: inherit;
-  cursor: grab;
   display: flex;
   flex-direction: column;
   min-width: 0;
   padding: 0;
   text-align: left;
+}
+
+.pipeline-card-open-button {
+  align-self: start;
+  height: 30px;
+  width: 30px;
 }
 
 .pipeline-card-title strong,

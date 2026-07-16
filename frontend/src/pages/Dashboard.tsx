@@ -5,6 +5,11 @@ import DashboardGrid from '../components/dashboard/DashboardGrid';
 import WidgetFrame from '../components/dashboard/WidgetFrame';
 import WidgetLibraryModal from '../components/dashboard/WidgetLibraryModal';
 import ApplicationPipelineWidget from '../components/dashboard/widgets/ApplicationPipelineWidget';
+import {
+  ApplicationActivityWidget,
+  ApplicationSnapshotWidget,
+  StatusDistributionWidget
+} from '../components/dashboard/widgets/ApplicationAnalyticsWidgets';
 import TextWidget from '../components/dashboard/widgets/TextWidget';
 import {
   createDefaultDashboardLayouts,
@@ -98,6 +103,17 @@ export default function Dashboard() {
     });
   }, []);
 
+  const saveApplication = useCallback((application: JobApplication) => {
+    setApplications((current) => {
+      const exists = current.some((currentApplication) => currentApplication.id === application.id);
+      const next = exists
+        ? current.map((currentApplication) => currentApplication.id === application.id ? application : currentApplication)
+        : [...current, application];
+      saveApplications(next);
+      return next;
+    });
+  }, []);
+
   const addWidget = (type: DashboardWidgetType) => {
     if (type === 'application-pipeline' && widgets.some((widget) => widget.type === type)) return;
     const nextWidgets = [...widgets, createWidget(type)];
@@ -157,8 +173,15 @@ export default function Dashboard() {
           {widget.type === 'application-pipeline' ? (
             <ApplicationPipelineWidget
               applications={applications}
+              onApplicationSave={saveApplication}
               onStatusChange={updateApplicationStatus}
             />
+          ) : widget.type === 'application-snapshot' ? (
+            <ApplicationSnapshotWidget applications={applications} />
+          ) : widget.type === 'status-distribution' ? (
+            <StatusDistributionWidget applications={applications} />
+          ) : widget.type === 'application-activity' ? (
+            <ApplicationActivityWidget applications={applications} />
           ) : (
             <TextWidget
               id={widget.id}
@@ -175,6 +198,7 @@ export default function Dashboard() {
     isEditing,
     removeWidget,
     resizeWidgetHeight,
+    saveApplication,
     updateApplicationStatus,
     updateWidgetContent,
     widgets

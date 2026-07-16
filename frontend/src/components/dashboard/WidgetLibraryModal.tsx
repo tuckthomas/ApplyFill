@@ -1,4 +1,4 @@
-import { Columns3, Plus, Type } from 'lucide-react';
+import { BarChart3, ChartPie, Columns3, LayoutDashboard, Plus, Type } from 'lucide-react';
 import FormModal from '../ui/FormModal';
 import { DASHBOARD_WIDGETS } from './widgetLibrary';
 import type { DashboardWidgetInstance, DashboardWidgetType } from './widgetLibrary';
@@ -16,6 +16,14 @@ export default function WidgetLibraryModal({
   onAdd,
   onClose
 }: WidgetLibraryModalProps) {
+  const widgetIcon = (id: DashboardWidgetType) => {
+    if (id === 'text') return <Type size={24} />;
+    if (id === 'application-pipeline') return <Columns3 size={24} />;
+    if (id === 'application-snapshot') return <LayoutDashboard size={24} />;
+    if (id === 'status-distribution') return <ChartPie size={24} />;
+    return <BarChart3 size={24} />;
+  };
+
   return (
     <FormModal
       className="widget-library-dialog"
@@ -31,7 +39,7 @@ export default function WidgetLibraryModal({
           return (
             <article className="widget-library-item" key={widget.id}>
               <div className="widget-library-icon" aria-hidden="true">
-                {widget.id === 'text' ? <Type size={24} /> : <Columns3 size={24} />}
+                {widgetIcon(widget.id)}
               </div>
               <div className="widget-library-copy">
                 <h4>{widget.title}</h4>
