@@ -34,6 +34,7 @@ import type {
 } from '../components/job-tracker/jobApplication';
 import AddButton from '../components/ui/AddButton';
 import './Dashboard.css';
+import { createRichTextFromPlainText, normalizeRichText } from '../features/rich-text/richText';
 
 const DASHBOARD_WIDGETS_STORAGE_KEY = 'applyfill.dashboard.widgets.v3';
 const DASHBOARD_LAYOUTS_STORAGE_KEY = 'applyfill.dashboard.layouts.v3';
@@ -45,7 +46,12 @@ const loadWidgets = (): DashboardWidgetInstance[] => {
     const storedValue = window.localStorage.getItem(DASHBOARD_WIDGETS_STORAGE_KEY);
     if (!storedValue) return copyDefaultWidgets();
     const parsed = JSON.parse(storedValue) as unknown;
-    return Array.isArray(parsed) ? parsed.filter(isDashboardWidgetInstance) : copyDefaultWidgets();
+    return Array.isArray(parsed)
+      ? parsed.filter(isDashboardWidgetInstance).map((widget) => ({
+        ...widget,
+        content: widget.type === 'text' ? normalizeRichText(widget.content) : undefined
+      }))
+      : copyDefaultWidgets();
   } catch {
     return copyDefaultWidgets();
   }
@@ -65,7 +71,7 @@ const loadLayouts = (
 const createWidget = (type: DashboardWidgetType): DashboardWidgetInstance => ({
   id: type === 'application-pipeline' ? type : `text-${crypto.randomUUID()}`,
   type,
-  content: type === 'text' ? '<p>Enter text</p>' : undefined
+  content: type === 'text' ? createRichTextFromPlainText('Enter text') : undefined
 });
 
 export default function Dashboard() {

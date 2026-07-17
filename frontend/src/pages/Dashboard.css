@@ -153,39 +153,40 @@
   min-height: 0;
 }
 
-.dashboard-text-widget .rich-text-quill,
-.dashboard-text-widget .rich-text-quill .ql-container {
+.dashboard-text-widget .rich-text-tiptap {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
-}
-
-.dashboard-text-widget .rich-text-quill .ql-container {
   resize: none;
 }
 
-.dashboard-text-widget .rich-text-quill .ql-editor {
+.dashboard-text-widget .rich-text-editor-content {
   flex: 1 1 auto;
   min-height: 72px;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
-.dashboard-text-widget:not(.is-editing) {
-  padding: 16px;
-}
-
-.dashboard-text-widget:not(.is-editing) .rich-text-shell,
-.dashboard-text-widget:not(.is-editing) .rich-text-quill .ql-container {
+.dashboard-text-widget:not(.is-editing) .rich-text-tiptap {
   background: transparent;
   border: 0;
   box-shadow: none;
 }
 
-.dashboard-text-widget:not(.is-editing) .ql-editor {
+.dashboard-text-widget:not(.is-editing) .rich-text-editor-content {
   cursor: default;
   padding: 0;
+}
+
+.dashboard-text-widget:not(.is-editing) {
+  padding: 16px;
+}
+
+.dashboard-text-widget:not(.is-editing) .rich-text-shell {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .dashboard-grid .react-grid-item > .react-resizable-handle {
@@ -440,6 +441,7 @@
 }
 
 .pipeline-board-scroll {
+  display: flex;
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: auto;
@@ -450,7 +452,7 @@
   flex: 1 1 auto;
   gap: 12px;
   grid-template-columns: repeat(6, minmax(210px, 1fr));
-  min-height: 0;
+  min-height: 100%;
   min-width: 1320px;
   overflow: visible;
 }

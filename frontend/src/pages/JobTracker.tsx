@@ -9,6 +9,7 @@ import { useDateFormatPreference } from '../features/preferences/dateFormatPrefe
 import type { DateFormatPreference } from '../features/preferences/dateFormatPreference';
 import { loadApplications, saveApplications, STATUS_OPTIONS } from '../components/job-tracker/jobApplication';
 import type { JobApplication } from '../components/job-tracker/jobApplication';
+import { getRichTextPlainText } from '../features/rich-text/richText';
 
 const formatDate = (value: string, dateFormat: DateFormatPreference) => {
   if (!value) return 'Not recorded';
@@ -19,12 +20,7 @@ const formatDate = (value: string, dateFormat: DateFormatPreference) => {
   return formatExactDateForDisplay(value, dateFormat);
 };
 
-const getNotePreview = (value: string) => {
-  if (!value) return '';
-
-  const document = new DOMParser().parseFromString(value, 'text/html');
-  return document.body.textContent?.replace(/\s+/g, ' ').trim() ?? '';
-};
+const getNotePreview = (value: string) => getRichTextPlainText(value);
 
 export default function JobTracker() {
   const navigate = useNavigate();

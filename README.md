@@ -12,7 +12,7 @@
     <a href="https://react.dev/"><img src="https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React 19" /></a>
     <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript_6-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript 6" /></a>
     <a href="https://vite.dev/"><img src="https://img.shields.io/badge/Vite_8-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite 8" /></a>
-    <a href="https://dotnet.microsoft.com/"><img src="https://img.shields.io/badge/.NET_10_(LTS)-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 10 LTS" /></a>
+    <a href="https://dotnet.microsoft.com/"><img src="https://img.shields.io/badge/.NET_10-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 10" /></a>
     <a href="https://www.postgresql.org/"><img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" /></a>
     <a href="https://www.npgsql.org/efcore/"><img src="https://img.shields.io/badge/EF_Core_10-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt="Entity Framework Core 10" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-Personal_Local_Use-334155?style=for-the-badge" alt="ApplyFill Personal Local-Use License" /></a>
@@ -113,8 +113,8 @@ The following screenshots were captured from the current frontend in July 2026.
 | Dashboard | Job Profile review |
 | --- | --- |
 | ![ApplyFill dashboard with application pipeline](frontend/public/readme/gallery/dashboard.png) | ![ApplyFill Job Profile overview](frontend/public/readme/gallery/profile-overview.png) |
-| Job Profile wizard | Job tracker |
-| ![ApplyFill Job Profile wizard](frontend/public/readme/gallery/profile-wizard.png) | ![ApplyFill job tracker](frontend/public/readme/gallery/job-tracker.png) |
+| Job Profile builder | Job tracker |
+| ![ApplyFill Job Profile builder](frontend/public/readme/gallery/profile-wizard.png) | ![ApplyFill job tracker](frontend/public/readme/gallery/job-tracker.png) |
 | Resume workspace | Settings |
 | ![ApplyFill resume workspace](frontend/public/readme/gallery/resumes.png) | ![ApplyFill settings](frontend/public/readme/gallery/settings.png) |
 
@@ -137,7 +137,7 @@ ApplyFill separates the interactive client from the domain and persistence layer
 | Layer | Technologies | Responsibility |
 | --- | --- | --- |
 | Frontend | React 19, TypeScript 6, Vite 8, React Router 7 | Profile wizard, job tracker, resume workspace, responsive application shell |
-| UI foundation | React Select, Quill 2, Lucide React, shared CSS tokens and primitives | Accessible selects, rich text, dates, modals, tooltips, checkboxes, icons, and consistent states |
+| UI foundation | React Select, Tiptap, Lucide React, shared CSS tokens and primitives | Accessible selects, structured rich text, dates, modals, tooltips, checkboxes, icons, and consistent states |
 | API | ASP.NET Core 10, OpenAPI, typed `HttpClient` | HTTP endpoints, development authentication, AI-service boundary |
 | Application | .NET class library | Service contracts and application-level integrations |
 | Domain | .NET class library | Users, profiles, resumes, projects, skills, job targets, application packets, and logs |
@@ -151,6 +151,7 @@ ApplyFill separates the interactive client from the domain and persistence layer
 - Job-tracker entries are also stored in browser `localStorage`.
 - The PostgreSQL domain schema and migrations exist, but the frontend profile and tracker workflows are not yet connected to full persistence APIs.
 - Gemini calls originate from the backend. The API key is never required in the frontend application.
+- Rich-text fields persist only a restricted structured document. Raw HTML is not accepted or rendered; AI output is treated as plain text and converted directly into that document shape.
 
 This distinction matters for local users: clearing site data currently removes browser-stored profile and tracker information.
 
@@ -193,7 +194,7 @@ Repository-specific implementation guidance lives in [`.agents/`](.agents/README
 
 - [Node.js](https://nodejs.org/) 22 or newer
 - [pnpm](https://pnpm.io/) 11 or newer
-- [.NET SDK 10 (LTS)](https://dotnet.microsoft.com/download/dotnet/10.0)
+- [.NET SDK 10](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [PostgreSQL](https://www.postgresql.org/download/) for the backend API
 - A Gemini API key only when testing optional AI-assisted editing
 

@@ -3,8 +3,9 @@ import { Pencil, UserRound, Wand2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { loadProfileBuilderState, PROFILE_BUILDER_STEPS } from '../features/profile/profileBuilder';
 import Button from '../components/ui/Button';
+import { getRichTextPlainText } from '../features/rich-text/richText';
 
-const plainText = (value: string) => value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+const plainText = (value: string) => getRichTextPlainText(value);
 
 type ProfileOverviewSectionProps = {
   children: ReactNode;

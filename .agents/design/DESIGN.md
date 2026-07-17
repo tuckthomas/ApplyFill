@@ -66,14 +66,14 @@ Prefer these components rather than rebuilding their behavior:
 - `RepeatableEmptyState.tsx`: consistent empty state for repeatable profile data.
 - `EntrySortControl.tsx`: sorting for repeated entries.
 - `ValidationDialog.tsx`: grouped validation feedback.
-- `RichTextEditor.tsx`: all rich-text fields and toolbar behavior.
+- `RichTextEditor.tsx`: all rich-text fields and toolbar behavior. It persists a restricted Tiptap JSON document; raw HTML is not supported, rendered, or migrated. Plain-text imports and AI output must be converted through `features/rich-text/`.
 - `ProfileIntroductionSection.tsx`: profile opening section used by the Job Profile wizard.
 - Dashboard components under `components/dashboard/`: widget grid, widget chrome, library, and widget implementations.
 
 ## Application Shell And Routes
 
 - `MainLayout.tsx` owns the responsive sidebar, grouped navigation, and persisted light/dark theme. Do not create a page-level substitute for these behaviors.
-- Implemented routes are dashboard (`/`), Job Profile review (`/job-profile`), Job Profile wizard (`/job-profile/wizard`), Job Tracker (`/job-tracker`), Resume Builder (`/resumes`), and Settings (`/settings`).
+- Implemented routes are dashboard (`/`), Job Profile review (`/job-profile`), Job Profile builder (`/job-profile/builder`), Job Tracker (`/job-tracker`), Resume Builder (`/resumes`), and Settings (`/settings`).
 - The dashboard uses the shared dashboard grid and widget frame. Preserve its edit-mode distinction: layout changes, widget resizing, and widget removal are editing actions.
 - The Job Profile screen is a readable review surface. Its section-level Edit actions must navigate to the matching wizard section rather than duplicate profile-editing forms.
 - Settings uses shared controls. The date format preference is a persisted frontend preference; integration-status cards are informational and must not imply that storage or export features are available.

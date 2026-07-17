@@ -11,6 +11,7 @@ import {
 } from '../components/job-tracker/jobApplication';
 import type { JobApplication, JobApplicationFormState } from '../components/job-tracker/jobApplication';
 import { loadProfileBuilderState } from '../features/profile/profileBuilder';
+import { createRichTextFromPlainText, normalizeRichText } from '../features/rich-text/richText';
 
 const createApplication = (value: JobApplicationFormState, id: string): JobApplication => ({
   ...value,
@@ -20,7 +21,8 @@ const createApplication = (value: JobApplicationFormState, id: string): JobAppli
   location: formatJobApplicationLocation(value),
   city: value.city.trim(),
   targetJobUrl: value.targetJobUrl.trim(),
-  notes: value.notes.trim()
+  jobDescription: normalizeRichText(value.jobDescription),
+  notes: normalizeRichText(value.notes)
 });
 
 export default function JobApplicationEditor() {
@@ -84,8 +86,7 @@ export default function JobApplicationEditor() {
       const description = document.body.textContent?.replace(/\s+/g, ' ').trim();
       if (!description) throw new Error('No readable text was found on the job posting.');
 
-      const escapedDescription = description.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      updateFormField('jobDescription', `<p>${escapedDescription}</p>`);
+      updateFormField('jobDescription', createRichTextFromPlainText(description));
     } catch {
       setJobDescriptionError('The posting opened in a new tab, but its site does not allow its text to be imported automatically. Copy the description from that tab and paste it here.');
     } finally {

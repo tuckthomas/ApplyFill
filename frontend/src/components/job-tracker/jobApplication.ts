@@ -1,5 +1,6 @@
 import { formatExactDateValue, normalizeExactDateValue } from '../ui/datePickerUtils';
 import type { LocationOption } from '../../constants/location';
+import { EMPTY_RICH_TEXT_VALUE, normalizeRichText } from '../../features/rich-text/richText';
 
 export type JobApplicationStatus = 'Saved' | 'Applied' | 'Interviewing' | 'Offer Received' | 'Rejected' | 'Withdrawn';
 export type JobApplicationWorkplaceType = 'On-site' | 'Hybrid' | 'Remote';
@@ -70,10 +71,10 @@ export const createEmptyApplicationForm = (defaultCountry: LocationOption | null
   state: null,
   country: defaultCountry ? { ...defaultCountry } : null,
   targetJobUrl: '',
-  jobDescription: '',
+  jobDescription: EMPTY_RICH_TEXT_VALUE,
   status: 'Applied',
   appliedDate: formatExactDateValue(new Date()),
-  notes: ''
+  notes: EMPTY_RICH_TEXT_VALUE
 });
 
 export const loadApplications = (): JobApplication[] => {
@@ -88,7 +89,8 @@ export const loadApplications = (): JobApplication[] => {
       ? parsed.map((application) => ({
         ...application,
         appliedDate: normalizeExactDateValue(application.appliedDate),
-        jobDescription: application.jobDescription ?? '',
+        jobDescription: normalizeRichText(application.jobDescription),
+        notes: normalizeRichText(application.notes),
         workplaceType: application.workplaceType ?? null,
         location: application.location ?? '',
         city: application.city ?? '',

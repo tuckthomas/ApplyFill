@@ -6,6 +6,7 @@ import type { ProjectEntry } from '../../components/resume/ProjectsSection';
 import type { SkillEntry } from '../../components/resume/SkillsSection';
 import { EMPTY_PROFILE_AUTOMATION_CONSENT, hasCurrentProfileAutomationConsent } from './profileConsent';
 import type { ProfileAutomationConsent } from './profileConsent';
+import { normalizeRichText } from '../rich-text/richText';
 
 export const PROFILE_BUILDER_STORAGE_KEY = 'applyfill.profile-builder.v1';
 export const PROFILE_BUILDER_SCHEMA_VERSION = 3;
@@ -68,8 +69,12 @@ const normalizeProfileBuilderData = (data: Partial<ProfileBuilderData> | undefin
     webLinks: (data?.profile?.webLinks ?? []).filter((link) => link.name.trim() || link.url.trim())
   },
   education: data?.education ?? [],
-  experience: data?.experience ?? [],
-  projects: data?.projects ?? [],
+  experience: (data?.experience ?? []).map((entry) => ({
+    ...entry,
+    description: normalizeRichText(entry.description),
+    reasonForLeaving: normalizeRichText(entry.reasonForLeaving)
+  })),
+  projects: (data?.projects ?? []).map((entry) => ({ ...entry, description: normalizeRichText(entry.description) })),
   skills: data?.skills ?? [],
   applicationQuestions: { ...DEFAULT_PROFILE_BUILDER_DATA.applicationQuestions, ...(data?.applicationQuestions ?? {}) }
 });

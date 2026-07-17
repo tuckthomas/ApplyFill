@@ -140,14 +140,14 @@ export default function JobApplicationForm({
               value={value.jobDescription}
               onChange={(nextValue) => onChange('jobDescription', nextValue)}
               placeholder="Paste or import the job posting details"
-              quillClassName="rich-text-quill-tracker"
+              editorClassName="rich-text-editor-tracker"
             />
             {jobDescriptionError && <p className="form-error-message" role="alert">{jobDescriptionError}</p>}
           </div>
           </div>
         ) : (
           <div id={panelId} role="tabpanel" aria-labelledby={tabId}>
-            <RichTextEditor label="Notes" labelId={`${idPrefix}-notes-label`} toolbarId={`${idPrefix}-notes-toolbar`} value={value.notes} onChange={(nextValue) => onChange('notes', nextValue)} placeholder="Recruiter name, next steps, or other reminders" quillClassName="rich-text-quill-tracker" />
+            <RichTextEditor label="Notes" labelId={`${idPrefix}-notes-label`} toolbarId={`${idPrefix}-notes-toolbar`} value={value.notes} onChange={(nextValue) => onChange('notes', nextValue)} placeholder="Recruiter name, next steps, or other reminders" editorClassName="rich-text-editor-tracker" />
           </div>
         )}
       </TabbedForm>

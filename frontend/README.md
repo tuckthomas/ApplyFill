@@ -6,7 +6,7 @@ Vite React application for ApplyFill, the reusable job-application profile build
 
 - `/` — customizable dashboard and application pipeline
 - `/job-profile` — reusable profile review screen
-- `/job-profile/wizard` — profile-builder workflow
+- `/job-profile/builder` — profile-builder workflow (`/job-profile/wizard` redirects here)
 - `/job-tracker` — browser-local job tracker
 - `/resumes` — targeted-resume workspace scaffold
 - `/settings` — persisted regional date-format preference and planned integration status

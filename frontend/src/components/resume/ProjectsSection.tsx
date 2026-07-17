@@ -14,6 +14,7 @@ import RepeatableEmptyState from '../ui/RepeatableEmptyState';
 import { useDateFormatPreference } from '../../features/preferences/dateFormatPreference';
 import type { DateFormatPreference } from '../../features/preferences/dateFormatPreference';
 import { formatExactDateForDisplay } from '../ui/datePickerUtils';
+import { EMPTY_RICH_TEXT_VALUE, createRichTextFromPlainText, getRichTextPlainText } from '../../features/rich-text/richText';
 
 type SelectOption = {
   value: string;
@@ -77,17 +78,11 @@ const createProject = (id: number): ProjectEntry => ({
   endDate: '',
   endDatePrecision: 'Exact',
   isOngoing: false,
-  description: '',
+  description: EMPTY_RICH_TEXT_VALUE,
   isEditing: true,
   isSaved: false,
   rewriteMessage: ''
 });
-
-const getPlainText = (value: string) => value
-  .replace(/<[^>]*>/g, ' ')
-  .replace(/&nbsp;/g, ' ')
-  .replace(/\s+/g, ' ')
-  .trim();
 
 const isValidProjectUrl = (value: string) => {
   if (!value.trim()) return true;
@@ -249,7 +244,7 @@ export default function ProjectsSection({ projects, onChange }: ProjectsSectionP
   };
 
   const handleAiEnhance = async (project: ProjectEntry) => {
-    if (!getPlainText(project.description)) {
+    if (!getRichTextPlainText(project.description)) {
       updateProject(project.id, 'rewriteMessage', 'Add project details before rewriting.');
       return;
     }
@@ -261,7 +256,7 @@ export default function ProjectsSection({ projects, onChange }: ProjectsSectionP
       const response = await fetch('http://localhost:5033/api/ai/enhance-project', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: project.description })
+        body: JSON.stringify({ description: getRichTextPlainText(project.description) })
       });
 
       if (response.status === 503) {
@@ -271,7 +266,7 @@ export default function ProjectsSection({ projects, onChange }: ProjectsSectionP
       if (!response.ok) throw new Error('Failed to enhance project details');
 
       const data = await response.json();
-      updateProject(project.id, 'description', data.enhancedDescription);
+      updateProject(project.id, 'description', createRichTextFromPlainText(data.enhancedDescription));
       updateProject(project.id, 'rewriteMessage', 'Project details rewritten.');
     } catch (error) {
       console.error(error);
@@ -450,7 +445,7 @@ export default function ProjectsSection({ projects, onChange }: ProjectsSectionP
                   onAiEnhance={() => handleAiEnhance(project)}
                   onChange={(value) => updateProject(project.id, 'description', value)}
                   placeholder="Describe the problem, your contribution, technologies used, and measurable results..."
-                  quillClassName="rich-text-quill-project"
+                  editorClassName="rich-text-editor-project"
                   toolbarId={`${prefix}-toolbar`}
                   value={project.description}
                 />

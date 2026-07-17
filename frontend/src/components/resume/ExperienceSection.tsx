@@ -18,6 +18,7 @@ import AddressFlow from '../ui/AddressFlow';
 import type { AddressValue } from '../ui/AddressFlow';
 import { useDateFormatPreference } from '../../features/preferences/dateFormatPreference';
 import { formatExactDateForDisplay } from '../ui/datePickerUtils';
+import { EMPTY_RICH_TEXT_VALUE, createRichTextFromPlainText, getRichTextPlainText } from '../../features/rich-text/richText';
 
 type SelectOption = {
   value: string;
@@ -77,8 +78,8 @@ const createExperience = (id: number, defaultCountry: SelectOption | null): Expe
   companyPhone: '',
   supervisorName: '',
   mayContactSupervisor: false,
-  description: '',
-  reasonForLeaving: '',
+  description: EMPTY_RICH_TEXT_VALUE,
+  reasonForLeaving: EMPTY_RICH_TEXT_VALUE,
   rewriteMessage: '',
   validationMessage: '',
   isEditing: true,
@@ -225,7 +226,7 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
   };
 
   const handleAiEnhance = async (experience: ExperienceEntry, field: RichTextField) => {
-    const sourceText = experience[field];
+    const sourceText = getRichTextPlainText(experience[field]);
     const fieldLabel = field === 'description' ? 'experience details' : 'reason for leaving';
 
     if (!sourceText.trim()) {
@@ -251,7 +252,7 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
       }
 
       const data = await response.json();
-      updateExperience(experience.id, field, data.enhancedDescription);
+      updateExperience(experience.id, field, createRichTextFromPlainText(data.enhancedDescription));
       setRewriteMessage(experience.id, `${field === 'description' ? 'Experience details' : 'Reason for leaving'} rewritten.`);
     } catch (error) {
       console.error(error);
@@ -656,7 +657,7 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
               onAiEnhance={() => handleAiEnhance(experience, 'description')}
               onChange={(value) => updateExperience(experience.id, 'description', value)}
               placeholder="Write your experience in a paragraph or as bullet points..."
-              quillClassName="rich-text-quill-experience"
+              editorClassName="rich-text-editor-experience"
               toolbarId={toolbarId}
               value={experience.description}
             />
@@ -670,7 +671,7 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
               onAiEnhance={() => handleAiEnhance(experience, 'reasonForLeaving')}
               onChange={(value) => updateExperience(experience.id, 'reasonForLeaving', value)}
               placeholder={experience.isCurrentJob ? 'Disabled for current job' : 'Explain why this job ended, if an application asks for it...'}
-              quillClassName="rich-text-quill-reason"
+              editorClassName="rich-text-editor-reason"
               toolbarId={reasonToolbarId}
               value={experience.reasonForLeaving}
             />

@@ -1039,7 +1039,7 @@ The domain entity `ResumeExperience.cs` currently has location and phone number 
 #### 2. Frontend UI (`ExperienceSection.tsx`)
 The UI needs to be updated to expose all of these fields in a clean, organized manner.
 - **[MODIFY]** `m:/ResumeJobAssistant/frontend/src/components/resume/ExperienceSection.tsx`:
-  - **Increase Editor Height**: Apply proper CSS targeting the `.ql-editor` class or use inline styles on the ReactQuill wrapper to ensure the typing area has a `minHeight` of `300px` (up from `150px`).
+  - **Increase Editor Height**: Apply the shared Tiptap editor CSS to ensure the typing area has a `minHeight` of `300px` (up from `150px`).
   - **Add Form Fields**: Group the new inputs into logical sections using CSS Grid:
     - *Job Basics*: Title, Company, Start Date, End Date (already exists).
     - *Location*: Street Address 1, Street Address 2, City, State, Zip, Country.

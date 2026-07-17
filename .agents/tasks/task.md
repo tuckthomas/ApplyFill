@@ -30,10 +30,10 @@
   - `[x]` Update Step components (Profile, Summary, Experience, etc.) to match new form input styles
 
 - `[x]` Phase 1.8: AI-Powered Rich Text Work Experience
-  - `[x]` Install `react-quill` dependencies
+  - `[x]` Install Tiptap structured-editor dependencies
   - `[x]` Add `EnhanceExperienceDescriptionAsync` to backend `IAiService` and `GeminiAiService`
   - `[x]` Add `/enhance-experience` endpoint to `AiController`
-  - `[x]` Replace bullet point inputs in `ExperienceSection.tsx` with `ReactQuill`
+  - `[x]` Replace bullet point inputs in `ExperienceSection.tsx` with the shared Tiptap editor
   - `[x]` Implement "AI Wand" button logic to format text into bullet points
 
 - `[ ]` Phase 2: PDF Rendering & Data Integration

@@ -16,7 +16,7 @@ export default function TextWidget({ id, isEditing, onChange, value }: TextWidge
         labelId={`${id}-text-label`}
         onChange={onChange}
         placeholder="Enter text"
-        quillClassName="dashboard-text-widget-quill"
+        editorClassName="dashboard-text-widget-editor"
         readOnly={!isEditing}
         toolbarId={`${id}-text-toolbar`}
         toolbarVariant={isEditing ? 'basic' : 'hidden'}
