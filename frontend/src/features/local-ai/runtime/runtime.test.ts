@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
-import { selectAccelerator } from './acceleratorSelection'
+import { compatibleAccelerators, selectAccelerator } from './acceleratorSelection'
 import {
   fetchVerifiedModelArtifact,
   createVerifiedModelSource,
   ModelOriginError,
 } from './artifactLoader'
 import { FakeLocalAiRuntime, FailureLocalAiRuntime } from './fakeRuntime'
+import { LiteRtLmRuntime } from './liteRtLmRuntime'
 import { assertRuntimeTransition, InvalidRuntimeTransitionError } from './lifecycle'
 import type { ModelManifestEntry, RuntimeCapabilities, Sha256Digest } from './types'
 
@@ -60,7 +61,7 @@ describe('runtime lifecycle', () => {
 })
 
 describe('accelerator selection', () => {
-  it('records an honest NPU-to-WebGPU fallback', async () => {
+  it('uses the broadly supported WebGPU path first in automatic mode', async () => {
     const attempts: string[] = []
     const result = await selectAccelerator(capabilities, 'automatic', async (accelerator) => {
       attempts.push(accelerator)
@@ -68,9 +69,14 @@ describe('accelerator selection', () => {
         ? { ok: true, actualAccelerator: 'webgpu' }
         : { ok: false, reason: 'model compile rejected' }
     })
-    expect(attempts).toEqual(['webnn-npu', 'webgpu'])
+    expect(attempts).toEqual(['webgpu'])
     expect(result.actualAccelerator).toBe('webgpu')
-    expect(result.fallbackReason).toContain('model compile rejected')
+    expect(result.fallbackReason).toBeUndefined()
+  })
+
+  it('filters automatic setup to accelerators supported by the selected model', () => {
+    expect(compatibleAccelerators(capabilities, 'automatic', model.supportedAccelerators)).toEqual(['webgpu'])
+    expect(compatibleAccelerators(capabilities, 'experimental-npu', model.supportedAccelerators)).toEqual([])
   })
 
   it('does not silently fall back when an accelerator is pinned', async () => {
@@ -80,6 +86,15 @@ describe('accelerator selection', () => {
         reason: 'unsupported operation',
       })),
     ).rejects.toThrow('unsupported operation')
+  })
+
+  it('rejects an unsupported model/accelerator pairing before downloading', async () => {
+    const runtime = new LiteRtLmRuntime()
+    vi.spyOn(runtime, 'detectCapabilities').mockResolvedValue(capabilities)
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+    await expect(runtime.initialize({ model, acceleratorPreference: 'experimental-npu' }))
+      .rejects.toThrow('does not have a supported way')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })
 

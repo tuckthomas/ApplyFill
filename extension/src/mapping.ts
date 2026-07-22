@@ -1,6 +1,6 @@
 import {
   type FieldDescriptor,
-  type HandoffRequest,
+  type AutofillData,
   type MappingProposal,
   type ReviewItem,
   type ScopedValue,
@@ -66,9 +66,9 @@ function safeProposal(field: FieldDescriptor, proposal: MappingProposal | undefi
   return proposal.classification !== 'model-suggested' || !isSensitiveSemantic(value.semantic);
 }
 
-export function buildReviewItems(fields: FieldDescriptor[], handoff: HandoffRequest): ReviewItem[] {
-  const values = new Map(handoff.values.map((value) => [value.sourceKey, value]));
-  const proposals = new Map(handoff.proposals.map((proposal) => [proposal.fieldId, proposal]));
+export function buildReviewItems(fields: FieldDescriptor[], data: AutofillData): ReviewItem[] {
+  const values = new Map(data.values.map((value) => [value.sourceKey, value]));
+  const proposals = new Map(data.proposals.map((proposal) => [proposal.fieldId, proposal]));
 
   return fields.map((field): ReviewItem => {
     if (field.control === 'unsupported' || field.unsupportedReason) {
@@ -80,7 +80,7 @@ export function buildReviewItems(fields: FieldDescriptor[], handoff: HandoffRequ
     }
 
     const deterministic = classifyDeterministically(field);
-    const deterministicValue = handoff.values.find((entry) => entry.semantic === deterministic);
+    const deterministicValue = data.values.find((entry) => entry.semantic === deterministic);
     if (deterministic && deterministicValue) {
       const sensitive = isSensitiveSemantic(deterministic);
       return {

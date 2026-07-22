@@ -1,61 +1,69 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_MESSAGE_BYTES, PROTOCOL_VERSION, validateDisconnect, validateHandoff, validateInspect } from '../src/contracts';
-import { handoff } from './fixtures';
+import {
+  MAX_MESSAGE_BYTES,
+  PAIRING_PROTOCOL_VERSION,
+  validatePairedAiUpdate,
+  validatePairedInspect,
+  validatePairingControl,
+  validatePairingUpdate,
+} from '../src/contracts';
 
-describe('handoff protocol validation', () => {
+const pairingSecret = 'a'.repeat(43);
+
+describe('persistent pairing protocol validation', () => {
   const now = 1_900_000_000_000;
+  const update = {
+    type: 'applyfill.pair',
+    protocolVersion: PAIRING_PROTOCOL_VERSION,
+    pairingSecret,
+    includeSensitive: false,
+    profileUpdatedAtUtc: new Date(now).toISOString(),
+    values: [{ sourceKey: 'profile.email', semantic: 'email', displayLabel: 'Email', value: 'person@example.test' }],
+  } as const;
 
-  it('accepts a bounded versioned handoff', () => {
-    expect(validateHandoff(handoff({}, now), now)).toMatchObject({ ok: true });
+  it('accepts a bounded profile pairing without per-application codes', () => {
+    expect(validatePairingUpdate(update)).toMatchObject({ ok: true });
   });
 
-  it.each([
-    ['wrong schema', { protocolVersion: 'applyfill.autofill.v0' }],
-    ['expired nonce', { expiresAt: now - 1 }],
-    ['unknown field', { extra: 'not allowed' }],
-  ])('rejects %s', (_label, mutation) => {
-    expect(validateHandoff({ ...handoff({}, now), ...mutation }, now)).toMatchObject({ ok: false });
+  it('rejects unapproved sensitive values, duplicates, unknown keys, and oversized updates', () => {
+    const sensitive = { sourceKey: 'profile.ssn', semantic: 'government-identifier', displayLabel: 'SSN', value: '123-45-6789' };
+    expect(validatePairingUpdate({ ...update, values: [...update.values, sensitive] })).toMatchObject({ ok: false });
+    expect(validatePairingUpdate({ ...update, includeSensitive: true, values: [...update.values, sensitive] })).toMatchObject({ ok: true });
+    expect(validatePairingUpdate({ ...update, values: [update.values[0], update.values[0]] })).toMatchObject({ ok: false });
+    expect(validatePairingUpdate({ ...update, extra: true })).toMatchObject({ ok: false });
+    expect(validatePairingUpdate({ ...update, values: [{ ...update.values[0], value: 'x'.repeat(MAX_MESSAGE_BYTES) }] }))
+      .toEqual({ ok: false, error: 'Profile update exceeds the 64 KiB limit.' });
   });
 
-  it('rejects unknown source keys and duplicate values', () => {
-    const base = handoff({}, now);
-    expect(validateHandoff({
-      ...base,
-      proposals: [{ fieldId: 'field-email', sourceKey: 'missing', classification: 'model-suggested', confidence: .8, reason: 'Label match' }],
-    }, now)).toMatchObject({ ok: false });
-    expect(validateHandoff({ ...base, values: [base.values[0], base.values[0]] }, now)).toMatchObject({ ok: false });
+  it('validates exact pairing status, unpair, and page-inspection requests', () => {
+    const status = { type: 'applyfill.pairing-status', protocolVersion: PAIRING_PROTOCOL_VERSION, pairingSecret };
+    expect(validatePairingControl(status)).toMatchObject({ ok: true });
+    expect(validatePairingControl({ ...status, type: 'applyfill.unpair' })).toMatchObject({ ok: true });
+    expect(validatePairingControl({ ...status, targetTabId: 42 })).toMatchObject({ ok: false });
+    expect(validatePairedInspect({
+      type: 'applyfill.inspect-paired', protocolVersion: PAIRING_PROTOCOL_VERSION, pairingSecret, targetTabId: 42,
+    })).toMatchObject({ ok: true });
   });
 
-  it('rejects oversized packets before parsing their contents', () => {
-    const base = handoff({}, now);
-    const oversized = { ...base, values: [{ ...base.values[0], value: 'a'.repeat(MAX_MESSAGE_BYTES) }] };
-    expect(validateHandoff(oversized, now)).toEqual({ ok: false, error: 'Handoff exceeds the 64 KiB limit.' });
+  it('accepts only unique, non-sensitive Local AI suggestions', () => {
+    const suggestion = {
+      type: 'applyfill.attach-ai-suggestions',
+      protocolVersion: PAIRING_PROTOCOL_VERSION,
+      pairingSecret,
+      targetTabId: 42,
+      values: [{ sourceKey: 'generated.answer', semantic: 'narrative-answer', displayLabel: 'Answer', value: 'Draft answer' }],
+      proposals: [{ fieldId: 'question-1', sourceKey: 'generated.answer', classification: 'model-suggested', confidence: .8, reason: 'Matched locally' }],
+    } as const;
+    expect(validatePairedAiUpdate(suggestion)).toMatchObject({ ok: true });
+    expect(validatePairedAiUpdate({ ...suggestion, values: [{ ...suggestion.values[0], semantic: 'government-identifier' }] }))
+      .toMatchObject({ ok: false });
+    expect(validatePairedAiUpdate({ ...suggestion, proposals: [suggestion.proposals[0], suggestion.proposals[0]] }))
+      .toMatchObject({ ok: false });
   });
 
-  it('requires recent explicit approval metadata on sensitive values', () => {
-    const base = handoff({}, now);
-    const sensitive = base.values[1]!;
-    expect(validateHandoff({ ...base, values: [base.values[0], { ...sensitive, userApprovedAt: undefined }] }, now)).toMatchObject({ ok: false });
-    expect(validateHandoff({ ...base, values: [base.values[0], { ...sensitive, userApprovedAt: now - 60_001 }] }, now)).toMatchObject({ ok: false });
-  });
-
-  it('validates an exact bounded disconnect contract', () => {
-    const valid = { type: 'applyfill.disconnect', protocolVersion: PROTOCOL_VERSION, targetTabId: 42, nonce: 'abcdefghijklmnopqrstuvwxyz123456' };
-    expect(validateDisconnect(valid)).toMatchObject({ ok: true });
-    expect(validateDisconnect({ ...valid, origin: 'https://evil.test' })).toMatchObject({ ok: false });
-  });
-
-  it('validates a strict, bounded inspection contract', () => {
-    const valid = { type: 'applyfill.inspect', protocolVersion: PROTOCOL_VERSION, targetTabId: 42, nonce: 'abcdefghijklmnopqrstuvwxyz123456' };
-    expect(validateInspect(valid)).toMatchObject({ ok: true });
-    expect(validateInspect({ ...valid, expiresAt: now + 1_000 })).toMatchObject({ ok: false });
-    expect(validateInspect({ ...valid, nonce: 'short' })).toMatchObject({ ok: false });
-    expect(validateInspect({ ...valid, padding: 'x'.repeat(1_024) })).toEqual({ ok: false, error: 'Inspect request is too large.' });
-  });
-
-  it('rejects prototype-pollution keys and mismatched protocol versions', () => {
-    const polluted = JSON.parse(`{"type":"applyfill.handoff","protocolVersion":"${PROTOCOL_VERSION}","targetTabId":42,"nonce":"abcdefghijklmnopqrstuvwxyz123456","expiresAt":${now + 10_000},"values":[],"proposals":[],"__proto__":{"admin":true}}`);
-    expect(validateHandoff(polluted, now)).toMatchObject({ ok: false });
+  it('rejects prototype-pollution keys', () => {
+    const polluted = JSON.parse(`{"type":"applyfill.pairing-status","protocolVersion":"${PAIRING_PROTOCOL_VERSION}","pairingSecret":"${pairingSecret}","__proto__":{"admin":true}}`);
+    expect(validatePairingControl(polluted)).toMatchObject({ ok: false });
     expect(({} as { admin?: boolean }).admin).toBeUndefined();
   });
 });

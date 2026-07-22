@@ -2,9 +2,9 @@
   "manifest_version": 3,
   "name": "ApplyFill Local Autofill",
   "description": "Reviews and fills user-approved application fields on the active tab without submitting the form.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "minimum_chrome_version": "120",
-  "permissions": ["activeTab", "scripting"],
+  "permissions": ["activeTab", "scripting", "storage"],
   "background": {
     "service_worker": "background.js"
   },

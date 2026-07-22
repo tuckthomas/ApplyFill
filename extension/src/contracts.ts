@@ -1,4 +1,4 @@
-export const PROTOCOL_VERSION = 'applyfill.autofill.v1' as const;
+export const PAIRING_PROTOCOL_VERSION = 'applyfill.autofill.pairing.v1' as const;
 export const SESSION_TTL_MS = 5 * 60 * 1_000;
 export const MAX_MESSAGE_BYTES = 64 * 1_024;
 export const MAX_FIELDS = 120;
@@ -93,35 +93,40 @@ export interface MappingProposal {
   evidence?: string[];
 }
 
-export interface SelectedDocument {
-  documentId: string;
-  versionId: string;
-  fileName: string;
-}
-
-export interface HandoffRequest {
-  type: 'applyfill.handoff';
-  protocolVersion: typeof PROTOCOL_VERSION;
-  targetTabId: number;
-  nonce: string;
-  expiresAt: number;
+export interface AutofillData {
   values: ScopedValue[];
   proposals: MappingProposal[];
-  selectedDocument?: SelectedDocument;
 }
 
-export interface DisconnectRequest {
-  type: 'applyfill.disconnect';
-  protocolVersion: typeof PROTOCOL_VERSION;
-  targetTabId: number;
-  nonce: string;
+export interface PairingUpdateRequest {
+  type: 'applyfill.pair' | 'applyfill.sync-profile';
+  protocolVersion: typeof PAIRING_PROTOCOL_VERSION;
+  pairingSecret: string;
+  includeSensitive: boolean;
+  profileUpdatedAtUtc: string;
+  values: ScopedValue[];
 }
 
-export interface InspectRequest {
-  type: 'applyfill.inspect';
-  protocolVersion: typeof PROTOCOL_VERSION;
+export interface PairingControlRequest {
+  type: 'applyfill.pairing-status' | 'applyfill.unpair';
+  protocolVersion: typeof PAIRING_PROTOCOL_VERSION;
+  pairingSecret: string;
+}
+
+export interface PairedInspectRequest {
+  type: 'applyfill.inspect-paired';
+  protocolVersion: typeof PAIRING_PROTOCOL_VERSION;
+  pairingSecret: string;
   targetTabId: number;
-  nonce: string;
+}
+
+export interface PairedAiUpdateRequest {
+  type: 'applyfill.attach-ai-suggestions';
+  protocolVersion: typeof PAIRING_PROTOCOL_VERSION;
+  pairingSecret: string;
+  targetTabId: number;
+  values: ScopedValue[];
+  proposals: MappingProposal[];
 }
 
 export interface ReviewItem {
@@ -170,22 +175,6 @@ const boundedString = (value: unknown, max = MAX_TEXT_LENGTH): value is string =
 const isSemantic = (value: unknown): value is SemanticField =>
   typeof value === 'string' && semanticFields.includes(value as SemanticField);
 
-function validateScopedValue(value: unknown, now: number): value is ScopedValue {
-  if (!isRecord(value) || !hasExactKeys(value, ['sourceKey', 'semantic', 'displayLabel', 'value', 'userApprovedAt'])) return false;
-  if (!isSemantic(value.semantic)) return false;
-  const baseValid = boundedString(value.sourceKey, 100)
-    && boundedString(value.displayLabel, 160)
-    && boundedString(value.value);
-  if (!baseValid) return false;
-  if (isSensitiveSemantic(value.semantic)) {
-    return typeof value.userApprovedAt === 'number'
-      && Number.isSafeInteger(value.userApprovedAt)
-      && value.userApprovedAt <= now
-      && value.userApprovedAt >= now - 60_000;
-  }
-  return value.userApprovedAt === undefined;
-}
-
 function validateProposal(value: unknown): value is MappingProposal {
   if (!isRecord(value) || !hasExactKeys(value, ['fieldId', 'sourceKey', 'classification', 'confidence', 'reason', 'evidence'])) return false;
   const allowedClassifications = ['model-suggested', 'deterministic', 'manual'];
@@ -202,15 +191,6 @@ function validateProposal(value: unknown): value is MappingProposal {
       || (Array.isArray(value.evidence) && value.evidence.length <= 8 && value.evidence.every((entry) => boundedString(entry, 180))));
 }
 
-function validateSelectedDocument(value: unknown): value is SelectedDocument {
-  return isRecord(value)
-    && hasExactKeys(value, ['documentId', 'versionId', 'fileName'])
-    && boundedString(value.documentId, 120)
-    && boundedString(value.versionId, 120)
-    && boundedString(value.fileName, 220)
-    && /\.(?:pdf|docx)$/i.test(value.fileName);
-}
-
 export function byteLength(value: unknown): number {
   try {
     return new TextEncoder().encode(JSON.stringify(value)).byteLength;
@@ -219,72 +199,98 @@ export function byteLength(value: unknown): number {
   }
 }
 
-export function validateHandoff(value: unknown, now = Date.now()): ValidationResult<HandoffRequest> {
-  if (byteLength(value) > MAX_MESSAGE_BYTES) return { ok: false, error: 'Handoff exceeds the 64 KiB limit.' };
+const validPairingSecret = (value: unknown): value is string => typeof value === 'string'
+  && /^[A-Za-z0-9_-]{32,128}$/.test(value);
+
+export function validatePairingUpdate(value: unknown): ValidationResult<PairingUpdateRequest> {
+  if (byteLength(value) > MAX_MESSAGE_BYTES) return { ok: false, error: 'Profile update exceeds the 64 KiB limit.' };
   if (!isRecord(value) || !hasExactKeys(value, [
-    'type', 'protocolVersion', 'targetTabId', 'nonce', 'expiresAt', 'values', 'proposals', 'selectedDocument',
-  ])) return { ok: false, error: 'Handoff has an invalid shape.' };
-  if (value.type !== 'applyfill.handoff' || value.protocolVersion !== PROTOCOL_VERSION) {
-    return { ok: false, error: 'Unsupported handoff protocol.' };
+    'type', 'protocolVersion', 'pairingSecret', 'includeSensitive', 'profileUpdatedAtUtc', 'values',
+  ])) return { ok: false, error: 'Profile update has an invalid shape.' };
+  if ((value.type !== 'applyfill.pair' && value.type !== 'applyfill.sync-profile')
+    || value.protocolVersion !== PAIRING_PROTOCOL_VERSION
+    || !validPairingSecret(value.pairingSecret)
+    || typeof value.includeSensitive !== 'boolean'
+    || typeof value.profileUpdatedAtUtc !== 'string'
+    || !Number.isFinite(Date.parse(value.profileUpdatedAtUtc))) {
+    return { ok: false, error: 'Profile update is invalid.' };
   }
-  if (!Number.isSafeInteger(value.targetTabId) || (value.targetTabId as number) < 0) {
-    return { ok: false, error: 'Invalid target tab.' };
+  if (!Array.isArray(value.values) || value.values.length > MAX_FIELDS) {
+    return { ok: false, error: 'Profile update contains too many values.' };
   }
-  if (!boundedString(value.nonce, 128) || !/^[A-Za-z0-9_-]{24,128}$/.test(value.nonce)) {
-    return { ok: false, error: 'Invalid one-time code.' };
+  const valuesValid = value.values.every((entry) => {
+    if (!isRecord(entry) || !hasExactKeys(entry, ['sourceKey', 'semantic', 'displayLabel', 'value', 'userApprovedAt'])) return false;
+    if (!isSemantic(entry.semantic)
+      || !boundedString(entry.sourceKey, 100)
+      || !boundedString(entry.displayLabel, 160)
+      || !boundedString(entry.value)
+      || entry.userApprovedAt !== undefined) return false;
+    return value.includeSensitive || !isSensitiveSemantic(entry.semantic);
+  });
+  if (!valuesValid || new Set(value.values.map((entry) => (entry as ScopedValue).sourceKey)).size !== value.values.length) {
+    return { ok: false, error: 'Profile update contains invalid or duplicate values.' };
   }
-  if (typeof value.expiresAt !== 'number' || !Number.isSafeInteger(value.expiresAt)
-    || value.expiresAt <= now || value.expiresAt > now + SESSION_TTL_MS) {
-    return { ok: false, error: 'Handoff is expired or has an invalid lifetime.' };
-  }
-  if (!Array.isArray(value.values) || value.values.length > MAX_FIELDS || !value.values.every((entry) => validateScopedValue(entry, now))) {
-    return { ok: false, error: 'Invalid scoped values.' };
-  }
-  if (!Array.isArray(value.proposals) || value.proposals.length > MAX_FIELDS || !value.proposals.every(validateProposal)) {
-    return { ok: false, error: 'Invalid mapping proposals.' };
-  }
-  if (value.selectedDocument !== undefined && !validateSelectedDocument(value.selectedDocument)) {
-    return { ok: false, error: 'Invalid selected document metadata.' };
-  }
-  const sourceKeys = new Set(value.values.map((entry) => entry.sourceKey));
-  if (sourceKeys.size !== value.values.length || value.proposals.some((entry) => !sourceKeys.has(entry.sourceKey))) {
-    return { ok: false, error: 'Mapping proposals reference unknown or duplicate values.' };
-  }
-  return { ok: true, value: value as unknown as HandoffRequest };
+  return { ok: true, value: value as unknown as PairingUpdateRequest };
 }
 
-export function validateDisconnect(value: unknown): ValidationResult<DisconnectRequest> {
-  if (byteLength(value) > 1_024) return { ok: false, error: 'Disconnect request is too large.' };
-  if (!isRecord(value) || !hasExactKeys(value, ['type', 'protocolVersion', 'targetTabId', 'nonce'])) {
-    return { ok: false, error: 'Disconnect request has an invalid shape.' };
+export function validatePairingControl(value: unknown): ValidationResult<PairingControlRequest> {
+  if (byteLength(value) > 1_024) return { ok: false, error: 'Pairing request is too large.' };
+  if (!isRecord(value) || !hasExactKeys(value, ['type', 'protocolVersion', 'pairingSecret'])
+    || (value.type !== 'applyfill.pairing-status' && value.type !== 'applyfill.unpair')
+    || value.protocolVersion !== PAIRING_PROTOCOL_VERSION
+    || !validPairingSecret(value.pairingSecret)) {
+    return { ok: false, error: 'Pairing request is invalid.' };
   }
-  if (value.type !== 'applyfill.disconnect' || value.protocolVersion !== PROTOCOL_VERSION) {
-    return { ok: false, error: 'Unsupported disconnect protocol.' };
-  }
-  if (!Number.isSafeInteger(value.targetTabId) || (value.targetTabId as number) < 0) {
-    return { ok: false, error: 'Invalid target tab.' };
-  }
-  if (!boundedString(value.nonce, 128) || !/^[A-Za-z0-9_-]{24,128}$/.test(value.nonce)) {
-    return { ok: false, error: 'Invalid one-time code.' };
-  }
-  return { ok: true, value: value as unknown as DisconnectRequest };
+  return { ok: true, value: value as unknown as PairingControlRequest };
 }
 
-export function validateInspect(value: unknown): ValidationResult<InspectRequest> {
-  if (byteLength(value) > 1_024) return { ok: false, error: 'Inspect request is too large.' };
-  if (!isRecord(value) || !hasExactKeys(value, ['type', 'protocolVersion', 'targetTabId', 'nonce'])) {
-    return { ok: false, error: 'Inspect request has an invalid shape.' };
+export function validatePairedInspect(value: unknown): ValidationResult<PairedInspectRequest> {
+  if (byteLength(value) > 1_024
+    || !isRecord(value)
+    || !hasExactKeys(value, ['type', 'protocolVersion', 'pairingSecret', 'targetTabId'])
+    || value.type !== 'applyfill.inspect-paired'
+    || value.protocolVersion !== PAIRING_PROTOCOL_VERSION
+    || !validPairingSecret(value.pairingSecret)
+    || !Number.isSafeInteger(value.targetTabId)
+    || (value.targetTabId as number) < 0) {
+    return { ok: false, error: 'Paired inspection request is invalid.' };
   }
-  if (value.type !== 'applyfill.inspect' || value.protocolVersion !== PROTOCOL_VERSION) {
-    return { ok: false, error: 'Unsupported inspect protocol.' };
+  return { ok: true, value: value as unknown as PairedInspectRequest };
+}
+
+export function validatePairedAiUpdate(value: unknown): ValidationResult<PairedAiUpdateRequest> {
+  if (byteLength(value) > MAX_MESSAGE_BYTES
+    || !isRecord(value)
+    || !hasExactKeys(value, ['type', 'protocolVersion', 'pairingSecret', 'targetTabId', 'values', 'proposals'])
+    || value.type !== 'applyfill.attach-ai-suggestions'
+    || value.protocolVersion !== PAIRING_PROTOCOL_VERSION
+    || !validPairingSecret(value.pairingSecret)
+    || !Number.isSafeInteger(value.targetTabId)
+    || (value.targetTabId as number) < 0
+    || !Array.isArray(value.values)
+    || value.values.length > MAX_FIELDS
+    || !Array.isArray(value.proposals)
+    || value.proposals.length > MAX_FIELDS) {
+    return { ok: false, error: 'Local AI suggestion update is invalid.' };
   }
-  if (!Number.isSafeInteger(value.targetTabId) || (value.targetTabId as number) < 0) {
-    return { ok: false, error: 'Invalid target tab.' };
+  const valuesValid = value.values.every((entry) => isRecord(entry)
+    && hasExactKeys(entry, ['sourceKey', 'semantic', 'displayLabel', 'value', 'userApprovedAt'])
+    && isSemantic(entry.semantic)
+    && !isSensitiveSemantic(entry.semantic)
+    && boundedString(entry.sourceKey, 100)
+    && boundedString(entry.displayLabel, 160)
+    && boundedString(entry.value)
+    && entry.userApprovedAt === undefined);
+  const proposalsValid = value.proposals.every(validateProposal);
+  if (!valuesValid || !proposalsValid) {
+    return { ok: false, error: 'Local AI suggestion values are invalid.' };
   }
-  if (!boundedString(value.nonce, 128) || !/^[A-Za-z0-9_-]{24,128}$/.test(value.nonce)) {
-    return { ok: false, error: 'Invalid one-time code.' };
+  const sourceKeys = new Set(value.values.map((entry) => (entry as ScopedValue).sourceKey));
+  const proposalFieldIds = new Set(value.proposals.map((entry) => (entry as MappingProposal).fieldId));
+  if (sourceKeys.size !== value.values.length || proposalFieldIds.size !== value.proposals.length) {
+    return { ok: false, error: 'Local AI suggestion values are invalid.' };
   }
-  return { ok: true, value: value as unknown as InspectRequest };
+  return { ok: true, value: value as unknown as PairedAiUpdateRequest };
 }
 
 export function isSensitiveSemantic(value: SemanticField | undefined): boolean {

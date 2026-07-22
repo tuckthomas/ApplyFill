@@ -1,5 +1,7 @@
 # Workstream E — Desktop Browser Extension and Autofill
 
+> **Superseded on 2026-07-22:** The completed one-time nonce handoff described below was replaced by persistent, approved-origin and secret-bound local pairing. The extension now stores a bounded derived profile copy in `chrome.storage.local`, ApplyFill refreshes it after profile saves, and explicit unpair deletes it. Page inspection/review remains temporary and review-before-fill; submission remains prohibited. See `extension/README.md` and `extension/docs/SECURITY.md` for the current contract.
+
 **Status:** Completed  
 **Depends on:** Workstream B message/data contracts; local mapping may use Workstream A after its interface stabilizes  
 **Purpose:** Provide the separately permissioned browser surface that a static ApplyFill page cannot provide across job-site origins

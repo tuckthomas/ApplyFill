@@ -13,6 +13,7 @@ import type { SkillEntry } from '../components/resume/SkillsSection';
 import ApplicationQuestionsSection from '../components/resume/ApplicationQuestionsSection';
 import type { ApplicationQuestionsData } from '../components/resume/ApplicationQuestionsSection';
 import ProfileIntroductionSection from '../components/resume/ProfileIntroductionSection';
+import ProfileResumeImportSection from '../components/resume/ProfileResumeImportSection';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { createDefaultProfileBuilderState, PROFILE_BUILDER_STEPS } from '../features/profile/profileBuilder';
@@ -22,6 +23,8 @@ import {
   hasCurrentProfileAutomationConsent,
   PROFILE_AUTOMATION_CONSENT_VERSION
 } from '../features/profile/profileConsent';
+import { mergeProfileImportProposal } from '../features/profile/resumeImport';
+import { localAiRuntime } from '../features/local-ai/runtime';
 
 const resolveSetStateAction = <Value,>(
   action: SetStateAction<Value>,
@@ -234,12 +237,13 @@ export default function ProfileEditor() {
           }}
         />
       );
-      case 1: return <ProfileSection data={data.profile} onChange={updateProfile} />;
-      case 2: return <EducationSection defaultCountry={data.profile.country} educations={data.education} onChange={updateEducation} />;
-      case 3: return <ExperienceSection defaultCountry={data.profile.country} experiences={data.experience} onChange={updateExperience} />;
-      case 4: return <ProjectsSection projects={data.projects} onChange={updateProjects} />;
-      case 5: return <SkillsSection skills={data.skills} onChange={updateSkills} />;
-      case 6: return <ApplicationQuestionsSection data={data.applicationQuestions} onChange={updateApplicationQuestions} />;
+      case 1: return <ProfileResumeImportSection runtime={localAiRuntime} onApply={(proposal, selection) => setProfileBuilderState((current) => ({ ...current, data: mergeProfileImportProposal(current.data, proposal, selection) }))} />;
+      case 2: return <ProfileSection data={data.profile} onChange={updateProfile} />;
+      case 3: return <EducationSection defaultCountry={data.profile.country} educations={data.education} onChange={updateEducation} />;
+      case 4: return <ExperienceSection defaultCountry={data.profile.country} experiences={data.experience} onChange={updateExperience} />;
+      case 5: return <ProjectsSection projects={data.projects} onChange={updateProjects} />;
+      case 6: return <SkillsSection skills={data.skills} onChange={updateSkills} />;
+      case 7: return <ApplicationQuestionsSection data={data.applicationQuestions} onChange={updateApplicationQuestions} />;
       default: return null;
     }
   };

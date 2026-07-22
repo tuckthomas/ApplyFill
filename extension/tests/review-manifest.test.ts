@@ -3,11 +3,11 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildReviewItems } from '../src/mapping';
 import { reviewInputType, sensitiveConfirmationFieldIds } from '../src/review-policy';
-import { fields, handoff } from './fixtures';
+import { autofillData, fields } from './fixtures';
 
 describe('sensitive review presentation', () => {
   it('masks sensitive values and identifies every required confirmation', () => {
-    const review = buildReviewItems(fields, handoff());
+    const review = buildReviewItems(fields, autofillData());
     const email = review.find((item) => item.field.id === 'field-email')!;
     const ssn = review.find((item) => item.field.id === 'field-ssn')!;
     expect(reviewInputType(email)).toBe('text');
@@ -17,9 +17,9 @@ describe('sensitive review presentation', () => {
 });
 
 describe('least-privilege manifest', () => {
-  it('uses only activeTab/scripting and disallows remote code, incognito, and persistent content scripts', async () => {
+  it('uses activeTab/scripting plus local pairing storage and disallows remote code, incognito, and persistent content scripts', async () => {
     const manifest = JSON.parse(await readFile(resolve('public/manifest.json'), 'utf8')) as Record<string, unknown>;
-    expect(manifest.permissions).toEqual(['activeTab', 'scripting']);
+    expect(manifest.permissions).toEqual(['activeTab', 'scripting', 'storage']);
     expect(manifest).not.toHaveProperty('host_permissions');
     expect(manifest).not.toHaveProperty('content_scripts');
     expect(manifest.incognito).toBe('not_allowed');

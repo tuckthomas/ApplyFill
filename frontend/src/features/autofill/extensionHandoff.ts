@@ -1,7 +1,9 @@
 import type { LocalProfileDocument } from '../profile/profileBuilder';
 
-export const AUTOFILL_PROTOCOL_VERSION = 'applyfill.autofill.v1' as const;
+export const AUTOFILL_PAIRING_PROTOCOL_VERSION = 'applyfill.autofill.pairing.v1' as const;
 export const AUTOFILL_EXTENSION_ID_KEY = 'applyfill.autofill.extension-id';
+export const AUTOFILL_PAIRING_SECRET_KEY = 'applyfill.autofill.pairing-secret';
+export const AUTOFILL_INCLUDE_SENSITIVE_KEY = 'applyfill.autofill.include-sensitive';
 
 export type AutofillSemantic =
   | 'first-name' | 'middle-name' | 'last-name' | 'full-name' | 'email' | 'phone'
@@ -18,7 +20,14 @@ export type ScopedAutofillValue = {
   userApprovedAt?: number;
 };
 
-type ChromeExternalResponse = { ok?: boolean; accepted?: boolean; error?: string };
+type ChromeExternalResponse = {
+  ok?: boolean;
+  accepted?: boolean;
+  error?: string;
+  paired?: boolean;
+  profileUpdatedAtUtc?: string;
+  includeSensitive?: boolean;
+};
 export type AutofillFieldDescriptor = {
   id: string;
   control: 'input' | 'textarea' | 'select' | 'radio-group' | 'checkbox' | 'combobox' | 'unsupported';
@@ -40,12 +49,6 @@ export type AutofillMappingProposal = {
   reason: string;
   evidence?: string[];
 };
-type InspectionResponse = ChromeExternalResponse & {
-  protocolVersion?: string;
-  targetTabId?: number;
-  expiresAt?: number;
-  fields?: AutofillFieldDescriptor[];
-};
 type ChromeRuntime = {
   lastError?: { message?: string };
   sendMessage: (
@@ -60,14 +63,6 @@ const chromeRuntime = (): ChromeRuntime | undefined => (
 );
 
 export const isValidExtensionId = (value: string) => /^[a-p]{32}$/.test(value.trim());
-
-export function parseConnectionCode(value: string): { targetTabId: number; nonce: string } {
-  const match = value.trim().match(/^(\d+)\.([A-Za-z0-9_-]{24,128})$/);
-  if (!match) throw new Error('Enter the one-time code shown by the ApplyFill extension.');
-  const targetTabId = Number(match[1]);
-  if (!Number.isSafeInteger(targetTabId)) throw new Error('The connection code contains an invalid tab.');
-  return { targetTabId, nonce: match[2] };
-}
 
 const add = (
   values: ScopedAutofillValue[],
@@ -137,61 +132,127 @@ function sendExternalMessage<T extends ChromeExternalResponse = ChromeExternalRe
   });
 }
 
-export async function connectAutofillExtension(options: {
-  extensionId: string;
-  connectionCode: string;
-  values: ScopedAutofillValue[];
-  proposals?: AutofillMappingProposal[];
-}): Promise<void> {
-  const extensionId = options.extensionId.trim();
-  if (!isValidExtensionId(extensionId)) throw new Error('Enter the 32-character extension ID from the Chromium extension details page.');
-  const { targetTabId, nonce } = parseConnectionCode(options.connectionCode);
-  const approvedAt = Date.now();
-  const sensitive = new Set<AutofillSemantic>([
-    'work-authorization', 'visa-sponsorship', 'government-identifier', 'voluntary-demographic',
-  ]);
-  await sendExternalMessage(extensionId, {
-    type: 'applyfill.handoff',
-    protocolVersion: AUTOFILL_PROTOCOL_VERSION,
-    targetTabId,
-    nonce,
-    expiresAt: Date.now() + 60_000,
-    values: options.values.map((value) => sensitive.has(value.semantic)
-      ? { ...value, userApprovedAt: approvedAt }
-      : value),
-    proposals: options.proposals ?? [],
+const createPairingSecret = () => {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+};
+
+const savedPairing = () => ({
+  extensionId: localStorage.getItem(AUTOFILL_EXTENSION_ID_KEY) ?? '',
+  pairingSecret: localStorage.getItem(AUTOFILL_PAIRING_SECRET_KEY) ?? '',
+  includeSensitive: localStorage.getItem(AUTOFILL_INCLUDE_SENSITIVE_KEY) === 'true',
+});
+
+const profileUpdateMessage = (
+  type: 'applyfill.pair' | 'applyfill.sync-profile',
+  document: LocalProfileDocument,
+  pairingSecret: string,
+  includeSensitive: boolean,
+) => ({
+  type,
+  protocolVersion: AUTOFILL_PAIRING_PROTOCOL_VERSION,
+  pairingSecret,
+  includeSensitive,
+  profileUpdatedAtUtc: document.updatedAtUtc,
+  values: createScopedAutofillValues(document, includeSensitive),
+});
+
+export async function pairAutofillExtension(
+  extensionIdValue: string,
+  document: LocalProfileDocument,
+  includeSensitive: boolean,
+): Promise<void> {
+  const extensionId = extensionIdValue.trim();
+  if (!isValidExtensionId(extensionId)) throw new Error('Enter the 32-character ID shown on the extension details page.');
+  const existing = savedPairing();
+  const pairingSecret = existing.extensionId === extensionId && existing.pairingSecret
+    ? existing.pairingSecret
+    : createPairingSecret();
+  await sendExternalMessage(extensionId, profileUpdateMessage('applyfill.pair', document, pairingSecret, includeSensitive));
+  localStorage.setItem(AUTOFILL_EXTENSION_ID_KEY, extensionId);
+  localStorage.setItem(AUTOFILL_PAIRING_SECRET_KEY, pairingSecret);
+  localStorage.setItem(AUTOFILL_INCLUDE_SENSITIVE_KEY, String(includeSensitive));
+}
+
+export async function syncPairedAutofillProfile(document: LocalProfileDocument): Promise<boolean> {
+  const pairing = savedPairing();
+  if (!isValidExtensionId(pairing.extensionId) || !pairing.pairingSecret) return false;
+  await sendExternalMessage(pairing.extensionId, profileUpdateMessage(
+    'applyfill.sync-profile', document, pairing.pairingSecret, pairing.includeSensitive,
+  ));
+  return true;
+}
+
+export async function getAutofillPairingStatus(extensionIdValue = savedPairing().extensionId): Promise<ChromeExternalResponse> {
+  const pairing = savedPairing();
+  const extensionId = extensionIdValue.trim();
+  if (!isValidExtensionId(extensionId) || !pairing.pairingSecret || extensionId !== pairing.extensionId) {
+    return { ok: true, paired: false };
+  }
+  return sendExternalMessage(extensionId, {
+    type: 'applyfill.pairing-status',
+    protocolVersion: AUTOFILL_PAIRING_PROTOCOL_VERSION,
+    pairingSecret: pairing.pairingSecret,
   });
 }
 
-export async function inspectAutofillExtension(
+export async function unpairAutofillExtension(): Promise<void> {
+  const pairing = savedPairing();
+  if (isValidExtensionId(pairing.extensionId) && pairing.pairingSecret) {
+    await sendExternalMessage(pairing.extensionId, {
+      type: 'applyfill.unpair',
+      protocolVersion: AUTOFILL_PAIRING_PROTOCOL_VERSION,
+      pairingSecret: pairing.pairingSecret,
+    });
+  }
+  localStorage.removeItem(AUTOFILL_EXTENSION_ID_KEY);
+  localStorage.removeItem(AUTOFILL_PAIRING_SECRET_KEY);
+  localStorage.removeItem(AUTOFILL_INCLUDE_SENSITIVE_KEY);
+}
+
+export async function inspectPairedAutofillApplication(
   extensionIdValue: string,
-  connectionCode: string,
+  targetTabId: number,
 ): Promise<AutofillFieldDescriptor[]> {
+  const pairing = savedPairing();
   const extensionId = extensionIdValue.trim();
-  if (!isValidExtensionId(extensionId)) throw new Error('Enter the 32-character extension ID from the Chromium extension details page.');
-  const { targetTabId, nonce } = parseConnectionCode(connectionCode);
-  const response = await sendExternalMessage<InspectionResponse>(extensionId, {
-    type: 'applyfill.inspect',
-    protocolVersion: AUTOFILL_PROTOCOL_VERSION,
+  if (!isValidExtensionId(extensionId) || extensionId !== pairing.extensionId || !pairing.pairingSecret) {
+    throw new Error('The extension is not paired with this ApplyFill profile.');
+  }
+  const response = await sendExternalMessage<ChromeExternalResponse & {
+    targetTabId?: number;
+    fields?: AutofillFieldDescriptor[];
+  }>(extensionId, {
+    type: 'applyfill.inspect-paired',
+    protocolVersion: AUTOFILL_PAIRING_PROTOCOL_VERSION,
+    pairingSecret: pairing.pairingSecret,
     targetTabId,
-    nonce,
   });
-  if (response.protocolVersion !== AUTOFILL_PROTOCOL_VERSION || response.targetTabId !== targetTabId || !Array.isArray(response.fields)) {
-    throw new Error('The extension returned an invalid inspection response.');
+  if (response.targetTabId !== targetTabId || !Array.isArray(response.fields)) {
+    throw new Error('The extension returned an invalid application inspection.');
   }
   return response.fields;
 }
 
-export async function disconnectAutofillExtension(
-  extensionId: string,
-  connectionCode: string,
+export async function attachPairedAutofillSuggestions(
+  extensionIdValue: string,
+  targetTabId: number,
+  values: ScopedAutofillValue[],
+  proposals: AutofillMappingProposal[],
 ): Promise<void> {
-  if (!isValidExtensionId(extensionId)) throw new Error('The saved extension ID is invalid.');
-  const { targetTabId, nonce } = parseConnectionCode(connectionCode);
-  await sendExternalMessage(extensionId.trim(), {
-    type: 'applyfill.disconnect',
-    protocolVersion: AUTOFILL_PROTOCOL_VERSION,
+  const pairing = savedPairing();
+  const extensionId = extensionIdValue.trim();
+  if (!isValidExtensionId(extensionId) || extensionId !== pairing.extensionId || !pairing.pairingSecret) {
+    throw new Error('The extension is not paired with this ApplyFill profile.');
+  }
+  await sendExternalMessage(extensionId, {
+    type: 'applyfill.attach-ai-suggestions',
+    protocolVersion: AUTOFILL_PAIRING_PROTOCOL_VERSION,
+    pairingSecret: pairing.pairingSecret,
     targetTabId,
-    nonce,
+    values,
+    proposals,
   });
 }

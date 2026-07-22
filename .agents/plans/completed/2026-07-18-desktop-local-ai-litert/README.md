@@ -1,5 +1,7 @@
 # Desktop Local AI with LiteRT
 
+> **Current UI note (2026-07-22):** The hardware selector described in the original checklist was removed. Private AI setup now checks model/browser compatibility before downloading and selects WebGPU automatically; WebNN/NPU remains developer-only for this release.
+
 **Proposed:** 2026-07-18  
 **Approved:** 2026-07-18  
 **Status:** Complete for Chromium/WebGPU; unavailable hardware paths are explicitly dispositioned  

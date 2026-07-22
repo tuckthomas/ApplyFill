@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clearLocalAiModelCache,
+  hasCompleteCachedModel,
   modelCacheScope,
   readOrFetchVerifiedModelAsset,
   removeCachedModel,
 } from './modelCache'
-import type { Sha256Digest } from './types'
+import type { ModelManifestEntry, Sha256Digest } from './types'
 
 class MemoryCache {
   entries = new Map<string, Response>()
@@ -184,6 +185,31 @@ describe('versioned model chunk cache', () => {
     expect(await removeCachedModel(firstModel)).toBe(1)
     const cache = [...storage.caches.values()][0]
     expect(cache.entries.size).toBe(1)
+  })
+
+  it('reports whether every required model chunk is already cached', async () => {
+    const first = new Uint8Array([7])
+    const second = new Uint8Array([8])
+    const firstDigest = await digest(first)
+    const secondDigest = await digest(second)
+    const model = {
+      id: 'cached-model',
+      version: '1',
+      artifact: {
+        byteSize: 2,
+        digest: firstDigest,
+        chunks: [
+          { url: '/first', byteSize: 1, digest: firstDigest },
+          { url: '/second', byteSize: 1, digest: secondDigest },
+        ],
+      },
+    } as ModelManifestEntry
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) =>
+      new Response(String(url).includes('first') ? first : second))
+    await readOrFetchVerifiedModelAsset('/first', 1, firstDigest, { scope: modelCacheScope(model) })
+    expect(await hasCompleteCachedModel(model)).toBe(false)
+    await readOrFetchVerifiedModelAsset('/second', 1, secondDigest, { scope: modelCacheScope(model) })
+    expect(await hasCompleteCachedModel(model)).toBe(true)
   })
 
   it('clears every cached model explicitly', async () => {

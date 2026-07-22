@@ -1,0 +1,21 @@
+Jordan Lee
+jordan.lee@example.test | +1 (317) 555-0123 | https://github.com/jordanlee
+123 Main Street, Indianapolis, IN 46204
+
+EXPERIENCE
+Senior Software Engineer — Northstar Labs
+June 2020 – Present
+- Built TypeScript automation used by 12 internal teams.
+- Improved production availability to 99.95%.
+
+EDUCATION
+Bachelor of Science in Computer Science
+Example University, May 2020
+GPA: 3.80 / 4.00
+
+PROJECTS
+ApplyFill — Developer
+Created a privacy-focused local-first job application assistant.
+
+SKILLS
+TypeScript, React, CI/CD, Platform Engineering

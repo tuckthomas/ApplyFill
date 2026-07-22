@@ -138,6 +138,23 @@ export async function removeCachedModel(
   return results.filter(Boolean).length
 }
 
+export async function hasCompleteCachedModel(model: ModelManifestEntry): Promise<boolean> {
+  const storage = cacheStorage()
+  if (!storage) return false
+  const cache = await storage.open(MODEL_CACHE_NAME)
+  const scope = modelCacheScope(model)
+  const artifacts = model.artifact.chunks?.length
+    ? model.artifact.chunks
+    : [{ digest: model.artifact.digest, byteSize: model.artifact.byteSize }]
+  const responses = await Promise.all(artifacts.map((artifact) => cache.match(cacheKey(scope, artifact.digest))))
+  return responses.every((response, index) => {
+    const artifact = artifacts[index]
+    return response !== undefined
+      && response.headers.get('x-applyfill-model-scope') === scope
+      && response.headers.get('x-applyfill-sha256') === digestHex(artifact.digest)
+  })
+}
+
 export async function clearLocalAiModelCache(): Promise<boolean> {
   return (await cacheStorage()?.delete(MODEL_CACHE_NAME)) ?? false
 }

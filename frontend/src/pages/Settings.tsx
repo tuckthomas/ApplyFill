@@ -1,29 +1,27 @@
 import { useEffect, useState } from 'react';
-import { BrainCircuit, CalendarDays, CheckCircle2, Download, Gauge, HardDrive, FileText, Plug, RefreshCw, ShieldCheck, Trash2, Unplug } from 'lucide-react';
+import { BrainCircuit, CalendarDays, Download, Gauge, HardDrive, FileText, Plug, RefreshCw, ShieldCheck, Trash2, Unplug } from 'lucide-react';
 import AppSelect from '../components/ui/AppSelect';
 import Button from '../components/ui/Button';
 import { useDateFormatPreference } from '../features/preferences/dateFormatPreference';
 import type { DateFormatPreference } from '../features/preferences/dateFormatPreference';
 import { clearApplyFillLocalData } from '../features/storage/localDatabase';
 import {
-  candidateModels,
   removeCachedModel,
   loadDeployedModelManifest,
   localAiRuntime
 } from '../features/local-ai';
-import type { AcceleratorPreference, ModelManifestEntry, RuntimeProgress, RuntimeSnapshot } from '../features/local-ai';
+import type { ModelManifestEntry, RuntimeProgress, RuntimeSnapshot } from '../features/local-ai';
 import { downloadBlob } from '../features/resume/resumeDownloads';
 import Checkbox from '../components/ui/Checkbox';
 import { loadProfileDocument } from '../features/profile/profileBuilder';
 import {
   AUTOFILL_EXTENSION_ID_KEY,
-  connectAutofillExtension,
-  createScopedAutofillValues,
-  disconnectAutofillExtension,
-  inspectAutofillExtension,
-  isValidExtensionId
+  AUTOFILL_INCLUDE_SENSITIVE_KEY,
+  getAutofillPairingStatus,
+  isValidExtensionId,
+  pairAutofillExtension,
+  unpairAutofillExtension,
 } from '../features/autofill/extensionHandoff';
-import { createLocalAiAutofillProposals } from '../features/autofill/localAutofillMapper';
 
 type DateFormatOption = {
   label: string;
@@ -35,36 +33,55 @@ const DATE_FORMAT_OPTIONS: DateFormatOption[] = [
   { label: 'Day/month/year (DD/MM/YYYY)', value: 'DD/MM/YYYY' }
 ];
 
-type AcceleratorOption = { label: string; value: AcceleratorPreference };
-const ACCELERATOR_OPTIONS: AcceleratorOption[] = [
-  { label: 'Automatic', value: 'automatic' },
-  { label: 'Experimental NPU (WebNN)', value: 'experimental-npu' },
-  { label: 'GPU (WebGPU)', value: 'webgpu' },
-  { label: 'CPU (WASM)', value: 'wasm' }
-];
-
-const ACCELERATOR_STORAGE_KEY = 'applyfill.local-ai.accelerator';
+const RETIRED_ACCELERATOR_STORAGE_KEY = 'applyfill.local-ai.accelerator';
 
 const settingsSections = [
   {
-    title: 'Document Export',
-    status: 'Portable',
+    title: 'Backups and Downloads',
+    status: 'Available',
     icon: FileText,
-    copy: 'Profiles and resume drafts have validated JSON exports. PDF and DOCX files are generated directly in this browser.'
+    copy: 'Download copies of your profile and resumes whenever you want. Resume files are created on this device.'
   },
   {
-    title: 'Local Storage',
-    status: 'This browser',
+    title: 'Where Your Data Is Saved',
+    status: 'Local only',
     icon: HardDrive,
-    copy: 'Profiles, resume drafts, tracked applications, and dashboard settings stay in this browser. There is no ApplyFill account database or automatic cloud backup.'
+    copy: 'Your profile, resumes, applications, and dashboard stay in this browser. ApplyFill does not keep a cloud copy or automatic backup.'
   },
   {
-    title: 'Security',
-    status: 'Required',
+    title: 'Protect Your Information',
+    status: 'Important',
     icon: ShieldCheck,
-    copy: 'Downloaded backups contain sensitive personal data and are not encrypted. Browser-local AI also does not encrypt IndexedDB or protect an unlocked browser profile.'
+    copy: 'Downloaded backups may contain sensitive personal information. Store them somewhere private and secure.'
   }
 ];
+
+const runtimeStateLabel: Record<RuntimeSnapshot['state'], string> = {
+  unsupported: 'Not supported',
+  idle: 'Not started',
+  downloading: 'Downloading',
+  compiling: 'Getting ready',
+  ready: 'Ready',
+  running: 'Working',
+  failed: 'Needs attention',
+  disposed: 'Stopped'
+};
+
+const acceleratorLabel = (value: string | undefined) => {
+  if (!value) return 'Not running';
+  if (value === 'experimental-npu' || value === 'webnn-npu') return 'AI processor';
+  if (value === 'webgpu' || value === 'webnn-gpu') return 'Graphics processor';
+  return 'Regular processor';
+};
+
+const friendlyProgressMessage = (progress: RuntimeProgress) => {
+  if (progress.phase === 'compiling') return 'Finishing setup…';
+  if (progress.phase === 'generating') return 'Private AI is working…';
+  if (progress.total && progress.total > 0) {
+    return `Downloading private AI… ${Math.min(100, Math.floor(progress.completed / progress.total * 100))}%`;
+  }
+  return 'Downloading private AI…';
+};
 
 const byteSize = (value: number | undefined) => {
   if (value === undefined) return 'Unknown';
@@ -77,22 +94,40 @@ export default function Settings() {
   const { dateFormat, setDateFormat } = useDateFormatPreference();
   const [storageMessage, setStorageMessage] = useState('');
   const [runtimeSnapshot, setRuntimeSnapshot] = useState<RuntimeSnapshot>(localAiRuntime.snapshot);
-  const [aiMessage, setAiMessage] = useState('Local AI has not been initialized.');
+  const [aiMessage, setAiMessage] = useState('Private AI is not set up yet.');
   const [progress, setProgress] = useState<RuntimeProgress | null>(null);
   const [storageEstimate, setStorageEstimate] = useState<{ persisted: boolean; quota?: number; usage?: number } | null>(null);
-  const [accelerator, setAccelerator] = useState<AcceleratorPreference>(() => {
-    const saved = localStorage.getItem(ACCELERATOR_STORAGE_KEY);
-    return ACCELERATOR_OPTIONS.some((option) => option.value === saved) ? saved as AcceleratorPreference : 'automatic';
-  });
   const [availableModel, setAvailableModel] = useState<ModelManifestEntry | null>(null);
   const [extensionId, setExtensionId] = useState(() => localStorage.getItem(AUTOFILL_EXTENSION_ID_KEY) ?? '');
-  const [connectionCode, setConnectionCode] = useState('');
-  const [includeSensitiveAutofill, setIncludeSensitiveAutofill] = useState(false);
+  const [includeSensitiveAutofill, setIncludeSensitiveAutofill] = useState(
+    () => localStorage.getItem(AUTOFILL_INCLUDE_SENSITIVE_KEY) === 'true',
+  );
   const [extensionConnected, setExtensionConnected] = useState(false);
-  const [extensionMessage, setExtensionMessage] = useState('No job-site tab is connected.');
+  const [extensionMessage, setExtensionMessage] = useState('No extension is paired yet.');
   const isResumeApproved = availableModel?.approvedTasks.includes('resume-tailoring-draft') ?? false;
 
   useEffect(() => localAiRuntime.subscribe(setRuntimeSnapshot), []);
+
+  useEffect(() => {
+    localStorage.removeItem(RETIRED_ACCELERATOR_STORAGE_KEY);
+  }, []);
+
+  useEffect(() => {
+    if (!isValidExtensionId(extensionId)) return;
+    let active = true;
+    void getAutofillPairingStatus(extensionId)
+      .then((result) => {
+        if (!active) return;
+        setExtensionConnected(result.paired === true);
+        setExtensionMessage(result.paired
+          ? 'The extension is paired and ready on every job application. Your saved profile is updated automatically.'
+          : 'This extension has not been paired with ApplyFill yet.');
+      })
+      .catch(() => {
+        if (active) setExtensionMessage('ApplyFill could not reach the saved extension. Make sure it is installed and enabled.');
+      });
+    return () => { active = false; };
+  }, [extensionId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -114,35 +149,24 @@ export default function Settings() {
     return () => { active = false; };
   }, []);
 
-  const setAcceleratorPreference = (value: AcceleratorPreference) => {
-    setAccelerator(value);
-    localStorage.setItem(ACCELERATOR_STORAGE_KEY, value);
-  };
-
-  const checkCompatibility = async () => {
-    setAiMessage('Checking local browser accelerators…');
-    try {
-      const capabilities = await localAiRuntime.detectCapabilities();
-      const available = Object.entries(capabilities.accelerators).filter(([, value]) => value.available).map(([name]) => name);
-      setAiMessage(available.length ? `Available local accelerators: ${available.join(', ')}.` : 'No supported local accelerator was detected. Non-AI features remain available.');
-    } catch {
-      setAiMessage('Local AI compatibility could not be checked in this browser.');
-    }
-  };
-
   const initializeModel = async () => {
     if (!availableModel) return;
     setProgress(null);
-    setAiMessage('Preparing the approved local model…');
+    setAiMessage('Getting Local AI ready. The first setup may take several minutes…');
     try {
       const diagnostics = await localAiRuntime.initialize({
-        acceleratorPreference: accelerator,
+        acceleratorPreference: 'automatic',
         model: availableModel,
-        onProgress: (next) => { setProgress(next); setAiMessage(next.message); }
+        onProgress: (next) => { setProgress(next); setAiMessage(friendlyProgressMessage(next)); }
       });
-      setAiMessage(`Local model ready on ${diagnostics.actualAccelerator ?? 'the selected accelerator'}${diagnostics.fallbackReason ? `. Fallback: ${diagnostics.fallbackReason}` : '.'}`);
-    } catch (error) {
-      setAiMessage(error instanceof Error ? error.message : 'The local model could not be initialized.');
+      setProgress(null);
+      setAiMessage(`Private AI is ready${diagnostics.actualAccelerator ? ` and using this computer's ${acceleratorLabel(diagnostics.actualAccelerator).toLowerCase()}` : ''}.`);
+    } catch {
+      setProgress(null);
+      const webGpuAvailable = localAiRuntime.snapshot.diagnostics.capabilities?.accelerators.webgpu.available;
+      setAiMessage(webGpuAvailable === false
+        ? 'Private AI cannot run in this browser. ApplyFill features that do not need AI still work normally.'
+        : 'Private AI setup was interrupted. Completed download pieces were saved, so choosing Try Setup Again will continue instead of starting over.');
     }
   };
 
@@ -150,9 +174,9 @@ export default function Settings() {
     try {
       await localAiRuntime.reset();
       setProgress(null);
-      setAiMessage('The model was removed from active memory. No profile data was deleted.');
-    } catch (error) {
-      setAiMessage(error instanceof Error ? error.message : 'The local AI runtime could not be reset.');
+      setAiMessage('Local AI was stopped. Your profile and saved work were not changed.');
+    } catch {
+      setAiMessage('Local AI could not be stopped. Reload ApplyFill and try again.');
     }
   };
 
@@ -165,26 +189,26 @@ export default function Settings() {
       const persisted = await navigator.storage?.persisted?.();
       setStorageEstimate({ persisted: Boolean(persisted), quota: estimate?.quota, usage: estimate?.usage });
       setProgress(null);
-      setAiMessage(removed ? `Removed ${removed} verified model chunk${removed === 1 ? '' : 's'}. Profile and resume data were not changed.` : 'No cached model chunks were found. Profile and resume data were not changed.');
-    } catch (error) {
-      setAiMessage(error instanceof Error ? error.message : 'The cached model could not be removed.');
+      setAiMessage(removed ? 'The Local AI download was removed. Your profile and saved work were not changed.' : 'There was no Local AI download to remove. Your profile and saved work were not changed.');
+    } catch {
+      setAiMessage('The Local AI download could not be removed. Try again.');
     }
   };
 
   const benchmark = async () => {
-    setAiMessage('Running a content-free local benchmark…');
+    setAiMessage('Running a private speed test on this computer…');
     try {
       await localAiRuntime.generate({ input: 'Return exactly: LOCAL BENCHMARK COMPLETE', maxOutputTokens: 16 });
       const diagnostics = localAiRuntime.snapshot.diagnostics;
-      setAiMessage(`Benchmark complete. First token: ${diagnostics.firstTokenLatencyMs?.toFixed(0) ?? 'unavailable'} ms; speed: ${diagnostics.generationTokensPerSecond?.toFixed(1) ?? 'unavailable'} tokens/second.`);
-    } catch (error) {
-      setAiMessage(error instanceof Error ? error.message : 'The local benchmark failed.');
+      setAiMessage(`Speed test complete. Local AI began responding in ${diagnostics.firstTokenLatencyMs?.toFixed(0) ?? 'an unknown number of'} milliseconds and processed ${diagnostics.generationTokensPerSecond?.toFixed(1) ?? 'an unknown number of'} tokens per second.`);
+    } catch {
+      setAiMessage('The speed test could not finish. Make sure Local AI is ready and try again.');
     }
   };
 
   const exportDiagnostics = () => {
     downloadBlob(new Blob([localAiRuntime.exportDiagnostics()], { type: 'application/json' }), 'applyfill-local-ai-diagnostics.json');
-    setAiMessage('Privacy-safe runtime diagnostics downloaded. They contain no profile, job, prompt, or generated text.');
+    setAiMessage('Technical report downloaded. It does not contain your profile, job information, prompts, or AI responses.');
   };
 
   const requestPersistentStorage = async () => {
@@ -192,59 +216,51 @@ export default function Settings() {
       const persisted = await navigator.storage.persist();
       const estimate = await navigator.storage.estimate();
       setStorageEstimate({ persisted, quota: estimate.quota, usage: estimate.usage });
-      setAiMessage(persisted ? 'The browser granted persistent site storage.' : 'The browser did not grant persistent storage. Download backups because site data may be evicted.');
+      setAiMessage(persisted ? 'This browser agreed to protect ApplyFill data from automatic cleanup.' : 'This browser may still remove ApplyFill data when storage is low. Download backups regularly.');
     } catch {
-      setAiMessage('Persistent storage could not be requested in this browser.');
+      setAiMessage('ApplyFill could not ask this browser to protect its saved data. Download backups regularly.');
     }
   };
 
   const deleteLocalData = async () => {
     const confirmed = window.confirm(
-      'Permanently delete the local profile, resume drafts, job tracker, and dashboard data from this browser? Download any backups you need first.'
+      'Permanently delete the paired extension copy, local profile, resume drafts, job tracker, and dashboard data from this browser? Download any backups you need first.'
     );
     if (!confirmed) return;
     try {
+      if (localStorage.getItem(AUTOFILL_EXTENSION_ID_KEY)) await unpairAutofillExtension();
       await clearApplyFillLocalData();
-      setStorageMessage('Local profile, resume drafts, tracker, and dashboard data were deleted from this browser.');
+      setExtensionConnected(false);
+      setExtensionId('');
+      setStorageMessage('The extension copy, local profile, resume drafts, tracker, and dashboard data were deleted from this browser.');
     } catch {
-      setStorageMessage('Local data could not be deleted. Check browser site-storage permissions and try again.');
+      setStorageMessage('Local data was not deleted because ApplyFill could not first remove the extension copy. Enable the paired extension and try again.');
     }
   };
 
-  const connectExtension = async () => {
-    setExtensionMessage('Connecting to the user-started extension session…');
+  const pairExtension = async () => {
+    setExtensionMessage(extensionConnected ? 'Updating the extension with your saved profile…' : 'Pairing the extension with ApplyFill…');
     try {
       const profile = await loadProfileDocument();
-      if (!profile?.isComplete) throw new Error('Complete My Profile before creating an autofill packet.');
-      if (!isValidExtensionId(extensionId)) throw new Error('Enter the 32-character extension ID from the Chromium extension details page.');
-      const values = createScopedAutofillValues(profile, includeSensitiveAutofill);
-      setExtensionMessage('Inspecting redacted field descriptors from the approved job tab…');
-      const fields = await inspectAutofillExtension(extensionId, connectionCode);
-      setExtensionMessage(runtimeSnapshot.state === 'ready'
-        ? 'Mapping ambiguous fields with the approved local model…'
-        : 'Local AI is not ready; known fields will use deterministic mapping and ambiguous fields will remain manual.');
-      const aiMapping = await createLocalAiAutofillProposals({ runtime: localAiRuntime, profile, fields, values });
-      const scopedValues = [...values, ...aiMapping.generatedValues];
-      await connectAutofillExtension({ extensionId, connectionCode, values: scopedValues, proposals: aiMapping.proposals });
-      localStorage.setItem(AUTOFILL_EXTENSION_ID_KEY, extensionId.trim());
+      if (!profile?.isComplete) throw new Error('Complete My Profile before using job application autofill.');
+      if (!isValidExtensionId(extensionId)) throw new Error('Enter the 32-character ID shown on the extension details page.');
+      await pairAutofillExtension(extensionId, profile, includeSensitiveAutofill);
       setExtensionConnected(true);
-      setExtensionMessage(`${scopedValues.length} scoped values and ${aiMapping.proposals.length} local-AI proposal${aiMapping.proposals.length === 1 ? '' : 's'} are ready for review inside the extension. Nothing has been filled or submitted.`);
+      setExtensionMessage('The extension is paired and ready on every job application. ApplyFill will update it whenever you save your profile.');
     } catch (error) {
       setExtensionConnected(false);
-      setExtensionMessage(error instanceof Error ? error.message : 'The extension could not be connected.');
+      setExtensionMessage(error instanceof Error ? error.message : 'The extension could not be paired.');
     }
   };
 
-  const disconnectExtension = async () => {
+  const unpairExtension = async () => {
     try {
-      await disconnectAutofillExtension(extensionId, connectionCode);
-      setExtensionMessage('The extension session was cleared from memory.');
-    } catch {
-      setExtensionMessage('The local connection was cleared. The extension session was already absent or unreachable.');
-    } finally {
+      await unpairAutofillExtension();
+      setExtensionMessage('The extension was unpaired and its saved ApplyFill profile copy was deleted.');
       setExtensionConnected(false);
-      setConnectionCode('');
-      setIncludeSensitiveAutofill(false);
+      setExtensionId('');
+    } catch {
+      setExtensionMessage('ApplyFill could not remove the extension copy. Enable the extension and try again; the pairing has not been cleared.');
     }
   };
 
@@ -253,7 +269,7 @@ export default function Settings() {
       <header className="page-header">
         <div>
           <h2 className="page-title">Settings</h2>
-          <p className="page-copy">Control regional preferences, desktop Local AI, exports, storage, and security boundaries.</p>
+          <p className="page-copy">Choose how ApplyFill works in this browser.</p>
         </div>
       </header>
 
@@ -261,8 +277,8 @@ export default function Settings() {
         <div className="settings-preferences-heading">
           <CalendarDays aria-hidden="true" size={24} />
           <div>
-            <h3 className="section-title" id="regional-preferences-title">Regional Preferences</h3>
-            <p className="section-copy">Control how dates are entered and displayed throughout ApplyFill.</p>
+            <h3 className="section-title" id="regional-preferences-title">Dates</h3>
+            <p className="section-copy">Choose how dates appear throughout ApplyFill.</p>
           </div>
         </div>
         <div className="form-group settings-date-format-field">
@@ -283,27 +299,25 @@ export default function Settings() {
         <div className="settings-preferences-heading">
           <Plug aria-hidden="true" size={24} />
           <div>
-            <h3 className="section-title" id="autofill-extension-title">Local Autofill Extension</h3>
-            <p className="section-copy">Connect one user-approved job-site tab to this browser-only profile. The extension previews every mapping and never submits.</p>
+            <h3 className="section-title" id="autofill-extension-title">Job Application Autofill</h3>
+            <p className="section-copy">Pair the browser extension once. It stays ready across job applications and browser restarts, while every fill still requires your review.</p>
           </div>
           <span className="status-pill">{extensionConnected ? 'Connected' : 'Disconnected'}</span>
         </div>
-        <div className="autofill-extension-grid">
-          <div className="form-group">
-            <label className="form-label" htmlFor="autofill-extension-id">Chromium Extension ID</label>
-            <input className="form-input" id="autofill-extension-id" maxLength={32} onChange={(event) => setExtensionId(event.target.value.toLowerCase())} placeholder="Paste the ID from Manage extensions" spellCheck={false} value={extensionId} />
-          </div>
-          <div className="form-group">
-            <label className="form-label" htmlFor="autofill-connection-code">One-time Connection Code</label>
-            <input className="form-input" id="autofill-connection-code" onChange={(event) => setConnectionCode(event.target.value)} placeholder="Open the extension on the job tab, then paste its code" spellCheck={false} value={connectionCode} />
-          </div>
+        <div className="form-group autofill-extension-id-field">
+          <label className="form-label" htmlFor="autofill-extension-id">Extension ID</label>
+          <input className="form-input" id="autofill-extension-id" maxLength={32} onChange={(event) => {
+            setExtensionId(event.target.value.toLowerCase());
+            setExtensionConnected(false);
+          }} placeholder="Paste the ID from the extension details page" spellCheck={false} value={extensionId} />
         </div>
-        <Checkbox checked={includeSensitiveAutofill} label="Include application-only sensitive answers in this packet" onChange={(event) => setIncludeSensitiveAutofill(event.target.checked)} />
-        <p className="field-hint">When selected, government identifiers, work authorization, sponsorship, and voluntary demographics enter the extension's short-lived memory. They bypass AI, stay masked, and require another per-field confirmation immediately before insertion.</p>
+        <Checkbox checked={includeSensitiveAutofill} label="Keep sensitive application answers in the extension" onChange={(event) => setIncludeSensitiveAutofill(event.target.checked)} />
+        <p className="field-hint">Optional. This stores government IDs, work authorization, sponsorship, and demographic answers only in this browser's extension storage. Local AI never sees them, and you must confirm each sensitive field before it is filled.</p>
+        <p className="field-hint">After pairing, open the extension on a job application and choose Inspect This Application. That gives ApplyFill temporary access to the current page; it does not reconnect your profile. Recognized fields and private AI suggestions then appear in one review.</p>
         <p className="field-hint" role="status" aria-live="polite">{extensionMessage}</p>
         <div className="resume-builder-actions">
-          <Button disabled={extensionConnected || !extensionId.trim() || !connectionCode.trim()} onClick={() => void connectExtension()} variant="primary"><Plug aria-hidden="true" size={17} /> Connect for Review</Button>
-          <Button disabled={!extensionConnected} onClick={() => void disconnectExtension()}><Unplug aria-hidden="true" size={17} /> Disconnect & Clear Session</Button>
+          <Button disabled={!extensionId.trim()} onClick={() => void pairExtension()} variant="primary"><Plug aria-hidden="true" size={17} /> {extensionConnected ? 'Update Extension Profile' : 'Pair Extension Once'}</Button>
+          <Button disabled={!extensionConnected} onClick={() => void unpairExtension()}><Unplug aria-hidden="true" size={17} /> Unpair Extension</Button>
         </div>
       </section>
 
@@ -311,72 +325,65 @@ export default function Settings() {
         <div className="settings-preferences-heading">
           <BrainCircuit aria-hidden="true" size={24} />
           <div>
-            <h3 className="section-title" id="local-ai-settings-title">Desktop Local AI</h3>
-            <p className="section-copy">LiteRT runs supported models inside this browser. No ApplyFill server or cloud AI provider is used.</p>
+            <h3 className="section-title" id="local-ai-settings-title">Private AI on This Computer</h3>
+            <p className="section-copy">Download it once, then ApplyFill privately handles resume imports, writing help, and harder application questions on this computer.</p>
           </div>
-          <span className="status-pill">{runtimeSnapshot.state}</span>
-        </div>
-
-        <div className="local-ai-settings-grid">
-          <div className="form-group">
-            <label className="form-label" htmlFor="local-ai-accelerator">Accelerator Preference</label>
-            <AppSelect<AcceleratorOption>
-              inputId="local-ai-accelerator"
-              isSearchable={false}
-              onChange={(option) => { if (option) setAcceleratorPreference(option.value); }}
-              options={ACCELERATOR_OPTIONS}
-              value={ACCELERATOR_OPTIONS.find((option) => option.value === accelerator)}
-            />
-            <p className="field-hint"><strong>NPU</strong> is a dedicated local AI processor; <strong>WebNN</strong> is the experimental browser path to it. If the model cannot use it, ApplyFill reports the fallback instead of hiding it.</p>
-          </div>
-          <div className="local-ai-diagnostics-list">
-            <div><span>Requested</span><strong>{runtimeSnapshot.diagnostics.desiredAccelerator ?? accelerator}</strong></div>
-            <div><span>Actual</span><strong>{runtimeSnapshot.diagnostics.actualAccelerator ?? 'Not running'}</strong></div>
-            <div><span>Fallback</span><strong>{runtimeSnapshot.diagnostics.fallbackReason ?? 'None reported'}</strong></div>
-            <div><span>Storage</span><strong>{storageEstimate ? `${byteSize(storageEstimate.usage)} of ${byteSize(storageEstimate.quota)}; ${storageEstimate.persisted ? 'persistent' : 'evictable'}` : 'Unavailable'}</strong></div>
-          </div>
+          <span className="status-pill">{runtimeStateLabel[runtimeSnapshot.state]}</span>
         </div>
 
         <div className="local-ai-model-card">
           <div>
-            <h4>{availableModel?.displayName ?? 'No evaluation model deployed'}</h4>
+            <h4>Private AI Download</h4>
             <p className="section-copy">{availableModel
-              ? `${byteSize(availableModel.artifact.byteSize)} explicit download · ${availableModel.license.name}. ${isResumeApproved ? 'Approved for resume tailoring.' : 'Provisional: benchmark and evaluation only; resume suggestions remain blocked.'}`
-              : `${candidateModels.length} candidate models are documented, but downloads remain disabled until quality, privacy, hardware, integrity, and license gates pass.`}</p>
+              ? `About ${byteSize(availableModel.artifact.byteSize)}. ApplyFill automatically chooses compatible hardware; you do not need to configure anything.`
+              : 'The Private AI download is not available in this build.'}</p>
           </div>
-          <span className="status-pill">{isResumeApproved ? 'Approved' : availableModel ? 'Provisional evaluation' : 'Evaluation required'}</span>
+          {!isResumeApproved ? <span className="status-pill">Unavailable</span> : null}
         </div>
 
-        {progress ? <div className="local-ai-progress" role="progressbar" aria-label={progress.message} aria-valuemin={0} aria-valuemax={progress.total ?? undefined} aria-valuenow={progress.completed}><span style={{ width: progress.total ? `${Math.min(100, progress.completed / progress.total * 100)}%` : '20%' }} /></div> : null}
+        {progress ? <div className="local-ai-progress" role="progressbar" aria-label={aiMessage} aria-valuemin={0} aria-valuemax={progress.total ?? undefined} aria-valuenow={progress.completed}><span style={{ width: progress.total ? `${Math.min(100, progress.completed / progress.total * 100)}%` : '20%' }} /></div> : null}
         <p className="field-hint" role="status" aria-live="polite">{aiMessage}</p>
 
         <div className="resume-builder-actions" aria-label="Local AI controls">
-          <Button onClick={() => void checkCompatibility()}><CheckCircle2 aria-hidden="true" size={17} /> Compatibility Test</Button>
-          <Button disabled={!availableModel || ['downloading', 'compiling', 'running'].includes(runtimeSnapshot.state)} onClick={() => void initializeModel()} variant="primary"><Download aria-hidden="true" size={17} /> Download / Update Model</Button>
-          <Button disabled={runtimeSnapshot.state !== 'ready'} onClick={() => void benchmark()}><Gauge aria-hidden="true" size={17} /> Run Benchmark</Button>
-          <Button disabled={runtimeSnapshot.state === 'running' || runtimeSnapshot.state === 'disposed'} onClick={() => void resetRuntime()}><RefreshCw aria-hidden="true" size={17} /> Release Model Memory</Button>
-          <Button disabled={!availableModel || runtimeSnapshot.state === 'running'} onClick={() => void removeModel()}><Trash2 aria-hidden="true" size={17} /> Remove Cached Model</Button>
-          <Button onClick={exportDiagnostics}><FileText aria-hidden="true" size={17} /> Export Diagnostics</Button>
-          <Button disabled={storageEstimate?.persisted === true} onClick={() => void requestPersistentStorage()}><HardDrive aria-hidden="true" size={17} /> Request Persistent Storage</Button>
+          <Button disabled={!availableModel || ['downloading', 'compiling', 'running'].includes(runtimeSnapshot.state)} onClick={() => void initializeModel()} variant="primary"><Download aria-hidden="true" size={17} /> {runtimeSnapshot.state === 'ready' ? 'Restart Private AI' : runtimeSnapshot.state === 'failed' ? 'Try Setup Again' : 'Set Up Private AI'}</Button>
         </div>
 
-        <p className="field-hint">Resetting local AI is separate from “Delete Local Data” and does not erase your profile. Local inference keeps approved inputs on this device, but it does not encrypt IndexedDB or protect data from another person or extension using this browser profile.</p>
+        <p className="field-hint">Private AI works while ApplyFill is open. Stopping or removing it does not delete your profile or resumes.</p>
         {/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) ? <p className="field-hint">Local AI is currently desktop-targeted on this device. Profile editing, tracking, and document features remain available.</p> : null}
+
+        <details className="settings-advanced">
+          <summary>Advanced Local AI Settings</summary>
+          <div className="local-ai-settings-grid">
+            <div className="local-ai-diagnostics-list">
+              <div><span>Currently using</span><strong>{acceleratorLabel(runtimeSnapshot.diagnostics.actualAccelerator)}</strong></div>
+              <div><span>Browser storage</span><strong>{storageEstimate ? `${byteSize(storageEstimate.usage)} used of ${byteSize(storageEstimate.quota)}; ${storageEstimate.persisted ? 'protected from automatic cleanup' : 'may be cleared when space is low'}` : 'Unavailable'}</strong></div>
+            </div>
+          </div>
+          <div className="resume-builder-actions" aria-label="Advanced Local AI controls">
+            <Button disabled={runtimeSnapshot.state !== 'ready'} onClick={() => void benchmark()}><Gauge aria-hidden="true" size={17} /> Run Speed Test</Button>
+            <Button disabled={runtimeSnapshot.state === 'running' || runtimeSnapshot.state === 'disposed'} onClick={() => void resetRuntime()}><RefreshCw aria-hidden="true" size={17} /> Stop Local AI</Button>
+            <Button disabled={!availableModel || runtimeSnapshot.state === 'running'} onClick={() => void removeModel()}><Trash2 aria-hidden="true" size={17} /> Remove Local AI Download</Button>
+            <Button onClick={exportDiagnostics}><FileText aria-hidden="true" size={17} /> Download Technical Report</Button>
+          </div>
+        </details>
       </section>
 
       <section className="surface-panel settings-preferences-panel" aria-labelledby="local-data-title">
         <div className="settings-preferences-heading">
           <HardDrive aria-hidden="true" size={24} />
           <div>
-            <h3 className="section-title" id="local-data-title">Local Data</h3>
-            <p className="section-copy">Delete the sensitive data ApplyFill stores in this browser. This cannot be undone.</p>
+            <h3 className="section-title" id="local-data-title">Your Saved Data</h3>
+            <p className="section-copy">ApplyFill saves your work only in this browser. Ask the browser to protect it from automatic cleanup, or permanently delete it.</p>
             {storageMessage ? <p className="field-hint" role="status">{storageMessage}</p> : null}
           </div>
         </div>
-        <Button onClick={() => void deleteLocalData()} variant="danger">
-          <Trash2 size={17} aria-hidden="true" />
-          Delete Local Data
-        </Button>
+        <div className="resume-builder-actions">
+          <Button disabled={storageEstimate?.persisted === true} onClick={() => void requestPersistentStorage()}><HardDrive aria-hidden="true" size={17} /> Protect Saved Data</Button>
+          <Button onClick={() => void deleteLocalData()} variant="danger">
+            <Trash2 size={17} aria-hidden="true" />
+            Delete All Saved Data
+          </Button>
+        </div>
       </section>
 
       <section className="responsive-grid" aria-label="Application settings">

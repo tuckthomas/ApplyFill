@@ -1,5 +1,5 @@
 import type { Conversation, Engine, Message, Tool } from '@litert-lm/core'
-import { selectAccelerator } from './acceleratorSelection'
+import { compatibleAccelerators, selectAccelerator } from './acceleratorSelection'
 import { createVerifiedModelSource } from './artifactLoader'
 import { BaseLocalAiRuntime } from './baseRuntime'
 import { detectRuntimeCapabilities } from './capabilities'
@@ -84,6 +84,15 @@ export class LiteRtLmRuntime extends BaseLocalAiRuntime {
       )
     }
 
+    if (compatibleAccelerators(
+      capabilities,
+      options.acceleratorPreference,
+      options.model.supportedAccelerators,
+    ).length === 0) {
+      this.transition('unsupported')
+      throw new Error('This browser does not have a supported way to run the selected local AI model.')
+    }
+
     try {
       this.transition('downloading')
       const model = await createVerifiedModelSource(options.model.artifact, {
@@ -103,6 +112,7 @@ export class LiteRtLmRuntime extends BaseLocalAiRuntime {
         capabilities,
         options.acceleratorPreference,
         async (accelerator) => this.compile(model, accelerator, configuredContextLimit),
+        options.model.supportedAccelerators,
       )
       this.updateDiagnostics({
         actualAccelerator: selected.actualAccelerator,

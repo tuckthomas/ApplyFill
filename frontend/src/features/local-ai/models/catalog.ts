@@ -55,6 +55,7 @@ export const approvedModelManifest: ApprovedModelManifest = {
         redistributionAllowed: true,
       },
       approvedTasks: [
+        'autofill-field-mapping',
         'profile-fact-selection',
         'job-posting-analysis',
         'resume-tailoring-draft',

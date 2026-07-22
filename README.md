@@ -19,6 +19,7 @@
 ApplyFill captures the information repeatedly requested by job applications, turns it into portable structured records, builds targeted resumes, tracks applications, and assists with job-posting analysis and form filling. The shipped application has no backend service and no user database.
 
 - Profiles, resume drafts, tracked applications, and dashboard configuration are authoritative in browser IndexedDB.
+- The Profile Builder can read an existing PDF, DOCX, or text resume locally, preserve rows and columns in selectable-text PDFs, redact contact data before Private AI parsing, and present every extracted field for approval. Long resumes are processed in bounded sections and merged only after strict schema validation; image-only scans remain an explicit unsupported case until a local OCR fallback is added.
 - Profile and resume documents have versioned, validated JSON copy/download/import workflows.
 - PDF and DOCX resumes are generated independently in the browser from an explicit resume-safe allowlist.
 - Gemma 4 E2B runs through LiteRT-LM.js inside a compatible desktop browser; prompts and outputs are not sent to ApplyFill or a cloud AI provider.
@@ -34,21 +35,22 @@ ApplyFill cannot read or recover data stored in a user's browser. That reduces o
 - IndexedDB and exported JSON are not encrypted by ApplyFill. Protect the browser profile and downloaded files.
 - Optional government identifiers, work-authorization/sponsorship answers, and voluntary demographics are application-only. They are excluded structurally from resumes and AI inputs.
 - Local AI receives a temporary allowlisted professional snapshot. Names, contact details, addresses, government identifiers, authorization/sponsorship answers, demographics, reasons for leaving, supervisors, and company phone numbers are excluded.
-- The autofill extension holds packets only in memory. Sensitive fields bypass AI, stay masked, and require approval in ApplyFill plus a second per-field confirmation in the extension.
+- Resume-import files are ephemeral. Deterministic browser code extracts contact suggestions and redacts them, street-address-like lines, and identifier patterns before professional text reaches the model.
+- The autofill extension is paired once and keeps a bounded derived profile copy in local extension storage so it remains ready across applications and browser restarts. Job-page inspection stays temporary. Sensitive fields are opt-in, bypass AI, stay masked, and require per-field confirmation before insertion.
 - Local inference does not protect against an unlocked browser profile, compromised device, malicious site, screen capture, or another privileged extension.
 
 ## Product Status
 
 | Area | Status |
 |---|---|
-| Profile builder and structured-data view | Implemented; IndexedDB and schema-versioned JSON |
+| Profile builder, local resume import, and structured-data view | Implemented; reviewed PDF/DOCX/TXT extraction, IndexedDB, and schema-versioned JSON |
 | Job tracker and dashboard analytics | Implemented; entirely local |
 | Rich text | Implemented with restricted Tiptap JSON; raw HTML is not persisted |
 | Resume preview and JSON/PDF/DOCX export | Implemented in the browser |
 | Local resume analysis and suggestion review | Implemented with accept/reject/edit/undo and stale-result protection |
 | Desktop local AI | Approved for structured job analysis and resume drafting on WebGPU |
-| Experimental WebNN/NPU | Capability detection implemented; not supported by the selected LiteRT-LM.js LLM and not available on the tested PC |
-| Chromium autofill extension | Implemented; review-before-fill, memory-only sessions, no submission |
+| Experimental WebNN/NPU | Developer-only capability detection; not a user setting or backend for the selected WebGPU model |
+| Chromium autofill extension | Implemented; pair once, automatic local profile refresh, review-before-fill, no submission |
 | Static/offline deployment | Implemented as a PWA with Cloudflare Workers static assets |
 | Server/backend/database | None |
 
@@ -60,12 +62,14 @@ flowchart LR
     app --> idb["IndexedDB records"]
     app --> cache["Verified model chunks in Cache Storage"]
     cache --> litert["LiteRT-LM.js on WebGPU"]
-    idb --> safe["AI-safe professional projection"]
+    upload["Ephemeral PDF / DOCX / TXT"] --> redact["Local text extraction + contact redaction"]
+    redact --> safe["AI-safe professional projection"]
+    idb --> safe
     safe --> litert
     litert --> review["Schema validation + user review"]
     idb --> render["Resume-safe export model"]
     render --> files["Local JSON / PDF / DOCX"]
-    app <--> extension["Memory-only Chromium extension"]
+    app <--> extension["Pair-once local Chromium extension"]
     extension --> jobsite["User-approved job tab"]
     host["Cloudflare static assets"] -. "code, WASM, model chunks only" .-> app
 ```
@@ -75,10 +79,10 @@ flowchart LR
 | Client | React 19, TypeScript 6, Vite 8 | Product UI, contracts, local workflows, exports |
 | User records | IndexedDB | Profile, resumes, tracker, dashboard; never treated as a cache |
 | Local AI | `@litert-lm/core` 0.14.0, `@litertjs/core` 2.5.3 | Same-origin, integrity-verified inference |
-| Selected model | Gemma 4 E2B Instruct web artifact | Structured job analysis and resume drafting only |
+| Selected model | Gemma 4 E2B Instruct web artifact | Redacted profile fact extraction, structured job analysis, and resume drafting |
 | Model cache | Cache Storage | Versioned, SHA-256-verified chunks separate from user records |
 | Documents | React PDF and `docx` | Independent browser-side PDF and DOCX generation |
-| Autofill | Manifest V3 Chromium extension | Active-tab discovery, review, sensitive confirmation, fill report |
+| Autofill | Manifest V3 Chromium extension | Persistent local pairing/profile refresh; active-tab discovery, review, sensitive confirmation, fill report |
 | Hosting | Cloudflare Workers static assets | Static application, runtime WASM, and versioned model chunks only |
 
 ## Desktop Local AI
@@ -99,7 +103,7 @@ Measured on Chrome 150, Windows, Ryzen 7 3800X, and RTX 2070:
 | Unsupported claims | 0 |
 | Selection precision / recall | 88.89% / 100% |
 
-Agentic model tool execution is deliberately not an approved capability. Resume tailoring uses one constrained, non-executable response envelope; the client supplies schema/version bookkeeping, derives bullet ownership through an exact unique source-text match, validates every identifier and field, blocks unsupported numeric claims, and requires human review. The selected LiteRT-LM.js release supports LLM generation through WebGPU; generic LiteRT.js WebNN support does not make this LLM NPU-compatible. No minimum hardware claim is made from one tested system.
+Agentic model tool execution is deliberately not an approved capability. Resume import, tailoring, and ambiguous application-field matching use constrained, non-executable response envelopes. Autofill first uses deterministic browser logic, then automatically asks the already-installed local model for non-sensitive ambiguous fields and returns validated suggestions to the extension review. It never starts the 1.87 GiB download implicitly. Import accepts only bounded PDF/DOCX/TXT text; PDF.js reconstructs selectable text into coordinate-aware rows and columns before deterministic contact detection and private-header redaction. Long imports are split into bounded sections, invalid or incomplete section responses are retried at a smaller size, and accepted closed-schema outputs are deduplicated before review. Import resolves contradictory “current” flags from explicit end dates, preserves existing values, and requires review. Image-only scanned PDFs are rejected rather than silently producing low-quality output; local OCR is a future fallback, not the primary path for PDFs that already contain accurate text. Tailoring derives bullet ownership through an exact unique source-text match and blocks unsupported numeric claims. The selected LiteRT-LM.js release supports LLM generation through WebGPU; generic LiteRT.js WebNN support does not make this LLM NPU-compatible. No minimum hardware claim is made from one tested system.
 
 ## Gallery
 
@@ -188,7 +192,7 @@ The build generates the service worker, verifies required files, rejects static 
 - Resume renderers cannot access application-only or internal profile fields.
 - AI input construction is allowlisted, job-posting text is untrusted quoted data, and output must pass strict schemas and fact/evidence checks.
 - Model chunks are same-origin, size-checked, SHA-256-checked, versioned, and committed to cache only after verification.
-- Extension messages are approved-origin, protocol-version, source-tab, target-tab, nonce, expiry, size, and shape bound.
+- Extension pairing messages are approved-origin, secret, protocol-version, size, and shape bound. Per-page inspection remains active-tab scoped and temporary.
 - No cloud fallback, analytics, remote code, application submission, credential handling, or file upload is implemented.
 
 See [the local-AI threat model](.agents/plans/completed/2026-07-18-desktop-local-ai-litert/security-threat-model.md) and [extension security notes](extension/docs/SECURITY.md).

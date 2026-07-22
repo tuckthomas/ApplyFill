@@ -1,5 +1,7 @@
 # Workstream D — Local Resume AI Workflows
 
+> **Superseded UI note (2026-07-22):** Accelerator selection was removed from user-facing Settings. The approved model supports WebGPU only, so ApplyFill now checks compatibility before downloading and selects the working backend automatically. Experimental WebNN/NPU remains developer-facing.
+
 **Status:** Implemented behind the approved-model gate; live candidate quality/hardware acceptance pending Workstream C  
 **Depends on:** Workstream B contracts; may begin with Workstream A's fake runtime  
 **Primary UI:** Resume builder and Local AI settings/diagnostics integration points

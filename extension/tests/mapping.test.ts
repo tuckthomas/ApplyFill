@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { buildReviewItems, classifyDeterministically, createModelSafeDescriptors } from '../src/mapping';
-import { fields, handoff } from './fixtures';
+import { autofillData, fields } from './fixtures';
 
 describe('deterministic and local-AI mapping boundary', () => {
   it('uses platform semantics before an AI proposal', () => {
     expect(classifyDeterministically(fields[0]!)).toBe('email');
-    const review = buildReviewItems(fields, handoff());
+    const review = buildReviewItems(fields, autofillData());
     expect(review[0]).toMatchObject({ classification: 'deterministic', proposedValue: 'person@example.test' });
     expect(review[1]).toMatchObject({ classification: 'sensitive-confirmation-required', proposedValue: '123-45-6789' });
   });
 
   it('rejects a model mapping to a sensitive value', () => {
     const ambiguous = [{ ...fields[1]!, label: 'Identifier', nearbyLabel: undefined }];
-    const review = buildReviewItems(ambiguous, handoff({
+    const review = buildReviewItems(ambiguous, autofillData({
       proposals: [{
         fieldId: 'field-ssn',
         sourceKey: 'private.ssn',
@@ -42,7 +42,7 @@ describe('deterministic and local-AI mapping boundary', () => {
 
   it('leaves legal attestations and final submission manual', () => {
     const legal = [{ ...fields[0]!, label: 'I certify this application and agree to submit application' }];
-    expect(buildReviewItems(legal, handoff()).at(0)).toMatchObject({
+    expect(buildReviewItems(legal, autofillData()).at(0)).toMatchObject({
       classification: 'manual',
       reason: expect.stringMatching(/always manual/i),
     });

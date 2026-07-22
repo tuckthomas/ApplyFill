@@ -7,6 +7,11 @@ This project depends on open-source packages whose exact resolved versions are r
 - LiteRT.js (`@litertjs/core` 2.5.3) — Apache License 2.0.
 - LiteRT-LM.js (`@litert-lm/core` 0.14.0) — Apache License 2.0.
 
+## Local resume text extraction
+
+- PDF.js (`pdfjs-dist` 6.1.200) — Apache License 2.0.
+- Mammoth.js (`mammoth` 1.12.0) — BSD 2-Clause License. ApplyFill uses raw-text extraction only and never renders Mammoth-generated HTML.
+
 ## Selected model
 
 - Gemma 4 E2B Instruct LiteRT-LM web artifact, revision `9262660a1676eed6d0c477ab1a86344430854664`.

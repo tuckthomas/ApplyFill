@@ -10,23 +10,13 @@
     <main>
       <header>
         <p class="eyebrow">ApplyFill</p>
-        <h1>Local autofill review</h1>
-        <p id="status" class="status" role="status">Start on the job-application tab you want to inspect.</p>
+        <h1>Job application autofill</h1>
+        <p id="status" class="status" role="status">Open a job application and review the fields ApplyFill can complete.</p>
       </header>
 
       <section id="start-panel">
-        <p>Only the active tab is inspected. ApplyFill never submits the application.</p>
-        <button id="start" type="button">Inspect this tab</button>
-      </section>
-
-      <section id="connection-panel" hidden>
-        <h2>Connect ApplyFill</h2>
-        <p>Use this one-time code in ApplyFill. It expires after five minutes.</p>
-        <div class="nonce-row">
-          <code id="nonce"></code>
-          <button id="copy-nonce" class="secondary" type="button">Copy</button>
-        </div>
-        <p id="field-summary" class="muted"></p>
+        <p>Your saved pairing is reused automatically. Only this active tab is inspected, and ApplyFill never submits the application.</p>
+        <button id="start" type="button">Inspect This Application</button>
       </section>
 
       <section id="review-panel" hidden>
@@ -35,9 +25,8 @@
             <h2>Review before filling</h2>
             <p class="muted">Edit, deselect, or mark any proposal as manual.</p>
           </div>
-          <button id="cancel" class="danger-text" type="button">Disconnect</button>
+          <button id="cancel" class="danger-text" type="button">Close Review</button>
         </div>
-        <p id="selected-document" class="warning" hidden></p>
         <div id="review-list" class="review-list"></div>
         <button id="fill" type="button">Review selected fields</button>
       </section>
@@ -46,7 +35,7 @@
         <h2>Fill report</h2>
         <div id="report"></div>
         <p class="warning">Review the page yourself before submitting. ApplyFill did not submit, attest, upload, authenticate, or solve a CAPTCHA.</p>
-        <button id="restart" class="secondary" type="button">Inspect again</button>
+        <button id="restart" class="secondary" type="button">Inspect Current Step Again</button>
       </section>
 
       <dialog id="sensitive-dialog">

@@ -4,3 +4,10 @@ allowBuilds:
   esbuild: true
   sharp: true
   workerd: true
+
+overrides:
+  sharp: 0.35.3
+
+minimumReleaseAgeExclude:
+  - miniflare@4.20260721.0
+  - wrangler@4.113.0

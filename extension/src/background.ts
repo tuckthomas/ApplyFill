@@ -1,8 +1,18 @@
-import { PROTOCOL_VERSION, type CompletionReport, type FillSelection, validateDisconnect, validateHandoff, validateInspect } from './contracts';
+import {
+  PAIRING_PROTOCOL_VERSION,
+  type CompletionReport,
+  type FillSelection,
+  validatePairedAiUpdate,
+  validatePairedInspect,
+  validatePairingControl,
+  validatePairingUpdate,
+} from './contracts';
+import { PairingStore } from './pairing-store';
 import { isApprovedApplyFillOrigin, normalizeSenderOrigin, safeErrorMessage } from './security';
 import { SessionStore } from './session-store';
 
 const sessions = new SessionStore();
+const pairings = new PairingStore(chrome.storage.local);
 
 type PopupMessage =
   | { type: 'popup.start'; tabId: number }
@@ -42,7 +52,22 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
       switch (message.type) {
         case 'popup.start': {
           const fields = await discover(message.tabId);
-          sendResponse({ ok: true, session: sessions.create(message.tabId, fields) });
+          const pairing = await pairings.current();
+          if (!pairing) {
+            sendResponse({ ok: false, error: 'Pair this extension once from ApplyFill Settings before using autofill.' });
+            break;
+          }
+          const session = sessions.createFromPairedProfile(message.tabId, fields, pairing.values, pairing.sourceOrigin);
+          const assistUrl = new URL('/autofill-assist', pairing.sourceOrigin);
+          assistUrl.searchParams.set('extensionId', chrome.runtime.id);
+          assistUrl.searchParams.set('targetTabId', String(message.tabId));
+          if (session.reviewItems.some((item) => item.classification === 'manual')) {
+            void chrome.tabs.create({ url: assistUrl.toString(), active: false });
+          }
+          sendResponse({
+            ok: true,
+            session,
+          });
           break;
         }
         case 'popup.get-session':
@@ -78,51 +103,96 @@ chrome.runtime.onMessageExternal.addListener((message: unknown, sender, sendResp
   }
 
   if (typeof message === 'object' && message !== null && 'type' in message
-    && (message as { type?: unknown }).type === 'applyfill.inspect') {
-    const inspect = validateInspect(message);
+    && ((message as { type?: unknown }).type === 'applyfill.pair'
+      || (message as { type?: unknown }).type === 'applyfill.sync-profile')) {
+    const update = validatePairingUpdate(message);
+    if (!update.ok) {
+      sendResponse(update);
+      return false;
+    }
+    void (async () => {
+      const result = update.value.type === 'applyfill.pair'
+        ? { ok: true as const, value: await pairings.pair(update.value, origin) }
+        : await pairings.sync(update.value, origin);
+      sendResponse(result.ok ? {
+        ok: true,
+        paired: true,
+        profileUpdatedAtUtc: result.value.profileUpdatedAtUtc,
+        includeSensitive: result.value.includeSensitive,
+      } : result);
+    })();
+    return true;
+  }
+
+  if (typeof message === 'object' && message !== null && 'type' in message
+    && (message as { type?: unknown }).type === 'applyfill.inspect-paired') {
+    const inspect = validatePairedInspect(message);
     if (!inspect.ok) {
       sendResponse(inspect);
       return false;
     }
-    const result = sessions.inspect(
-      inspect.value.targetTabId,
-      origin,
-      sender.tab.id,
-      inspect.value.nonce,
-    );
-    sendResponse(result.ok
-      ? { ok: true, protocolVersion: PROTOCOL_VERSION, ...result.value }
-      : result);
-    return false;
+    void (async () => {
+      const pairing = await pairings.status(inspect.value.pairingSecret, origin);
+      if (!pairing.ok) {
+        sendResponse(pairing);
+        return;
+      }
+      const result = sessions.inspectPaired(inspect.value.targetTabId);
+      sendResponse(result.ok ? { ok: true, protocolVersion: PAIRING_PROTOCOL_VERSION, ...result.value } : result);
+    })();
+    return true;
   }
 
   if (typeof message === 'object' && message !== null && 'type' in message
-    && (message as { type?: unknown }).type === 'applyfill.disconnect') {
-    const disconnect = validateDisconnect(message);
-    if (!disconnect.ok) {
-      sendResponse(disconnect);
+    && (message as { type?: unknown }).type === 'applyfill.attach-ai-suggestions') {
+    const update = validatePairedAiUpdate(message);
+    if (!update.ok) {
+      sendResponse(update);
       return false;
     }
-    const result = sessions.disconnectFromSource(
-      disconnect.value.targetTabId,
-      origin,
-      sender.tab.id,
-      disconnect.value.nonce,
-    );
-    sendResponse(result.ok ? { ok: true, cleared: true } : result);
-    return false;
+    void (async () => {
+      const pairing = await pairings.status(update.value.pairingSecret, origin);
+      if (!pairing.ok) {
+        sendResponse(pairing);
+        return;
+      }
+      const result = sessions.attachPairedAiSuggestions(
+        update.value.targetTabId,
+        update.value.values,
+        update.value.proposals,
+      );
+      sendResponse(result.ok ? { ok: true, accepted: true } : result);
+    })();
+    return true;
   }
 
-  const validation = validateHandoff(message);
-  if (!validation.ok) {
-    sendResponse(validation);
-    return false;
+  if (typeof message === 'object' && message !== null && 'type' in message
+    && ((message as { type?: unknown }).type === 'applyfill.pairing-status'
+      || (message as { type?: unknown }).type === 'applyfill.unpair')) {
+    const control = validatePairingControl(message);
+    if (!control.ok) {
+      sendResponse(control);
+      return false;
+    }
+    void (async () => {
+      if (control.value.type === 'applyfill.unpair') {
+        const result = await pairings.unpair(control.value.pairingSecret, origin);
+        if (result.ok) sessions.clearAll();
+        sendResponse(result.ok ? { ok: true, paired: false } : result);
+        return;
+      }
+      const result = await pairings.status(control.value.pairingSecret, origin);
+      sendResponse(result.ok ? {
+        ok: true,
+        paired: true,
+        profileUpdatedAtUtc: result.value.profileUpdatedAtUtc,
+        includeSensitive: result.value.includeSensitive,
+      } : { ok: true, paired: false });
+    })();
+    return true;
   }
 
-  const result = sessions.attach(validation.value, origin, sender.tab.id);
-  sendResponse(result.ok
-    ? { ok: true, accepted: true, expiresAt: result.value.expiresAt }
-    : result);
+  sendResponse({ ok: false, error: 'Unsupported ApplyFill extension request.' });
   return false;
 });
 

@@ -13,6 +13,7 @@ const Resumes = lazy(() => import('./pages/Resumes'));
 const JobTracker = lazy(() => import('./pages/JobTracker'));
 const JobApplicationEditor = lazy(() => import('./pages/JobApplicationEditor'));
 const Settings = lazy(() => import('./pages/Settings'));
+const AutofillAssist = lazy(() => import('./pages/AutofillAssist'));
 
 function RouteFallback() {
   return (
@@ -36,6 +37,7 @@ function App() {
     <DateFormatPreferenceProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/autofill-assist" element={<Suspense fallback={<RouteFallback />}><AutofillAssist /></Suspense>} />
           <Route path="/" element={<MainLayout />}>
             <Route index element={<Suspense fallback={<RouteFallback />}><Dashboard /></Suspense>} />
             <Route path="job-profile" element={<Suspense fallback={<RouteFallback />}><MyProfile /></Suspense>} />

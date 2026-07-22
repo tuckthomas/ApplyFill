@@ -22,7 +22,6 @@ const element = <T extends HTMLElement>(id: string): T => {
 
 const status = element<HTMLParagraphElement>('status');
 const startPanel = element<HTMLElement>('start-panel');
-const connectionPanel = element<HTMLElement>('connection-panel');
 const reviewPanel = element<HTMLElement>('review-panel');
 const reportPanel = element<HTMLElement>('report-panel');
 const reviewList = element<HTMLDivElement>('review-list');
@@ -35,6 +34,11 @@ let currentSession: SessionView | undefined;
 let pollingId: number | undefined;
 const selectionState = new Map<string, FillSelection>();
 
+function stopPolling(): void {
+  if (pollingId !== undefined) window.clearInterval(pollingId);
+  pollingId = undefined;
+}
+
 function setStatus(message: string): void {
   status.textContent = message;
 }
@@ -43,9 +47,8 @@ async function send<T extends BackgroundResponse>(message: unknown): Promise<T> 
   return chrome.runtime.sendMessage(message) as Promise<T>;
 }
 
-function setPanels(panel: 'start' | 'connection' | 'review' | 'report'): void {
+function setPanels(panel: 'start' | 'review' | 'report'): void {
   startPanel.hidden = panel !== 'start';
-  connectionPanel.hidden = panel !== 'connection';
   reviewPanel.hidden = panel !== 'review';
   reportPanel.hidden = panel !== 'report';
 }
@@ -146,27 +149,23 @@ function renderReview(items: ReviewItem[]): void {
 function showSession(session: SessionView): void {
   currentSession = session;
   if (session.reviewItems) {
-    if (pollingId !== undefined) window.clearInterval(pollingId);
+    pollingId ??= window.setInterval(() => { void refreshSession(); }, 750);
     setPanels('review');
-    setStatus(`Connected locally to ${session.connectedOrigin ?? 'ApplyFill'}. Nothing has been inserted yet.`);
-    const selectedDocument = element<HTMLParagraphElement>('selected-document');
-    selectedDocument.hidden = session.selectedDocument === undefined;
-    selectedDocument.textContent = session.selectedDocument
-      ? `Selected resume: ${session.selectedDocument.fileName}. Download it from ApplyFill and upload it manually if this page requests a file.`
-      : '';
+    setStatus('Your saved profile is ready for review. Nothing has been inserted yet.');
     renderReview(session.reviewItems);
     return;
   }
-  setPanels('connection');
-  element<HTMLElement>('nonce').textContent = session.nonce ? `${session.targetTabId}.${session.nonce}` : 'Expired';
-  element<HTMLElement>('field-summary').textContent = `${session.fields.length} supported or manual-review fields discovered. No field values were collected.`;
-  setStatus('Waiting for a scoped, one-time handoff from ApplyFill.');
+  setPanels('start');
+  setStatus('No reusable profile pairing was found. Pair the extension once from ApplyFill Settings.');
 }
 
 async function refreshSession(): Promise<void> {
   if (targetTabId === undefined) return;
   const response = await send<BackgroundResponse>({ type: 'popup.get-session', tabId: targetTabId });
-  if (response.ok && response.session) showSession(response.session);
+  if (response.ok && response.session
+    && JSON.stringify(response.session.reviewItems) !== JSON.stringify(currentSession?.reviewItems)) {
+    showSession(response.session);
+  }
 }
 
 async function start(): Promise<void> {
@@ -178,7 +177,6 @@ async function start(): Promise<void> {
     return;
   }
   showSession(response.session);
-  pollingId = window.setInterval(() => { void refreshSession(); }, 750);
 }
 
 function openSensitiveConfirmation(): boolean {
@@ -227,15 +225,13 @@ async function performFill(sensitiveFieldIds: string[]): Promise<void> {
     list.append(item);
   }
   report.replaceChildren(list);
-  setStatus('Fill attempt complete. The in-memory handoff has been destroyed.');
+  stopPolling();
+  setStatus('Fill attempt complete. Your saved pairing remains ready for the next application.');
 }
 
 element<HTMLButtonElement>('start').addEventListener('click', () => { void start(); });
-element<HTMLButtonElement>('copy-nonce').addEventListener('click', () => {
-  const nonce = currentSession?.nonce;
-  if (nonce) void navigator.clipboard.writeText(nonce).then(() => setStatus('One-time code copied.'));
-});
 element<HTMLButtonElement>('cancel').addEventListener('click', () => {
+  stopPolling();
   if (targetTabId !== undefined) void send({ type: 'popup.cancel', tabId: targetTabId });
   window.close();
 });
@@ -257,8 +253,9 @@ sensitiveDialog.addEventListener('close', () => {
   void performFill(confirmed);
 });
 element<HTMLButtonElement>('restart').addEventListener('click', () => {
+  stopPolling();
   setPanels('start');
-  setStatus('Inspect this tab again to continue after a page or form-step change.');
+  setStatus('Inspect this application again after a page or form-step change.');
 });
 
 void chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {

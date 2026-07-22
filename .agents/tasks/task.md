@@ -4,6 +4,8 @@
   - `[x]` Remove PostgreSQL, persistence APIs, authentication stubs, and the application backend
   - `[x]` Add privacy acknowledgment and durability disclosures
   - `[x]` Add application-only identifiers, work authorization/sponsorship, demographics, GPA, and normalized phone fields
+  - `[x]` Add pre-personal-info PDF/DOCX/TXT resume import with deterministic contact redaction, local AI extraction, review, and duplicate-safe merge
+  - `[x]` Rewrite Settings around plain-language user tasks and move Local AI diagnostics into a collapsed Advanced section
 
 - `[x]` Browser-side resume generation
   - `[x]` Add local resume collection and schema-versioned portable drafts
@@ -22,11 +24,12 @@
 
 - `[x]` Local autofill extension
   - `[x]` Add least-privilege Manifest V3 extension with active-tab inspection
-  - `[x]` Add redacted nonce/origin/source-tab inspection for local mapping
-  - `[x]` Prefer deterministic mapping and use local AI only for ambiguous/narrative proposals
-  - `[x]` Add short-lived memory-only handoff, mapping review, sensitive-field double confirmation, and completion report
+  - `[x]` Add approved-origin and secret-bound persistent pairing with bounded derived profile sync
+  - `[x]` Prefer deterministic mapping, then request local AI for ambiguous labels and narrative drafts through the persistent pairing
+  - `[x]` Keep page inspection/review sessions temporary while the extension pairing survives navigation and browser restarts
+  - `[x]` Add mapping review, optional sensitive-data storage, per-field sensitive confirmation, and completion report
   - `[x]` Prevent credentials, attestations, file upload, CAPTCHAs, and final submission
-  - `[x]` Add explicit disconnect/session destruction and extension release documentation
+  - `[x]` Add automatic profile refresh, explicit unpair deletion, and extension release documentation
 
 - `[x]` Static/offline delivery
   - `[x]` Add PWA manifest and versioned service worker

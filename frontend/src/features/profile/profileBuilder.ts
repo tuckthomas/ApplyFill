@@ -20,6 +20,7 @@ export const PROFILE_DOCUMENT_FORMAT = 'applyfill.profile';
 
 export const PROFILE_BUILDER_STEPS = [
   { id: 'introduction', label: 'Overview' },
+  { id: 'resume-import', label: 'Resume Import' },
   { id: 'profile', label: 'Personal Info' },
   { id: 'education', label: 'Education' },
   { id: 'experience', label: 'Work Experience' },
@@ -247,9 +248,16 @@ export const loadProfileBuilderState = async (): Promise<ProfileBuilderState> =>
   return document ? toProfileBuilderState(document) : createDefaultProfileBuilderState();
 };
 
+const syncPairedExtension = (document: LocalProfileDocument) => {
+  void import('../autofill/extensionHandoff')
+    .then(({ syncPairedAutofillProfile }) => syncPairedAutofillProfile(document))
+    .catch(() => undefined);
+};
+
 export const saveProfileBuilderState = async (state: ProfileBuilderState): Promise<LocalProfileDocument> => {
   const document = createLocalProfileDocument(state);
   await writeLocalDocument(LOCAL_DATA_KEYS.profile, document);
+  syncPairedExtension(document);
   return document;
 };
 
@@ -272,5 +280,6 @@ export const saveProfileDocument = async (document: LocalProfileDocument): Promi
     updatedAtUtc: new Date().toISOString()
   };
   await writeLocalDocument(LOCAL_DATA_KEYS.profile, savedDocument);
+  syncPairedExtension(savedDocument);
   return savedDocument;
 };

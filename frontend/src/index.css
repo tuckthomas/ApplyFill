@@ -910,6 +910,79 @@ textarea.form-input {
   padding: 14px 16px;
 }
 
+.profile-resume-import {
+  gap: 20px;
+}
+
+.profile-resume-import-header {
+  padding-bottom: 2px;
+}
+
+.profile-resume-import-picker {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-sm);
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.profile-resume-file-control {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-width: 0;
+}
+
+.profile-resume-file-button {
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.profile-resume-file-button.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.profile-resume-file-display {
+  color: var(--text-muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.profile-resume-file-display.has-file {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.profile-import-review {
+  border-top: 1px solid var(--glass-border);
+  display: grid;
+  gap: 16px;
+  padding-top: 20px;
+}
+
+.profile-import-review h4,
+.profile-import-review h5 {
+  color: var(--text-main);
+  margin: 0;
+}
+
+.profile-import-group {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-sm);
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.profile-import-skill-grid {
+  display: grid;
+  gap: 10px 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .field-card {
   background: var(--panel-color);
   border: 1px solid var(--glass-border);
@@ -2366,6 +2439,24 @@ textarea.form-input {
   gap: 16px;
 }
 
+.autofill-extension-id-field {
+  margin-bottom: 0;
+  max-width: 640px;
+}
+
+.autofill-assist-page {
+  display: grid;
+  min-height: 100vh;
+  padding: 24px;
+  place-items: center;
+}
+
+.autofill-assist-page > .surface-panel {
+  max-width: 640px;
+  padding: 24px;
+  width: 100%;
+}
+
 @media (max-width: 720px) {
   .autofill-extension-grid {
     grid-template-columns: 1fr;
@@ -2427,6 +2518,32 @@ textarea.form-input {
 
 .local-ai-model-card h4 {
   margin: 0 0 4px;
+}
+
+.settings-advanced {
+  border-top: 1px solid var(--glass-border);
+  padding-top: 16px;
+}
+
+.settings-advanced summary {
+  color: var(--text-main);
+  cursor: pointer;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.settings-advanced summary:focus-visible {
+  border-radius: var(--border-radius-sm);
+  outline: 3px solid var(--primary-soft);
+  outline-offset: 3px;
+}
+
+.settings-advanced[open] summary {
+  margin-bottom: 20px;
+}
+
+.settings-advanced > .resume-builder-actions {
+  margin-top: 16px;
 }
 
 .local-ai-progress {
@@ -2779,6 +2896,25 @@ textarea.form-input {
 }
 
 @media (max-width: 760px) {
+  .settings-preferences-heading {
+    flex-wrap: wrap;
+  }
+
+  .local-ai-settings-panel > .settings-preferences-heading,
+  .autofill-extension-panel > .settings-preferences-heading {
+    align-items: flex-start;
+  }
+
+  .local-ai-settings-panel > .settings-preferences-heading > div,
+  .autofill-extension-panel > .settings-preferences-heading > div {
+    flex: 0 0 calc(100% - 40px);
+    min-width: 0;
+  }
+
+  .settings-preferences-heading > .status-pill {
+    margin-left: 38px;
+  }
+
   .local-ai-settings-grid {
     grid-template-columns: 1fr;
   }
@@ -2798,6 +2934,20 @@ textarea.form-input {
   .local-ai-patch-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .profile-import-skill-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-resume-file-control {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-resume-file-button {
+    justify-content: center;
+    width: 100%;
   }
 
   .settings-preferences-panel {
