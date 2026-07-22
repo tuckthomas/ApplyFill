@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "qwen3-vl-8b-instruct-q4",
+  "displayName": "ApplyFill Private AI (quality)",
+  "repository": "Qwen/Qwen3-VL-8B-Instruct-GGUF",
+  "revision": "f982a07559d4a2f6c8744d840bf6fccab30eea96",
+  "license": "Apache-2.0",
+  "runtimeId": "llama-cpp-win-x64-cuda12",
+  "quantization": "Q4_K_M with Q8_0 vision projector",
+  "capabilities": ["page-understanding", "gui-grounding", "structured-actions", "resume-fact-extraction"],
+  "inputModalities": ["text", "image"],
+  "qualityTier": 3,
+  "minimumSystemMemoryBytes": 25769803776,
+  "minimumDedicatedVideoMemoryBytes": 6442450944,
+  "contextTokens": 8192,
+  "maximumImagePixels": 2073600,
+  "artifacts": [
+    {
+      "role": "model",
+      "fileName": "Qwen3VL-8B-Instruct-Q4_K_M.gguf",
+      "bytes": 5027784800,
+      "sha256": "67d1659bfe71b89d50b45a4ad1a9e5b997e5bb16ce5da66a6a6167abd569e9e2",
+      "url": "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/f982a07559d4a2f6c8744d840bf6fccab30eea96/Qwen3VL-8B-Instruct-Q4_K_M.gguf?download=true"
+    },
+    {
+      "role": "vision-projector",
+      "fileName": "mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf",
+      "bytes": 752289728,
+      "sha256": "c6ba85508d82f42590e6eb77d5340369ab6fecf107a7561d809523d8aa5f3bfd",
+      "url": "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/f982a07559d4a2f6c8744d840bf6fccab30eea96/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf?download=true"
+    }
+  ]
+}

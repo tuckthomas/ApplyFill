@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "paddleocr-vl-1.6",
+  "displayName": "ApplyFill document reader",
+  "repository": "PaddlePaddle/PaddleOCR-VL-1.6-GGUF",
+  "revision": "511b09642bb324401f15f97cc23bc67e8f0a291d",
+  "license": "Apache-2.0",
+  "runtimeId": "llama-cpp-win-x64-cuda12",
+  "quantization": "GGUF",
+  "capabilities": ["document-parsing", "resume-fact-extraction"],
+  "inputModalities": ["text", "image"],
+  "qualityTier": 3,
+  "minimumSystemMemoryBytes": 8589934592,
+  "minimumDedicatedVideoMemoryBytes": 2147483648,
+  "contextTokens": 8192,
+  "maximumImagePixels": 4194304,
+  "artifacts": [
+    {
+      "role": "model",
+      "fileName": "PaddleOCR-VL-1.6-GGUF.gguf",
+      "bytes": 935769056,
+      "sha256": "f3ae46ec885050acf4b3d31944431e1fd90d50664fb09126af4a3c050ba14ee8",
+      "url": "https://huggingface.co/PaddlePaddle/PaddleOCR-VL-1.6-GGUF/resolve/511b09642bb324401f15f97cc23bc67e8f0a291d/PaddleOCR-VL-1.6-GGUF.gguf?download=true"
+    },
+    {
+      "role": "vision-projector",
+      "fileName": "PaddleOCR-VL-1.6-GGUF-mmproj.gguf",
+      "bytes": 881770560,
+      "sha256": "204d757d7610d9b3faab10d506d69e5b244e32bf765e2bab2d0167e65e0a058a",
+      "url": "https://huggingface.co/PaddlePaddle/PaddleOCR-VL-1.6-GGUF/resolve/511b09642bb324401f15f97cc23bc67e8f0a291d/PaddleOCR-VL-1.6-GGUF-mmproj.gguf?download=true"
+    }
+  ]
+}

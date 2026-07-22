@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "llama-cpp-win-x64-cuda12",
+  "version": "b10091",
+  "platform": "win-x64",
+  "accelerator": "cuda-12.4",
+  "license": "MIT",
+  "entryPoint": "llama-server.exe",
+  "artifacts": [
+    {
+      "role": "runtime",
+      "fileName": "llama-b10091-bin-win-cuda-12.4-x64.zip",
+      "bytes": 249749385,
+      "sha256": "d3da83067acd5c69b279190550ea120af923423417b49ea7b4d4b050012a2cc3",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10091/llama-b10091-bin-win-cuda-12.4-x64.zip"
+    },
+    {
+      "role": "runtime-dependency",
+      "fileName": "cudart-llama-bin-win-cuda-12.4-x64.zip",
+      "bytes": 391443627,
+      "sha256": "8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10091/cudart-llama-bin-win-cuda-12.4-x64.zip"
+    }
+  ]
+}

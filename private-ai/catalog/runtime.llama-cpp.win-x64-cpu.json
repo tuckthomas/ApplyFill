@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "llama-cpp-win-x64-cpu",
+  "version": "b10091",
+  "platform": "win-x64",
+  "accelerator": "cpu",
+  "license": "MIT",
+  "entryPoint": "llama-server.exe",
+  "artifacts": [
+    {
+      "role": "runtime",
+      "fileName": "llama-b10091-bin-win-cpu-x64.zip",
+      "bytes": 18022374,
+      "sha256": "b2d991bdd37258bb51309f50e9fb7a52a16fe662ba71b2cbbbbb9303b47b5dee",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10091/llama-b10091-bin-win-cpu-x64.zip"
+    }
+  ]
+}
