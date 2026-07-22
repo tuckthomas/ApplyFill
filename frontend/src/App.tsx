@@ -14,6 +14,7 @@ const JobTracker = lazy(() => import('./pages/JobTracker'));
 const JobApplicationEditor = lazy(() => import('./pages/JobApplicationEditor'));
 const Settings = lazy(() => import('./pages/Settings'));
 const AutofillAssist = lazy(() => import('./pages/AutofillAssist'));
+const BrowserAgent = lazy(() => import('./pages/BrowserAgent'));
 
 function RouteFallback() {
   return (
@@ -51,6 +52,8 @@ function App() {
             <Route path="job-tracker" element={<Suspense fallback={<RouteFallback />}><JobTracker /></Suspense>} />
             <Route path="job-tracker/new" element={<Suspense fallback={<RouteFallback />}><JobApplicationEditor /></Suspense>} />
             <Route path="job-tracker/:applicationId/edit" element={<Suspense fallback={<RouteFallback />}><JobApplicationEditor /></Suspense>} />
+            <Route path="agent" element={<Suspense fallback={<RouteFallback />}><BrowserAgent /></Suspense>} />
+            <Route path="agent/:runId" element={<Suspense fallback={<RouteFallback />}><BrowserAgent /></Suspense>} />
             <Route path="settings" element={<Suspense fallback={<RouteFallback />}><Settings /></Suspense>} />
           </Route>
         </Routes>

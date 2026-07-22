@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, Settings, UserCircle, Sun, Moon, ChevronLeft, ChevronRight, Menu, BriefcaseBusiness, PlusCircle, Wand2, X } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, UserCircle, Sun, Moon, ChevronLeft, ChevronRight, Menu, BriefcaseBusiness, PlusCircle, Wand2, X, Bot } from 'lucide-react';
 import { ApplyFillLogo } from '../brand/ApplyFillLogo';
 import './MainLayout.css';
 
 export function MainLayout() {
   const location = useLocation();
   const isDashboard = location.pathname === '/';
+  const isBrowserAgent = location.pathname.startsWith('/agent');
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark';
@@ -53,6 +54,7 @@ export function MainLayout() {
       ]
     },
     { name: 'Resume Builder', href: '/resumes', icon: FileText },
+    { name: 'Browser Agent', href: '/agent', icon: Bot },
     {
       name: 'Applications',
       href: '/job-tracker',
@@ -218,8 +220,8 @@ export function MainLayout() {
           </div>
         </header>
 
-        <main className={`content-area animate-fade-in${isDashboard ? ' content-area-dashboard' : ''}`}>
-          <div className={`content-wrapper${isDashboard ? ' content-wrapper-dashboard' : ''}`}>
+        <main className={`content-area animate-fade-in${isDashboard ? ' content-area-dashboard' : ''}${isBrowserAgent ? ' content-area-browser-agent' : ''}`}>
+          <div className={`content-wrapper${isDashboard ? ' content-wrapper-dashboard' : ''}${isBrowserAgent ? ' content-wrapper-browser-agent' : ''}`}>
             <Outlet />
           </div>
         </main>

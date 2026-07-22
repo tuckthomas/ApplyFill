@@ -296,6 +296,14 @@
   max-width: none;
 }
 
+.content-area-browser-agent {
+  padding: 18px;
+}
+
+.content-wrapper-browser-agent {
+  max-width: none;
+}
+
 /* Custom Scrollbar for content area */
 .content-area::-webkit-scrollbar {
   width: 8px;
@@ -402,5 +410,9 @@
 
   .content-area-dashboard {
     padding: 0;
+  }
+
+  .content-area-browser-agent {
+    padding: 14px;
   }
 }

@@ -18,6 +18,7 @@
     "@dnd-kit/core": "6.3.1",
     "@litert-lm/core": "0.14.0",
     "@litertjs/core": "2.5.3",
+    "@microsoft/signalr": "10.0.0",
     "@react-pdf/renderer": "^4.5.1",
     "@tiptap/core": "^3.27.4",
     "@tiptap/react": "^3.27.4",
