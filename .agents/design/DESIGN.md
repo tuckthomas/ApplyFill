@@ -68,15 +68,34 @@ Prefer these components rather than rebuilding their behavior:
 - `ValidationDialog.tsx`: grouped validation feedback.
 - `RichTextEditor.tsx`: all rich-text fields and toolbar behavior. It persists a restricted Tiptap JSON document; raw HTML is not supported, rendered, or migrated. Plain-text imports and AI output must be converted through `features/rich-text/`.
 - `ProfileIntroductionSection.tsx`: profile opening section used by the Job Profile wizard.
+- `ProfileDataPanel.tsx`: formatted, read-only view of the exact local profile document with copy, download, and validated import controls.
+- `ResumePdfDocument.tsx`: canonical browser-side PDF document used by both live preview and PDF Blob download. It accepts only the resume-safe view model.
+- `LocalAiTailoringPanel.tsx`: local job analysis and suggestion review with accept/reject/edit/cancel/stale/undo behavior.
 - Dashboard components under `components/dashboard/`: widget grid, widget chrome, library, and widget implementations.
 
 ## Application Shell And Routes
 
 - `MainLayout.tsx` owns the responsive sidebar, grouped navigation, and persisted light/dark theme. Do not create a page-level substitute for these behaviors.
-- Implemented routes are dashboard (`/`), Job Profile review (`/job-profile`), Job Profile builder (`/job-profile/builder`), Job Tracker (`/job-tracker`), Resume Builder (`/resumes`), and Settings (`/settings`).
+- Implemented routes are dashboard (`/`), Job Profile review (`/job-profile`), Job Profile builder (`/job-profile/builder`), Job Tracker (`/job-tracker`), Resume Builder (`/resumes` and `/resumes/builder`), and Settings (`/settings`).
 - The dashboard uses the shared dashboard grid and widget frame. Preserve its edit-mode distinction: layout changes, widget resizing, and widget removal are editing actions.
-- The Job Profile screen is a readable review surface. Its section-level Edit actions must navigate to the matching wizard section rather than duplicate profile-editing forms.
-- Settings uses shared controls. The date format preference is a persisted frontend preference; integration-status cards are informational and must not imply that storage or export features are available.
+- The Job Profile screen uses `TabbedForm`: My Profile is the readable review surface and Structured Data exposes the exact versioned local document. Section-level Edit actions navigate to the matching wizard section rather than duplicating forms.
+- Settings uses shared controls. It must accurately explain IndexedDB durability, the lack of automatic recovery or sync, and the destructive local-data deletion command.
+
+## Local-First Data UX
+
+- Profiles, resume drafts, job applications, and dashboard records use IndexedDB. Never call this storage a cache or imply that ApplyFill can recover it.
+- Backup messaging must state that downloaded JSON contains sensitive, unencrypted personal data.
+- Government identifiers are application-only. Mask them in cards and profile summaries, reveal them only through an explicit control while editing, and warn before users expose them in structured JSON, clipboard copies, or downloads. Never include them in resumes or AI writing requests.
+- Work authorization uses the neutral application questions "currently authorized to work" and "now or in the future require sponsorship" per country. Do not collect citizenship, specific immigration status, or date of birth.
+- Education GPA is an optional pair of numeric fields: earned GPA and grading scale. Normalize saved values to two decimal places, support scales through 100.00, and reject incomplete pairs or a GPA greater than its scale.
+- Phone controls display `+1 (555) 123-4567` while editing and reviewing, but persist only `+15551234567`. Partial phone input stays in component state and must never enter the profile document.
+- Import controls must accept only a recognized ApplyFill format and supported schema version before replacing local data.
+- Resume drafts are source-profile derivatives. The live preview and all file renderers consume the explicit resume-safe allowlist, never the complete profile document. Generated PDF and DOCX Blobs remain ephemeral until downloaded.
+- Local AI actions run inside the compatible desktop browser. Explain the exact allowlisted data boundary, explicit multi-gigabyte model download, actual accelerator/fallback, and the fact that local inference does not encrypt browser data.
+- Local AI suggestions are proposals: show progress and cancellation, render before/after review, allow edit/select/reject, block stale results, and provide undo after acceptance.
+- Settings owns compatibility, accelerator preference, model download/removal, persistence request, content-free diagnostic export, and extension connection/disconnection. Status updates use live regions and must distinguish app-ready, model-ready, unsupported, failed, and offline states.
+- Extension connection requires a visible one-time code, scoped packet disclosure, explicit sensitive-data opt-in, connected state, and a fail-closed disconnect action. Never imply that connection authorizes submission.
+- Destructive deletion requires explicit confirmation and must name all substantive local records affected.
 
 Update this list whenever a reusable component is added, renamed, or retired.
 

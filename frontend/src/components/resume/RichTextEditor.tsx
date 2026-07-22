@@ -60,7 +60,7 @@ export default function RichTextEditor({
           {button('Bulleted list', editor?.isActive('bulletList') ?? false, () => editor?.chain().focus().toggleBulletList().run(), <List aria-hidden="true" />)}
         </>}
         <button className="rich-text-toolbar-button" type="button" aria-label="Clear formatting" data-tooltip="Clear formatting" disabled={disabled || !editor} onMouseDown={keepSelection} onClick={() => editor?.chain().focus().unsetAllMarks().clearNodes().run()}><RemoveFormatting aria-hidden="true" /></button>
-        {toolbarVariant === 'standard' && <button className="rich-text-ai-toolbar-button" type="button" onMouseDown={keepSelection} onClick={onAiEnhance} disabled={isAiButtonDisabled} aria-label={aiLabel} data-tooltip={aiLabel}>{isAiEnhancing ? <Loader2 size={18} className="animate-spin" /> : <Wand2 size={18} />}</button>}
+        {toolbarVariant === 'standard' && onAiEnhance ? <button className="rich-text-ai-toolbar-button" type="button" onMouseDown={keepSelection} onClick={onAiEnhance} disabled={isAiButtonDisabled} aria-label={aiLabel} data-tooltip={aiLabel}>{isAiEnhancing ? <Loader2 size={18} className="animate-spin" /> : <Wand2 size={18} />}</button> : null}
       </div>}
       <EditorContent editor={editor} className={`rich-text-tiptap ${editorClassName}`.trim()} />
       {editor?.isEmpty && <span className="rich-text-placeholder">{placeholder}</span>}

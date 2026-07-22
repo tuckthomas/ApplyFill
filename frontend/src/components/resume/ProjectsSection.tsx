@@ -14,7 +14,7 @@ import RepeatableEmptyState from '../ui/RepeatableEmptyState';
 import { useDateFormatPreference } from '../../features/preferences/dateFormatPreference';
 import type { DateFormatPreference } from '../../features/preferences/dateFormatPreference';
 import { formatExactDateForDisplay } from '../ui/datePickerUtils';
-import { EMPTY_RICH_TEXT_VALUE, createRichTextFromPlainText, getRichTextPlainText } from '../../features/rich-text/richText';
+import { EMPTY_RICH_TEXT_VALUE } from '../../features/rich-text/richText';
 
 type SelectOption = {
   value: string;
@@ -130,7 +130,6 @@ const parseProjectDateValue = (
 export default function ProjectsSection({ projects, onChange }: ProjectsSectionProps) {
   const { dateFormat } = useDateFormatPreference();
   const [validationDialog, setValidationDialog] = useState<ValidationDialogState | null>(null);
-  const [enhancingProjectId, setEnhancingProjectId] = useState<number | null>(null);
 
   const updateProject = <Key extends keyof ProjectEntry>(
     id: number,
@@ -240,39 +239,6 @@ export default function ProjectsSection({ projects, onChange }: ProjectsSectionP
       updateProject(project.id, 'isEditing', false);
     } else {
       removeProject(project.id);
-    }
-  };
-
-  const handleAiEnhance = async (project: ProjectEntry) => {
-    if (!getRichTextPlainText(project.description)) {
-      updateProject(project.id, 'rewriteMessage', 'Add project details before rewriting.');
-      return;
-    }
-
-    setEnhancingProjectId(project.id);
-    updateProject(project.id, 'rewriteMessage', '');
-
-    try {
-      const response = await fetch('http://localhost:5033/api/ai/enhance-project', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: getRichTextPlainText(project.description) })
-      });
-
-      if (response.status === 503) {
-        updateProject(project.id, 'rewriteMessage', 'AI rewrite is not configured yet.');
-        return;
-      }
-      if (!response.ok) throw new Error('Failed to enhance project details');
-
-      const data = await response.json();
-      updateProject(project.id, 'description', createRichTextFromPlainText(data.enhancedDescription));
-      updateProject(project.id, 'rewriteMessage', 'Project details rewritten.');
-    } catch (error) {
-      console.error(error);
-      updateProject(project.id, 'rewriteMessage', 'Rewrite failed. Try again after the API is available.');
-    } finally {
-      setEnhancingProjectId(null);
     }
   };
 
@@ -438,11 +404,8 @@ export default function ProjectsSection({ projects, onChange }: ProjectsSectionP
                 </div>
 
                 <RichTextEditor
-                  aiLabel="Rewrite project details with AI"
-                  isAiEnhancing={enhancingProjectId === project.id}
                   label="Project Details"
                   labelId={`${prefix}-details-label`}
-                  onAiEnhance={() => handleAiEnhance(project)}
                   onChange={(value) => updateProject(project.id, 'description', value)}
                   placeholder="Describe the problem, your contribution, technologies used, and measurable results..."
                   editorClassName="rich-text-editor-project"

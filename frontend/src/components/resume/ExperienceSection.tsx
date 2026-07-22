@@ -18,7 +18,11 @@ import AddressFlow from '../ui/AddressFlow';
 import type { AddressValue } from '../ui/AddressFlow';
 import { useDateFormatPreference } from '../../features/preferences/dateFormatPreference';
 import { formatExactDateForDisplay } from '../ui/datePickerUtils';
-import { EMPTY_RICH_TEXT_VALUE, createRichTextFromPlainText, getRichTextPlainText } from '../../features/rich-text/richText';
+import {
+  formatPhoneNumber,
+  normalizePhoneNumber
+} from '../../features/profile/phoneNumber';
+import { EMPTY_RICH_TEXT_VALUE } from '../../features/rich-text/richText';
 
 type SelectOption = {
   value: string;
@@ -27,7 +31,6 @@ type SelectOption = {
 
 type EmploymentDatePrecision = 'Exact' | 'Estimated';
 type EmploymentDateField = 'startDate' | 'endDate';
-type RichTextField = 'description' | 'reasonForLeaving';
 
 export type ExperienceEntry = {
   id: number;
@@ -99,9 +102,9 @@ type ExperienceSectionProps = {
 
 export default function ExperienceSection({ defaultCountry, experiences, onChange }: ExperienceSectionProps) {
   const { dateFormat } = useDateFormatPreference();
-  const [enhancingField, setEnhancingField] = useState<{ id: number; field: RichTextField } | null>(null);
   const [validationDialog, setValidationDialog] = useState<ValidationDialogState | null>(null);
   const [sortOrder, setSortOrder] = useState<EntrySortOrder>(() => readEntrySortOrder('applyfill.experience-sort'));
+  const [companyPhoneDrafts, setCompanyPhoneDrafts] = useState<Record<number, string>>({});
   const setExperiences = onChange;
 
   const updateExperience = <Key extends keyof ExperienceEntry>(
@@ -139,6 +142,11 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
     }
 
     setValidationDialog(null);
+    setCompanyPhoneDrafts((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
     setExperiences((current) => current.map((experience) => (
       experience.id === id ? validateAndSaveExperience(experience) : experience
     )));
@@ -207,10 +215,6 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
     }
   };
 
-  const setRewriteMessage = (id: number, message: string) => {
-    updateExperience(id, 'rewriteMessage', message);
-  };
-
   const updateCurrentJob = (id: number, checked: boolean) => {
     setExperiences((current) => current.map((experience) => (
       experience.id === id
@@ -223,43 +227,6 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
         }
         : experience
     )));
-  };
-
-  const handleAiEnhance = async (experience: ExperienceEntry, field: RichTextField) => {
-    const sourceText = getRichTextPlainText(experience[field]);
-    const fieldLabel = field === 'description' ? 'experience details' : 'reason for leaving';
-
-    if (!sourceText.trim()) {
-      setRewriteMessage(experience.id, `Add ${fieldLabel} before rewriting.`);
-      return;
-    }
-
-    setEnhancingField({ id: experience.id, field });
-    try {
-      const response = await fetch('http://localhost:5033/api/ai/enhance-experience', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: sourceText })
-      });
-
-      if (response.status === 503) {
-        setRewriteMessage(experience.id, 'AI rewrite is not configured yet.');
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error('Failed to enhance experience');
-      }
-
-      const data = await response.json();
-      updateExperience(experience.id, field, createRichTextFromPlainText(data.enhancedDescription));
-      setRewriteMessage(experience.id, `${field === 'description' ? 'Experience details' : 'Reason for leaving'} rewritten.`);
-    } catch (error) {
-      console.error(error);
-      setRewriteMessage(experience.id, 'Rewrite failed. Try again after the API is available.');
-    } finally {
-      setEnhancingField(null);
-    }
   };
 
   const getExperienceTitle = (experience: ExperienceEntry) => {
@@ -427,8 +394,6 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
         const prefix = `experience-${experience.id}`;
         const toolbarId = `${prefix}-toolbar`;
         const reasonToolbarId = `${prefix}-reason-toolbar`;
-        const isEnhancingDescription = enhancingField?.id === experience.id && enhancingField.field === 'description';
-        const isEnhancingReason = enhancingField?.id === experience.id && enhancingField.field === 'reasonForLeaving';
         const isSaved = experience.isSaved;
         const experienceTitle = experience.jobTitle.trim() || 'Untitled role';
         const companyLabel = experience.company.trim() || 'Company not set';
@@ -506,6 +471,11 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
                 saveExperience(experience.id);
               }}
             >
+              <div>
+                <h5 className="section-title">Job Details</h5>
+                <hr className="subtle-divider" />
+              </div>
+
                 <div className="form-grid">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label" htmlFor={`${prefix}-job-title`}>Job Title</label>
@@ -529,6 +499,11 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
                   placeholder="e.g. Tech Corp"
                 />
               </div>
+            </div>
+
+            <div>
+              <h5 className="section-title">Time Period</h5>
+              <hr className="subtle-divider" />
             </div>
 
             <div className="employment-date-row employment-start-date-row">
@@ -623,10 +598,18 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
                   id={`${prefix}-company-phone`}
                   type="tel"
                   className="form-input"
-                  value={experience.companyPhone}
-                  onChange={(event) => updateExperience(experience.id, 'companyPhone', event.target.value)}
-                  placeholder="(555) 123-4567"
+                  inputMode="tel"
+                  maxLength={17}
+                  pattern="\+\d \(\d{3}\) \d{3}-\d{4}"
+                  value={companyPhoneDrafts[experience.id] ?? formatPhoneNumber(experience.companyPhone)}
+                  onChange={(event) => {
+                    const formatted = formatPhoneNumber(event.target.value);
+                    setCompanyPhoneDrafts((current) => ({ ...current, [experience.id]: formatted }));
+                    updateExperience(experience.id, 'companyPhone', normalizePhoneNumber(formatted));
+                  }}
+                  placeholder="+1 (555) 123-4567"
                 />
+                <p className="field-hint">Include the one-digit country code. Stored as + followed by 11 digits.</p>
               </div>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label" htmlFor={`${prefix}-supervisor`}>Supervisor Name</label>
@@ -649,12 +632,14 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
               </div>
             </div>
 
+            <div>
+              <h5 className="section-title">Narrative</h5>
+              <hr className="subtle-divider" />
+            </div>
+
             <RichTextEditor
-              aiLabel="Rewrite experience details with AI"
-              isAiEnhancing={isEnhancingDescription}
               label="Experience Details"
               labelId={`${prefix}-details-label`}
-              onAiEnhance={() => handleAiEnhance(experience, 'description')}
               onChange={(value) => updateExperience(experience.id, 'description', value)}
               placeholder="Write your experience in a paragraph or as bullet points..."
               editorClassName="rich-text-editor-experience"
@@ -663,12 +648,9 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
             />
 
             <RichTextEditor
-              aiLabel="Rewrite reason for leaving with AI"
               disabled={experience.isCurrentJob}
-              isAiEnhancing={isEnhancingReason}
               label="Reason for Leaving"
               labelId={`${prefix}-reason-label`}
-              onAiEnhance={() => handleAiEnhance(experience, 'reasonForLeaving')}
               onChange={(value) => updateExperience(experience.id, 'reasonForLeaving', value)}
               placeholder={experience.isCurrentJob ? 'Disabled for current job' : 'Explain why this job ended, if an application asks for it...'}
               editorClassName="rich-text-editor-reason"

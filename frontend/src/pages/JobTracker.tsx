@@ -25,11 +25,26 @@ const getNotePreview = (value: string) => getRichTextPlainText(value);
 export default function JobTracker() {
   const navigate = useNavigate();
   const { dateFormat } = useDateFormatPreference();
-  const [applications, setApplications] = useState<JobApplication[]>(loadApplications);
+  const [applications, setApplications] = useState<JobApplication[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [storageError, setStorageError] = useState('');
 
   useEffect(() => {
-    saveApplications(applications);
-  }, [applications]);
+    let isCurrent = true;
+    loadApplications()
+      .then((loaded) => { if (isCurrent) setApplications(loaded); })
+      .catch(() => { if (isCurrent) setStorageError('Tracked applications could not be loaded from this browser.'); })
+      .finally(() => { if (isCurrent) setIsLoading(false); });
+    return () => { isCurrent = false; };
+  }, []);
+
+  const removeApplication = (id: string) => {
+    setApplications((current) => {
+      const next = current.filter((application) => application.id !== id);
+      void saveApplications(next).catch(() => setStorageError('The application could not be removed from local storage.'));
+      return next;
+    });
+  };
 
   const columns = useMemo<Array<DataTableColumn<JobApplication>>>(() => [
     {
@@ -88,7 +103,7 @@ export default function JobTracker() {
       cell: (application) => (
         <div className="data-table-action-group">
           <button className="icon-button" type="button" onClick={() => navigate(`/job-tracker/${application.id}/edit`)} aria-label={`Edit ${application.jobTitle} at ${application.companyName}`} data-tooltip="Edit application"><Pencil size={18} /></button>
-          <button className="icon-button icon-button-danger" type="button" onClick={() => setApplications((current) => current.filter((currentApplication) => currentApplication.id !== application.id))} aria-label={`Remove ${application.jobTitle} at ${application.companyName}`} data-tooltip="Remove application"><Trash2 size={18} /></button>
+          <button className="icon-button icon-button-danger" type="button" onClick={() => removeApplication(application.id)} aria-label={`Remove ${application.jobTitle} at ${application.companyName}`} data-tooltip="Remove application"><Trash2 size={18} /></button>
         </div>
       )
     }
@@ -142,6 +157,8 @@ export default function JobTracker() {
       </header>
 
       <section className="surface-panel tracker-list-panel">
+        {storageError ? <p className="field-error" role="alert">{storageError}</p> : null}
+        {isLoading ? <p className="section-copy" role="status">Loading applications from this browser...</p> : null}
         <DataTable
           caption="Tracked job applications"
           columns={columns}
@@ -161,7 +178,7 @@ export default function JobTracker() {
               <p className="section-copy">Adjust the search or filters to see other applications.</p>
             </>
           )}
-          rows={applications}
+          rows={isLoading ? [] : applications}
           searchPlaceholder="Search organization, job title, or location"
           title="Tracked applications"
           toolbarAction={<AddButton onClick={() => navigate('/job-tracker/new')}>Add Application</AddButton>}

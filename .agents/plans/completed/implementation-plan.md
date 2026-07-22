@@ -1,5 +1,7 @@
 # Resume Builder & Agent-Ready Application Web App
 
+> **HISTORICAL / SUPERSEDED — updated 2026-07-18:** This plan predates ApplyFill's static local-first architecture and repeatedly proposes server persistence and server-owned document generation. Do not implement those sections. Current architecture is documented in the root README and `.agents/README.md`: substantive records live in browser IndexedDB, portable documents use versioned JSON, PDF/DOCX are generated from a resume-safe client allowlist, approved AI runs through LiteRT-LM.js in the browser, and no application backend ships.
+
 > **Planning status:** This document describes intended architecture and future phases. It is not an implementation inventory. For the currently delivered frontend behavior, routes, persistence boundaries, and screenshots, read the root `README.md`; for actively tracked work, read `../tasks/task.md`.
 
 ## Goal

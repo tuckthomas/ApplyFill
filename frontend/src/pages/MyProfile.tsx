@@ -1,9 +1,20 @@
 import { useNavigate } from 'react-router-dom';
 import { Pencil, UserRound, Wand2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { loadProfileBuilderState, PROFILE_BUILDER_STEPS } from '../features/profile/profileBuilder';
+import {
+  createDefaultProfileBuilderState,
+  loadProfileDocument,
+  PROFILE_BUILDER_STEPS,
+  toProfileBuilderState
+} from '../features/profile/profileBuilder';
+import type { LocalProfileDocument } from '../features/profile/profileBuilder';
 import Button from '../components/ui/Button';
 import { getRichTextPlainText } from '../features/rich-text/richText';
+import TabbedForm from '../components/ui/TabbedForm';
+import ProfileDataPanel from '../components/resume/ProfileDataPanel';
+import { maskGovernmentIdentifier } from '../features/profile/applicationQuestions';
+import { formatPhoneNumber } from '../features/profile/phoneNumber';
 
 const plainText = (value: string) => getRichTextPlainText(value);
 
@@ -34,11 +45,56 @@ function ProfileOverviewSection({ children, description, onEdit, title }: Profil
 
 export default function MyProfile() {
   const navigate = useNavigate();
-  const profileBuilderState = loadProfileBuilderState();
+  const [profileBuilderState, setProfileBuilderState] = useState(createDefaultProfileBuilderState);
+  const [profileDocument, setProfileDocument] = useState<LocalProfileDocument | null>(null);
+  const [activeTab, setActiveTab] = useState('profile');
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let isCurrent = true;
+    const load = async () => {
+      setIsLoading(true);
+      setLoadError('');
+      try {
+        const document = await loadProfileDocument();
+        if (!isCurrent) return;
+        setProfileDocument(document);
+        setProfileBuilderState(document ? toProfileBuilderState(document) : createDefaultProfileBuilderState());
+      } catch {
+        if (isCurrent) setLoadError('Your saved profile could not be loaded from this browser. Check that site storage is allowed, then retry.');
+      } finally {
+        if (isCurrent) setIsLoading(false);
+      }
+    };
+    void load();
+    return () => { isCurrent = false; };
+  }, [reloadKey]);
+
+  const applyImportedDocument = (document: LocalProfileDocument) => {
+    setProfileDocument(document);
+    setProfileBuilderState(toProfileBuilderState(document));
+  };
+
   const { data } = profileBuilderState;
   const editSection = (section: typeof PROFILE_BUILDER_STEPS[number]['id']) => navigate(`/job-profile/builder?section=${section}`);
   const fullName = [data.profile.firstName, data.profile.middleName, data.profile.lastName].filter(Boolean).join(' ');
   const address = [data.profile.address1, data.profile.address2, data.profile.city, data.profile.state?.label, data.profile.postalCode, data.profile.country?.label].filter(Boolean).join(', ');
+
+  if (isLoading) {
+    return <p className="section-copy" role="status">Loading your saved profile...</p>;
+  }
+
+  if (loadError) {
+    return (
+      <section className="surface-panel empty-state" role="alert">
+        <h2 className="section-title">Profile unavailable</h2>
+        <p className="section-copy">{loadError}</p>
+        <Button onClick={() => setReloadKey((value) => value + 1)} variant="secondary">Retry</Button>
+      </section>
+    );
+  }
 
   if (!profileBuilderState.isComplete) {
     return (
@@ -67,7 +123,7 @@ export default function MyProfile() {
       <header className="page-header">
         <div>
           <h2 className="page-title">Job Profile</h2>
-          <p className="page-copy">Review the reusable job profile information used for your resumes and applications.</p>
+          <p className="page-copy">Review or export the reusable profile stored only in this browser.</p>
         </div>
         <Button onClick={() => navigate('/job-profile/builder')} variant="secondary">
           <Wand2 size={18} aria-hidden="true" />
@@ -75,11 +131,26 @@ export default function MyProfile() {
         </Button>
       </header>
 
+      <TabbedForm
+        activeTab={activeTab}
+        ariaLabel="Job profile views"
+        onTabChange={setActiveTab}
+        tabs={[
+          { id: 'profile', label: 'My Profile' },
+          { id: 'data', label: 'Structured Data' }
+        ]}
+      >
+        {({ panelId, tabId }) => (
+          <div id={panelId} role="tabpanel" aria-labelledby={tabId}>
+            {activeTab === 'data' && profileDocument ? (
+              <ProfileDataPanel document={profileDocument} onImported={applyImportedDocument} />
+            ) : (
+              <div className="page-stack profile-overview-sections">
       <ProfileOverviewSection title="Personal Information" description="Contact details, location, and professional links." onEdit={() => editSection('profile')}>
         <dl className="profile-overview-details">
           <div><dt>Name</dt><dd>{fullName || 'Not provided'}</dd></div>
           <div><dt>Email</dt><dd>{data.profile.email || 'Not provided'}</dd></div>
-          <div><dt>Phone</dt><dd>{data.profile.phone || 'Not provided'}</dd></div>
+          <div><dt>Phone</dt><dd>{formatPhoneNumber(data.profile.phone) || 'Not provided'}</dd></div>
           <div><dt>Address</dt><dd>{address || 'Not provided'}</dd></div>
           {data.profile.alternativeNames.length > 0 && <div><dt>Alternative names</dt><dd>{data.profile.alternativeNames.map((name) => name.name).join(', ')}</dd></div>}
           {data.profile.webLinks.length > 0 && <div><dt>Web links</dt><dd>{data.profile.webLinks.map((link) => link.name || link.url).join(', ')}</dd></div>}
@@ -88,7 +159,7 @@ export default function MyProfile() {
 
       <ProfileOverviewSection title="Education" description="Degrees, training, and courses." onEdit={() => editSection('education')}>
         <div className="profile-overview-list">
-          {data.education.length ? data.education.map((education) => <div key={education.id}><strong>{education.level?.label || 'Education'}</strong><span>{[education.fieldOfStudy, education.provider, education.city].filter(Boolean).join(' · ') || 'Details not provided'}</span></div>) : <p className="section-copy">No education entries added.</p>}
+          {data.education.length ? data.education.map((education) => <div key={education.id}><strong>{education.level?.label || 'Education'}</strong><span>{[education.fieldOfStudy, education.provider, education.city, education.gpa && education.gpaScale ? `GPA ${education.gpa} / ${education.gpaScale}` : ''].filter(Boolean).join(' · ') || 'Details not provided'}</span></div>) : <p className="section-copy">No education entries added.</p>}
         </div>
       </ProfileOverviewSection>
 
@@ -113,8 +184,19 @@ export default function MyProfile() {
           <div><dt>Race or ethnicity</dt><dd>{data.applicationQuestions.raceEthnicity ?? 'Not provided'}</dd></div>
           <div><dt>Veteran status</dt><dd>{data.applicationQuestions.veteranStatus ?? 'Not provided'}</dd></div>
           <div><dt>Disability status</dt><dd>{data.applicationQuestions.disabilityStatus ?? 'Not provided'}</dd></div>
+          <div><dt>Work authorization</dt><dd>{data.applicationQuestions.workAuthorizations.length
+            ? data.applicationQuestions.workAuthorizations.map((entry) => `${entry.country.label}: authorized ${entry.authorizedToWork ?? 'not answered'}, sponsorship ${entry.requiresSponsorship ?? 'not answered'}`).join('; ')
+            : 'Not provided'}</dd></div>
+          <div><dt>Government identifiers</dt><dd>{data.applicationQuestions.governmentIdentifiers.length
+            ? data.applicationQuestions.governmentIdentifiers.map((entry) => `${entry.identifierType} (${entry.country.label}) ${maskGovernmentIdentifier(entry.value)}`).join('; ')
+            : 'Not provided'}</dd></div>
         </dl>
       </ProfileOverviewSection>
+              </div>
+            )}
+          </div>
+        )}
+      </TabbedForm>
     </div>
   );
 }

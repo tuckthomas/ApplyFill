@@ -14,8 +14,12 @@ dist/
 dist-ssr/
 frontend/dist/
 frontend/dist-ssr/
+frontend/.wrangler/
+frontend/.cache/local-ai/
+frontend/public/models/**/*.part
+frontend/public/models/**/*.litertlm
 
-# .NET build output
+# Generated build artifacts (including ignored remnants from the retired backend)
 bin/
 obj/
 TestResults/
@@ -44,6 +48,7 @@ Thumbs.db
 *.sln.docstates
 
 # Temporary files
+tmp/models/
 *.tmp
 *.temp
 *.swp

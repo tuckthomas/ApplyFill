@@ -1,320 +1,198 @@
-<div align="center">
+# ApplyFill
 
-  <img src="frontend/public/favicon.svg" alt="ApplyFill logo" width="96" height="96" />
+<p align="center">
+  <img src="frontend/public/favicon.svg" alt="ApplyFill" width="96" />
+</p>
 
-  # ApplyFill
+<p align="center">A privacy-focused, local-first job-search workspace with in-browser AI and review-before-fill browser automation.</p>
 
-  **Enter job-application information once. Reuse it across applications and targeted resumes.**
+<p align="center">
+  <img src="https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript_6-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript 6" />
+  <img src="https://img.shields.io/badge/Vite_8-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite 8" />
+  <img src="https://img.shields.io/badge/LiteRT.js-2.5.3-4285F4?style=for-the-badge" alt="LiteRT.js 2.5.3" />
+  <img src="https://img.shields.io/badge/Cloudflare_Workers-static_assets-F38020?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Cloudflare Workers static assets" />
+</p>
 
-  ApplyFill is a privacy-oriented profile builder and job-search workspace designed to replace repetitive application entry with structured, reusable data.
+## What ApplyFill Does
 
-  <p>
-    <a href="https://react.dev/"><img src="https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React 19" /></a>
-    <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript_6-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript 6" /></a>
-    <a href="https://vite.dev/"><img src="https://img.shields.io/badge/Vite_8-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite 8" /></a>
-    <a href="https://dotnet.microsoft.com/"><img src="https://img.shields.io/badge/.NET_10-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 10" /></a>
-    <a href="https://www.postgresql.org/"><img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" /></a>
-    <a href="https://www.npgsql.org/efcore/"><img src="https://img.shields.io/badge/EF_Core_10-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt="Entity Framework Core 10" /></a>
-    <a href="LICENSE"><img src="https://img.shields.io/badge/License-Personal_Local_Use-334155?style=for-the-badge" alt="ApplyFill Personal Local-Use License" /></a>
-  </p>
+ApplyFill captures the information repeatedly requested by job applications, turns it into portable structured records, builds targeted resumes, tracks applications, and assists with job-posting analysis and form filling. The shipped application has no backend service and no user database.
 
-</div>
+- Profiles, resume drafts, tracked applications, and dashboard configuration are authoritative in browser IndexedDB.
+- Profile and resume documents have versioned, validated JSON copy/download/import workflows.
+- PDF and DOCX resumes are generated independently in the browser from an explicit resume-safe allowlist.
+- Gemma 4 E2B runs through LiteRT-LM.js inside a compatible desktop browser; prompts and outputs are not sent to ApplyFill or a cloud AI provider.
+- A least-privilege Chromium extension inspects one user-approved tab, previews mappings, fills only approved fields, and never submits an application.
+- The site is an installable, offline-capable static PWA deployable through Cloudflare Workers static assets.
 
----
+## Privacy and Durability
 
-## Project Overview
+ApplyFill cannot read or recover data stored in a user's browser. That reduces operator custody but does not make the local device invulnerable:
 
-Most applicant-tracking systems ask for the same names, addresses, schools, jobs, dates, skills, demographic answers, and project details repeatedly. ApplyFill is being built around a different workflow: collect a complete source profile once, preserve it as structured data, and reuse the appropriate fields whenever a job application or targeted resume needs them.
+- Clearing site data or deleting the browser profile can erase all ApplyFill records and downloaded model chunks.
+- Data does not automatically follow the user to another browser or device. Download backups regularly.
+- IndexedDB and exported JSON are not encrypted by ApplyFill. Protect the browser profile and downloaded files.
+- Optional government identifiers, work-authorization/sponsorship answers, and voluntary demographics are application-only. They are excluded structurally from resumes and AI inputs.
+- Local AI receives a temporary allowlisted professional snapshot. Names, contact details, addresses, government identifiers, authorization/sponsorship answers, demographics, reasons for leaving, supervisors, and company phone numbers are excluded.
+- The autofill extension holds packets only in memory. Sensitive fields bypass AI, stay masked, and require approval in ApplyFill plus a second per-field confirmation in the extension.
+- Local inference does not protect against an unlocked browser profile, compromised device, malicious site, screen capture, or another privileged extension.
 
-The application currently provides a customizable dashboard, a substantial profile-building workflow with a review screen, a local job tracker, regional date preferences, and early resume-workspace routes. The longer-term product direction is to use the resulting structured profile for targeted resume generation and user-controlled agentic application assistance.
+## Product Status
 
-## Project Roadmap
-
-The roadmap is ordered by technical dependency rather than speculative release dates. Each phase builds on the structured data and privacy boundaries established by the previous phase.
-
-```mermaid
-flowchart LR
-    foundation["Profile Foundation<br/>Profile wizard, shared UI, job tracker"]
-    persistence["Persistent Accounts<br/>Profile APIs, authentication, PostgreSQL sync"]
-    resumes["Targeted Resumes<br/>Job analysis, content selection, PDF and DOCX"]
-    applications["Application Assistance<br/>Field mapping, review, confirmation, audit trail"]
-    ecosystem["Search Workspace<br/>Storage integrations, reminders, insights"]
-
-    foundation --> persistence --> resumes --> applications --> ecosystem
-
-    classDef complete fill:#166534,stroke:#14532d,color:#ffffff,stroke-width:2px
-    classDef next fill:#1d4ed8,stroke:#1e3a8a,color:#ffffff,stroke-width:3px
-    classDef planned fill:#e2e8f0,stroke:#64748b,color:#0f172a,stroke-width:2px
-
-    class foundation complete
-    class persistence next
-    class resumes,applications,ecosystem planned
-```
-
-| Phase | Status | Intended outcome |
-| --- | --- | --- |
-| Profile foundation | Implemented and being refined | Capture reusable profile records, preserve browser-local progress, and track job applications through consistent accessible components. |
-| Persistent accounts | Next | Connect profile and tracker workflows to authenticated APIs, PostgreSQL persistence, migration-safe records, and recoverable user data. |
-| Targeted resumes | Planned | Analyze a target job, select relevant source-profile content, generate tailored documents, preview layouts, and export PDF/DOCX versions. |
-| Application assistance | Planned | Map saved answers into application fields with explicit user review, confirmation controls, and an auditable application history. |
-| Search workspace | Later | Add optional document-storage integrations, reminders, and job-search progress insights. |
-
-Diagram key: green is implemented, blue is the next major phase, and gray is planned. Scope and ordering may evolve as privacy, accessibility, and data-integrity requirements are validated.
-
-### Core Objectives
-
-- **Single source profile:** Maintain reusable personal, education, employment, project, and skills records instead of retyping them for each employer.
-- **Application-aware data:** Capture details that resumes omit but application forms often request, including alternative names, reasons for leaving, date precision, veteran status, and disability status.
-- **Privacy-oriented operation:** Support local use and keep AI provider credentials on the backend rather than collecting them in profile screens.
-- **Accessible, consistent interaction:** Use shared form, modal, date-picker, select, checkbox, tooltip, rich-text, and repeatable-entry components across light, dark, desktop, and mobile layouts.
-- **Structured automation foundation:** Model profile, resume, job target, application packet, and application log data so later automation can operate on explicit records instead of scraping free-form documents.
-
----
-
-## Current Features
-
-### Reusable Profile Builder
-
-The Job Profile area includes a review screen and a profile wizard. The wizard provides clickable progress navigation and automatically preserves the current browser session as the user moves between sections.
-
-- **Personal information:** First, optional middle, and last names; email; phone; repeatable alternative names; country-aware addresses; and repeatable web links.
-- **Education:** Degrees, diplomas, courses, vocational training, providers, locations, exact or estimated dates, current enrollment, and rich-text details.
-- **Work experience:** Repeatable jobs with employer details, country-aware location fields, supervisor information, exact or estimated dates, current-job handling, experience details, and reason for leaving.
-- **Projects:** Professional, academic, volunteer, open-source, and personal projects with roles, organizations, links, dates, ongoing status, and rich-text outcomes.
-- **Skills:** Searchable skill suggestions, custom skill entry, duplicate prevention, and an explicit proficiency level for each saved skill.
-- **Application questions:** Optional race and ethnicity, veteran-status, and disability-status answers for application automation. These answers are not intended for generated resumes.
-
-Repeatable records are added and edited in a shared modal workflow with validation, unsaved-change protection, responsive layouts, and consistent destructive actions. Education and employment records can be sorted with the most recent entry first by default.
-
-### Dashboard And Preferences
-
-- **Customizable dashboard:** A responsive widget grid starts with an application-pipeline board. Users can add editable rich-text note widgets, rearrange or resize widgets while editing, and reset the dashboard layout.
-- **Regional preferences:** Settings include a persisted choice between month/day/year and day/month/year date formats.
-- **Theme and navigation:** The shared application shell supports responsive navigation and a persisted light or dark theme.
-
-### Job Tracker
-
-The job tracker records company, role, location, posting URL, application date, status, and formatted notes. Entries can be searched, filtered by status, updated in place, opened at their source posting, or removed.
-
-### AI-Assisted Editing
-
-The backend exposes optional Gemini-powered endpoints for improving experience and project descriptions. Provider credentials are read from backend configuration; they are not entered into or retained by the browser UI.
-
-### Resume Workspace
-
-Resume-version and builder routes establish the interface for target-specific resumes, content selection, previews, and exports. PDF/DOCX generation and completed resume persistence remain under development and are not presented as finished functionality.
-
----
-
-## Application Gallery
-
-The following screenshots were captured from the current frontend in July 2026.
-
-| Dashboard | Job Profile review |
-| --- | --- |
-| ![ApplyFill dashboard with application pipeline](frontend/public/readme/gallery/dashboard.png) | ![ApplyFill Job Profile overview](frontend/public/readme/gallery/profile-overview.png) |
-| Job Profile builder | Job tracker |
-| ![ApplyFill Job Profile builder](frontend/public/readme/gallery/profile-wizard.png) | ![ApplyFill job tracker](frontend/public/readme/gallery/job-tracker.png) |
-| Resume workspace | Settings |
-| ![ApplyFill resume workspace](frontend/public/readme/gallery/resumes.png) | ![ApplyFill settings](frontend/public/readme/gallery/settings.png) |
-
-### Profile Builder Detail Gallery
-
-| Personal information | Education details |
-| --- | --- |
-| ![ApplyFill personal information section](frontend/public/readme/profile-builder/personal-information.png) | ![ApplyFill education form](frontend/public/readme/profile-builder/education-form.png) |
-| Work experience | Projects |
-| ![ApplyFill work experience form](frontend/public/readme/profile-builder/work-experience-form.png) | ![ApplyFill project form](frontend/public/readme/profile-builder/project-form.png) |
-| Skills autocomplete | Optional application questions |
-| ![ApplyFill skills autocomplete](frontend/public/readme/profile-builder/skills-autocomplete.png) | ![ApplyFill optional application questions](frontend/public/readme/profile-builder/application-questions.png) |
-
----
+| Area | Status |
+|---|---|
+| Profile builder and structured-data view | Implemented; IndexedDB and schema-versioned JSON |
+| Job tracker and dashboard analytics | Implemented; entirely local |
+| Rich text | Implemented with restricted Tiptap JSON; raw HTML is not persisted |
+| Resume preview and JSON/PDF/DOCX export | Implemented in the browser |
+| Local resume analysis and suggestion review | Implemented with accept/reject/edit/undo and stale-result protection |
+| Desktop local AI | Approved for structured job analysis and resume drafting on WebGPU |
+| Experimental WebNN/NPU | Capability detection implemented; not supported by the selected LiteRT-LM.js LLM and not available on the tested PC |
+| Chromium autofill extension | Implemented; review-before-fill, memory-only sessions, no submission |
+| Static/offline deployment | Implemented as a PWA with Cloudflare Workers static assets |
+| Server/backend/database | None |
 
 ## Architecture
 
-ApplyFill separates the interactive client from the domain and persistence layers so the profile schema can support more than a single resume editor.
+```mermaid
+flowchart LR
+    user["User"] --> app["React static PWA"]
+    app --> idb["IndexedDB records"]
+    app --> cache["Verified model chunks in Cache Storage"]
+    cache --> litert["LiteRT-LM.js on WebGPU"]
+    idb --> safe["AI-safe professional projection"]
+    safe --> litert
+    litert --> review["Schema validation + user review"]
+    idb --> render["Resume-safe export model"]
+    render --> files["Local JSON / PDF / DOCX"]
+    app <--> extension["Memory-only Chromium extension"]
+    extension --> jobsite["User-approved job tab"]
+    host["Cloudflare static assets"] -. "code, WASM, model chunks only" .-> app
+```
 
-| Layer | Technologies | Responsibility |
-| --- | --- | --- |
-| Frontend | React 19, TypeScript 6, Vite 8, React Router 7 | Profile wizard, job tracker, resume workspace, responsive application shell |
-| UI foundation | React Select, Tiptap, Lucide React, shared CSS tokens and primitives | Accessible selects, structured rich text, dates, modals, tooltips, checkboxes, icons, and consistent states |
-| API | ASP.NET Core 10, OpenAPI, typed `HttpClient` | HTTP endpoints, development authentication, AI-service boundary |
-| Application | .NET class library | Service contracts and application-level integrations |
-| Domain | .NET class library | Users, profiles, resumes, projects, skills, job targets, application packets, and logs |
-| Infrastructure | Entity Framework Core 10, Npgsql | PostgreSQL persistence, entity mappings, and migrations |
-| Worker | .NET Worker Service | Background-processing host reserved for asynchronous workflows |
-| Verification | TypeScript compiler, Oxlint, xUnit, Coverlet | Frontend checks and backend test/coverage foundation |
+| Layer | Technology | Responsibility |
+|---|---|---|
+| Client | React 19, TypeScript 6, Vite 8 | Product UI, contracts, local workflows, exports |
+| User records | IndexedDB | Profile, resumes, tracker, dashboard; never treated as a cache |
+| Local AI | `@litert-lm/core` 0.14.0, `@litertjs/core` 2.5.3 | Same-origin, integrity-verified inference |
+| Selected model | Gemma 4 E2B Instruct web artifact | Structured job analysis and resume drafting only |
+| Model cache | Cache Storage | Versioned, SHA-256-verified chunks separate from user records |
+| Documents | React PDF and `docx` | Independent browser-side PDF and DOCX generation |
+| Autofill | Manifest V3 Chromium extension | Active-tab discovery, review, sensitive confirmation, fill report |
+| Hosting | Cloudflare Workers static assets | Static application, runtime WASM, and versioned model chunks only |
 
-### Current Data Boundaries
+## Desktop Local AI
 
-- Profile-builder progress is stored in browser `localStorage` under an ApplyFill-specific key.
-- Job-tracker entries are also stored in browser `localStorage`.
-- The PostgreSQL domain schema and migrations exist, but the frontend profile and tracker workflows are not yet connected to full persistence APIs.
-- Gemini calls originate from the backend. The API key is never required in the frontend application.
-- Rich-text fields persist only a restricted structured document. Raw HTML is not accepted or rendered; AI output is treated as plain text and converted directly into that document shape.
+The selected artifact is `gemma-4-E2B-it-web.litertlm`, revision `9262660a1676eed6d0c477ab1a86344430854664`, 2,008,432,640 bytes (1.87 GiB), SHA-256 `3a08e8d94e23b814ae5414469c370c503813949acb8ceaa17e4ebf8a35af35b5`, Apache-2.0. Downloads are explicit, chunked below Cloudflare's 25 MiB per-asset limit, verified before use, and reusable offline from Cache Storage.
 
-This distinction matters for local users: clearing site data currently removes browser-stored profile and tracker information.
+Measured on Chrome 150, Windows, Ryzen 7 3800X, and RTX 2070:
 
----
+| Metric | Result |
+|---|---|
+| Actual accelerator | WebGPU |
+| Initialization | 28.30 s |
+| Cold first token | 484 ms |
+| Warm first token | 107–111 ms |
+| Generation | 43.93–45.06 tokens/s warm |
+| Evaluation corpus | 6 synthetic career/job cases |
+| Schema validity / injection resistance | 100% / 100% |
+| Unsupported claims | 0 |
+| Selection precision / recall | 88.89% / 100% |
 
-## Repository Structure
+Agentic model tool execution is deliberately not an approved capability. Resume tailoring uses one constrained, non-executable response envelope; the client supplies schema/version bookkeeping, derives bullet ownership through an exact unique source-text match, validates every identifier and field, blocks unsupported numeric claims, and requires human review. The selected LiteRT-LM.js release supports LLM generation through WebGPU; generic LiteRT.js WebNN support does not make this LLM NPU-compatible. No minimum hardware claim is made from one tested system.
+
+## Gallery
+
+| Dashboard | Job Profile |
+|---|---|
+| ![ApplyFill dashboard with application pipeline](frontend/public/readme/gallery/dashboard.png) | ![ApplyFill Job Profile overview](frontend/public/readme/gallery/profile-overview.png) |
+
+| Profile Builder | Job Tracker |
+|---|---|
+| ![ApplyFill Job Profile builder](frontend/public/readme/gallery/profile-wizard.png) | ![ApplyFill job tracker](frontend/public/readme/gallery/job-tracker.png) |
+
+| Resume workspace | Local AI and autofill settings |
+|---|---|
+| ![ApplyFill local resume builder and preview](frontend/public/readme/gallery/resumes.png) | ![ApplyFill local AI and autofill extension settings](frontend/public/readme/gallery/local-ai-settings.png) |
+
+| Privacy disclosure | Structured profile data |
+|---|---|
+| ![ApplyFill local-first privacy disclosure](frontend/public/readme/gallery/profile-privacy-consent.png) | ![ApplyFill structured profile JSON controls](frontend/public/readme/gallery/profile-structured-data.png) |
+
+| Local AI proposal review | Accepted local AI changes |
+|---|---|
+| ![ApplyFill local job analysis and resume proposal review](frontend/public/readme/gallery/local-ai-tailoring-review.png) | ![ApplyFill accepted local AI resume changes](frontend/public/readme/gallery/local-ai-tailoring-accepted.png) |
+
+| Extension mapping review | Extension fill report |
+|---|---|
+| ![Built ApplyFill extension popup reviewing synthetic field mappings](frontend/public/readme/gallery/extension-mapping-review.png) | ![Built ApplyFill extension popup showing a synthetic autofill report](frontend/public/readme/gallery/extension-fill-report.png) |
+
+## Repository Layout
 
 ```text
-ApplyFill/
-|-- frontend/                         # React and Vite client
-|   |-- public/
-|   |   `-- readme/                  # README gallery screenshots
-|   `-- src/
-|       |-- components/
-|       |   |-- brand/               # Reusable ApplyFill branding
-|       |   |-- layout/              # Navbar, sidebar, and application shell
-|       |   |-- resume/              # Profile-builder sections and rich text
-|       |   `-- ui/                  # Shared form and interaction primitives
-|       |-- constants/               # Brand, locations, and skills taxonomy
-|       `-- pages/                   # Dashboard, profile, resumes, tracker, settings
-|-- src/
-|   |-- ResumeBuilder.Api/            # ASP.NET Core API
-|   |-- ResumeBuilder.Application/    # Application services and AI boundary
-|   |-- ResumeBuilder.Domain/         # Entities and enums
-|   |-- ResumeBuilder.Infrastructure/ # EF Core context and migrations
-|   `-- ResumeBuilder.Worker/         # Background worker host
-|-- tests/ResumeBuilder.Tests/         # xUnit test project
-|-- .agents/                           # Agent design, planning, and task guidance
-|-- LICENSE                            # Personal local-use source license
-`-- ResumeBuilder.sln                  # .NET solution entry point
+ResumeJobAssistant/
+|-- frontend/
+|   |-- src/features/local-ai/  # Runtime, model, contracts, evaluation, workflows
+|   |-- src/features/storage/   # IndexedDB boundary
+|   |-- src/features/resume/    # Resume schemas and browser exporters
+|   |-- public/models/          # Generated model manifest/chunks (chunks ignored by Git)
+|   `-- wrangler.jsonc          # Static Cloudflare deployment
+|-- extension/                  # Least-privilege Chromium MV3 extension
+`-- .agents/                    # Design, architecture, tasks, and plan evidence
 ```
 
-Repository-specific implementation guidance lives in [`.agents/`](.agents/README.md). The root README describes the product; agent documents preserve design rules, architecture decisions, and implementation history.
+## Development and Verification
 
----
-
-## Getting Started
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) 22 or newer
-- [pnpm](https://pnpm.io/) 11 or newer
-- [.NET SDK 10](https://dotnet.microsoft.com/download/dotnet/10.0)
-- [PostgreSQL](https://www.postgresql.org/download/) for the backend API
-- A Gemini API key only when testing optional AI-assisted editing
-
-The frontend can be run independently for profile-builder and job-tracker development. The API is required for AI enhancement requests.
-
-### 1. Clone the Repository
-
-```powershell
-git clone https://github.com/tuckthomas/ApplyFill.git
-cd ApplyFill
-```
-
-### 2. Start the Frontend
+Requirements: Node.js 24+ and pnpm 11+. PostgreSQL, Docker, and a server runtime are not used.
 
 ```powershell
 cd frontend
 pnpm install --frozen-lockfile
 pnpm dev -- --host 127.0.0.1
+pnpm lint
+pnpm test
+pnpm build
+pnpm audit
+
+cd ..\extension
+pnpm install --frozen-lockfile
+pnpm check
+pnpm lint
+pnpm test
+pnpm build
+pnpm audit
 ```
 
-Open [http://127.0.0.1:5173](http://127.0.0.1:5173). Vite will select another port if `5173` is already occupied.
+Prepare the approved model for same-origin deployment with `pnpm model:prepare`; it resumes the revision-pinned download, verifies the full artifact, and writes immutable 24 MiB chunks plus `public/models/manifest.json`. To use an already downloaded verified artifact: `pnpm model:prepare -- --source-file <path-to-litertlm>`.
 
-### 3. Configure PostgreSQL
-
-Create a local database named `ResumeBuilder`, then supply its connection string through configuration. PowerShell example:
-
-```powershell
-$env:ConnectionStrings__DefaultConnection = "Host=localhost;Port=5432;Database=ResumeBuilder;Username=postgres;Password=YOUR_PASSWORD"
-```
-
-Do not commit local passwords or provider credentials. Local `.env` files, development app settings, and `secrets.json` are ignored by Git.
-
-### 4. Start the API
-
-The frontend's current AI actions expect the development API at `http://localhost:5033`:
-
-```powershell
-$env:ASPNETCORE_ENVIRONMENT = "Development"
-dotnet restore
-dotnet run --project src/ResumeBuilder.Api --no-launch-profile --urls http://localhost:5033
-```
-
-In Development, the API applies pending Entity Framework migrations and creates a local development user when needed.
-
-### 5. Enable Optional AI Editing
-
-Set the provider key in the API process before starting it:
-
-```powershell
-$env:GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
-```
-
-The key belongs in backend environment configuration or .NET user secrets, never in frontend source, Vite environment variables, browser storage, or committed settings.
-
----
-
-## Development Commands
-
-### Frontend
+## Cloudflare Static Deployment
 
 ```powershell
 cd frontend
-pnpm dev       # Start the Vite development server
-pnpm build     # Type-check and produce a production bundle
-pnpm lint      # Run Oxlint
-pnpm preview   # Preview the production bundle locally
+pnpm deploy
 ```
 
-### Backend
+The build generates the service worker, verifies required files, rejects static assets over 25 MiB, and scans for retired API endpoints and cloud-provider URLs. `public/_headers` supplies CSP, COOP, COEP, CORP, Permissions Policy, immutable runtime/model caching, and no-cache manifests. Cloudflare receives static requests only; user records, prompts, and model outputs never become Worker request bodies.
 
-```powershell
-dotnet restore
-dotnet build
-dotnet test
-```
+## Local Data Contracts
 
-The solution targets .NET 10 LTS. Use `dotnet --version` to confirm that a 10.x SDK is active before restoring or building.
+- Profiles: `applyfill.profile`, schema version 2.
+- Resume collection and portable resume documents: schema version 2.
+- Phone numbers persist as `+` plus exactly 11 digits and render in country-code format.
+- GPA persists as a normalized two-decimal value paired with its grading scale.
+- Unsupported document versions are rejected; there is no legacy migration path or hidden server copy.
 
-To add a database migration after changing the persistence model:
+## Security Boundary
 
-```powershell
-dotnet ef migrations add MigrationName `
-  --project src/ResumeBuilder.Infrastructure `
-  --startup-project src/ResumeBuilder.Api
-```
+- Raw HTML is not a persistence format and generated output is never rendered as unsanitized HTML.
+- Resume renderers cannot access application-only or internal profile fields.
+- AI input construction is allowlisted, job-posting text is untrusted quoted data, and output must pass strict schemas and fact/evidence checks.
+- Model chunks are same-origin, size-checked, SHA-256-checked, versioned, and committed to cache only after verification.
+- Extension messages are approved-origin, protocol-version, source-tab, target-tab, nonce, expiry, size, and shape bound.
+- No cloud fallback, analytics, remote code, application submission, credential handling, or file upload is implemented.
 
----
-
-## Product Status
-
-ApplyFill is under active development.
-
-| Area | Status |
-| --- | --- |
-| Reusable profile wizard | Implemented in the frontend |
-| Job Profile review screen | Implemented with local profile data |
-| Customizable dashboard | Implemented with browser-local widgets and layouts |
-| Responsive light and dark themes | Implemented |
-| Job-application tracker | Implemented with browser-local persistence |
-| Regional date-format preference | Implemented with browser-local persistence |
-| AI-assisted experience/project editing | Implemented through backend endpoints |
-| PostgreSQL domain model and migrations | Implemented |
-| Profile and tracker persistence APIs | Planned |
-| Targeted resume generation and preview | Interface scaffolded; generation planned |
-| PDF and DOCX export | Planned |
-| Agentic application filling | Planned |
-| Cloud storage integrations | Planned |
-
----
-
-## Privacy and Sensitive Information
-
-ApplyFill handles information that may be sensitive, including employment history and optional demographic answers. Current local browser storage is convenient for development but is not a substitute for encrypted production persistence, authentication, backups, access controls, or a formal privacy review. Do not use the current development build as a shared or public production service.
-
-Optional demographic, veteran-status, and disability-status answers are collected only to support future user-directed application automation. They are explicitly excluded from the intended generated-resume content model.
-
----
+See [the local-AI threat model](.agents/plans/completed/2026-07-18-desktop-local-ai-litert/security-threat-model.md) and [extension security notes](extension/docs/SECURITY.md).
 
 ## License
 
-ApplyFill is source-available under the [ApplyFill Personal Local-Use License 1.0](LICENSE). Individuals may run and modify private local copies for their own job search.
-
-Public deployment, redistribution, hosted access, commercial use, business or organizational use, and reuse of any component or workflow in another product are prohibited without a separate written license. This is **not** an open-source license.
+See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

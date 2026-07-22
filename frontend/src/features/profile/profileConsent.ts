@@ -1,38 +1,29 @@
-export const PROFILE_AUTOMATION_CONSENT_VERSION = 'profile-automation-v1';
+export const PROFILE_AUTOMATION_CONSENT_VERSION = 'local-profile-privacy-v3';
 
 export const PROFILE_AUTOMATION_DISCLOSURES = {
-  collectionPurpose: 'Job applications commonly request information that does not belong on a resume, including full addresses, alternative names, supervisor details, reasons for leaving, work dates, and voluntary demographic responses. Saving those details here prevents repeated entry when an application asks for them.',
+  collectionPurpose: 'Job applications commonly request information that does not belong on a resume, including full addresses, alternative names, supervisor details, reasons for leaving, work dates, work authorization, sponsorship needs, government identifiers, and voluntary demographic responses. Saving those details here prevents repeated entry when a legitimate application asks for them. ApplyFill does not collect date of birth, citizenship, or specific immigration status.',
   optionalFields: 'You may leave any field or entire section blank. A blank field will not appear on a generated resume and will not be used to autofill a job application. ApplyFill will not invent a missing answer.',
   automationBenefit: 'People who want agentic job-application assistance benefit most from completing the fields commonly required by employers. More complete source data allows automation to fill more of an average application while leaving unanswered fields for your review.',
-  featureStatus: 'Agentic application-filling features are under development. The profile collected now provides the structured data those workflows will use.',
-  consentAudit: 'When you consent, ApplyFill records your authenticated profile, the disclosure version and text, UTC date and time, capture method, IP address, browser details, and a cryptographic hash of the disclosure for audit purposes.'
+  localStorage: 'Your profile, job tracker, and dashboard are stored only in this browser using local device storage. Local storage is not encrypted by ApplyFill: anyone with access to this device and browser profile may be able to read it. ApplyFill does not send this data to an ApplyFill account or database. Clearing this site\'s data or deleting this browser profile can permanently erase it, so download backups regularly.',
+  sensitiveIdentifiers: 'Government identifiers such as a Social Security number are exceptionally sensitive and usually are not needed during an initial application. Add one only if you choose to, verify who is asking and why, and protect exported files and clipboard copies. Identifiers are never included in resumes or sent through optional AI writing actions.',
+  aiBoundary: 'When you intentionally start a Local AI feature, ApplyFill creates a temporary, allowlisted professional snapshot and processes it with LiteRT inside this browser. Contact details, government identifiers, authorization and sponsorship answers, demographics, reasons for leaving, supervisors, addresses, and company phone numbers are excluded. Raw prompts and rejected suggestions are not saved. Local inference does not encrypt your IndexedDB records or protect an unlocked browser profile.',
+  featureStatus: 'Agentic application-filling features are under development. You remain in control of what is saved locally, exported, or submitted to an external service.'
 } as const;
 
-export const PROFILE_AUTOMATION_DISCLOSURE_TEXT = Object.values(PROFILE_AUTOMATION_DISCLOSURES).join('\n\n');
-
 export const PROFILE_AUTOMATION_CONSENT_ACKNOWLEDGMENT =
-  'I have read and understand the disclosures above. I agree that ApplyFill may store and use the profile information I choose to provide for resume generation and user-directed job-application autofill. I understand that every field is optional and that blank fields will not be populated or invented.';
+  'I understand that my data is stored only in this browser and is not encrypted by ApplyFill, that ApplyFill cannot recover it if local site data is cleared, and that exported files and clipboard copies may contain sensitive identifiers. I understand that optional Local AI actions process a temporary allowlisted professional snapshot on this device and that every generated change requires my review and acceptance.';
 
 export type ProfileAutomationConsent = {
-  captureMethod: string;
-  consentId: string | null;
-  consentedAtUtc: string | null;
-  disclosureSha256: string;
-  disclosureText: string;
+  acceptedAtUtc: string | null;
   disclosureVersion: string;
 };
 
 export const EMPTY_PROFILE_AUTOMATION_CONSENT: ProfileAutomationConsent = {
-  captureMethod: '',
-  consentId: null,
-  consentedAtUtc: null,
-  disclosureSha256: '',
-  disclosureText: '',
+  acceptedAtUtc: null,
   disclosureVersion: ''
 };
 
 export const hasCurrentProfileAutomationConsent = (consent: ProfileAutomationConsent) => (
-  Boolean(consent.consentId && consent.consentedAtUtc && consent.disclosureSha256)
+  Boolean(consent.acceptedAtUtc)
   && consent.disclosureVersion === PROFILE_AUTOMATION_CONSENT_VERSION
-  && consent.disclosureText === PROFILE_AUTOMATION_DISCLOSURE_TEXT
 );

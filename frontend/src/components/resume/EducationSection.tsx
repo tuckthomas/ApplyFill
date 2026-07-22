@@ -41,6 +41,8 @@ export type EducationEntry = {
   startDatePrecision: EducationDatePrecision;
   endDate: string;
   endDatePrecision: EducationDatePrecision;
+  gpa: string;
+  gpaScale: string;
   additionalDetails: string;
   isEditing: boolean;
   isSaved: boolean;
@@ -85,6 +87,8 @@ const createEducation = (id: number, defaultCountry: SelectOption | null): Educa
   startDatePrecision: 'Exact',
   endDate: '',
   endDatePrecision: 'Exact',
+  gpa: '',
+  gpaScale: '',
   additionalDetails: '',
   isEditing: true,
   isSaved: false
@@ -170,6 +174,8 @@ export default function EducationSection({ defaultCountry, educations, onChange 
           ...education,
           endDate: education.isCurrentlyEnrolled ? '' : education.endDate,
           endDatePrecision: education.isCurrentlyEnrolled ? 'Exact' : education.endDatePrecision,
+          gpa: formatGpaDecimal(education.gpa),
+          gpaScale: formatGpaDecimal(education.gpaScale),
           isEditing: false,
           isSaved: true
         }
@@ -204,6 +210,21 @@ export default function EducationSection({ defaultCountry, educations, onChange 
 
     if (!education.isCurrentlyEnrolled && startDate.time !== null && endDate.time !== null && endDate.time < startDate.time) {
       messages.push('To date cannot be before From date.');
+    }
+
+    const hasGpa = education.gpa.trim().length > 0;
+    const hasGpaScale = education.gpaScale.trim().length > 0;
+    const gpa = Number(education.gpa);
+    const gpaScale = Number(education.gpaScale);
+
+    if (hasGpa !== hasGpaScale) {
+      messages.push('Enter both GPA and GPA scale, or leave both blank.');
+    } else if (hasGpa && (!Number.isFinite(gpa) || gpa < 0 || gpa > 100)) {
+      messages.push('GPA must be a number from 0 to 100.');
+    } else if (hasGpaScale && (!Number.isFinite(gpaScale) || gpaScale <= 0 || gpaScale > 100)) {
+      messages.push('GPA scale must be greater than zero and no more than 100.');
+    } else if (hasGpa && hasGpaScale && gpa > gpaScale) {
+      messages.push('GPA cannot be greater than the GPA scale.');
     }
 
     return messages;
@@ -262,6 +283,12 @@ export default function EducationSection({ defaultCountry, educations, onChange 
     ].filter(Boolean);
 
     return locationParts.length > 0 ? locationParts.join(', ') : 'Location not set';
+  };
+
+  const formatGpaDecimal = (value: string) => {
+    if (!value.trim()) return '';
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(2) : value;
   };
 
   const parseEducationDateValue = (
@@ -431,6 +458,10 @@ export default function EducationSection({ defaultCountry, educations, onChange 
                     <dt>Location</dt>
                     <dd>{formatLocation(education)}</dd>
                   </div>
+                  <div>
+                    <dt>GPA</dt>
+                    <dd>{education.gpa && education.gpaScale ? `${education.gpa} / ${education.gpaScale}` : 'Not set'}</dd>
+                  </div>
                 </dl>
               </div>
             </section>
@@ -586,6 +617,47 @@ export default function EducationSection({ defaultCountry, educations, onChange 
                     onChange={(event) => updateCurrentEnrollment(education.id, event.target.checked)}
                   />
                 </div>
+              </div>
+
+              <div>
+                <h5 className="section-title">Academic Performance</h5>
+                <hr className="subtle-divider" />
+              </div>
+
+              <div className="form-grid">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" htmlFor={`${prefix}-gpa`}>GPA (Optional)</label>
+                  <input
+                    className="form-input"
+                    id={`${prefix}-gpa`}
+                    inputMode="decimal"
+                    max="100"
+                    min="0"
+                    onBlur={() => updateEducation(education.id, 'gpa', formatGpaDecimal(education.gpa))}
+                    onChange={(event) => updateEducation(education.id, 'gpa', event.target.value)}
+                    placeholder="e.g. 3.75"
+                    step="0.01"
+                    type="number"
+                    value={education.gpa}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" htmlFor={`${prefix}-gpa-scale`}>GPA Scale (Optional)</label>
+                  <input
+                    className="form-input"
+                    id={`${prefix}-gpa-scale`}
+                    inputMode="decimal"
+                    max="100"
+                    min="0.01"
+                    onBlur={() => updateEducation(education.id, 'gpaScale', formatGpaDecimal(education.gpaScale))}
+                    onChange={(event) => updateEducation(education.id, 'gpaScale', event.target.value)}
+                    placeholder="e.g. 4.00"
+                    step="0.01"
+                    type="number"
+                    value={education.gpaScale}
+                  />
+                </div>
+                <p className="field-hint form-grid-full">Enter the grading scale used by the school, such as 4.00, 5.00, 10.00, or 100.00.</p>
               </div>
 
               <RichTextEditor

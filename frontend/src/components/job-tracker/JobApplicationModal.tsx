@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import FormModal from '../ui/FormModal';
 import JobApplicationForm from './JobApplicationForm';
@@ -30,13 +30,21 @@ const createApplication = (value: JobApplicationFormState, id: string): JobAppli
 
 export default function JobApplicationModal({ application, onClose, onSave }: JobApplicationModalProps) {
   const mode = application ? 'edit' : 'add';
-  const defaultCountry = loadProfileBuilderState().data.profile.country;
   const [formState, setFormState] = useState<JobApplicationFormState>(() => (
-    application ?? createEmptyApplicationForm(defaultCountry)
+    application ?? createEmptyApplicationForm()
   ));
   const [formError, setFormError] = useState('');
   const [jobDescriptionError, setJobDescriptionError] = useState('');
   const [isImportingJobDescription, setIsImportingJobDescription] = useState(false);
+
+  useEffect(() => {
+    if (application) return;
+    let isCurrent = true;
+    void loadProfileBuilderState().then((profile) => {
+      if (isCurrent) setFormState(createEmptyApplicationForm(profile.data.profile.country));
+    });
+    return () => { isCurrent = false; };
+  }, [application]);
 
   const updateFormField = <Key extends keyof JobApplicationFormState>(key: Key, value: JobApplicationFormState[Key]) => {
     setFormState((current) => ({ ...current, [key]: value }));

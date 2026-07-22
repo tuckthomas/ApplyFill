@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
@@ -28,22 +28,38 @@ const createApplication = (value: JobApplicationFormState, id: string): JobAppli
 export default function JobApplicationEditor() {
   const navigate = useNavigate();
   const { applicationId } = useParams();
-  const applications = loadApplications();
-  const existingApplication = applicationId ? applications.find((application) => application.id === applicationId) : undefined;
-  const mode = existingApplication ? 'edit' : 'add';
-  const defaultCountry = loadProfileBuilderState().data.profile.country;
-  const [formState, setFormState] = useState<JobApplicationFormState>(() => (
-    existingApplication ?? createEmptyApplicationForm(defaultCountry)
-  ));
+  const [applications, setApplications] = useState<JobApplication[]>([]);
+  const [existingApplication, setExistingApplication] = useState<JobApplication>();
+  const [isLoading, setIsLoading] = useState(true);
+  const [formState, setFormState] = useState<JobApplicationFormState>(() => createEmptyApplicationForm());
   const [formError, setFormError] = useState('');
   const [jobDescriptionError, setJobDescriptionError] = useState('');
   const [isImportingJobDescription, setIsImportingJobDescription] = useState(false);
+  const mode = existingApplication ? 'edit' : 'add';
+
+  useEffect(() => {
+    let isCurrent = true;
+    Promise.all([loadApplications(), loadProfileBuilderState()])
+      .then(([loadedApplications, profile]) => {
+        if (!isCurrent) return;
+        const existing = applicationId
+          ? loadedApplications.find((application) => application.id === applicationId)
+          : undefined;
+        setApplications(loadedApplications);
+        setExistingApplication(existing);
+        setFormState(existing ?? createEmptyApplicationForm(profile.data.profile.country));
+        if (applicationId && !existing) setFormError('That locally stored application could not be found.');
+      })
+      .catch(() => { if (isCurrent) setFormError('Local data could not be loaded in this browser.'); })
+      .finally(() => { if (isCurrent) setIsLoading(false); });
+    return () => { isCurrent = false; };
+  }, [applicationId]);
 
   const updateFormField = <Key extends keyof JobApplicationFormState>(key: Key, value: JobApplicationFormState[Key]) => {
     setFormState((current) => ({ ...current, [key]: value }));
   };
 
-  const saveApplication = (event: FormEvent<HTMLFormElement>) => {
+  const saveApplication = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!formState.companyName.trim() || !formState.jobTitle.trim()) {
       setFormError('Company and job title are required.');
@@ -61,10 +77,17 @@ export default function JobApplicationEditor() {
     }
 
     const application = createApplication(formState, existingApplication?.id ?? `${Date.now()}-${Math.floor(Math.random() * 1000)}`);
-    saveApplications(existingApplication
+    const next = existingApplication
       ? applications.map((currentApplication) => currentApplication.id === existingApplication.id ? application : currentApplication)
-      : [...applications, application]);
-    navigate(`/job-tracker/${application.id}/edit`, { replace: true });
+      : [...applications, application];
+    try {
+      await saveApplications(next);
+      setApplications(next);
+      setExistingApplication(application);
+      navigate(`/job-tracker/${application.id}/edit`, { replace: true });
+    } catch {
+      setFormError('This application could not be saved in local browser storage.');
+    }
   };
 
   const importJobDescription = async () => {
@@ -94,6 +117,10 @@ export default function JobApplicationEditor() {
     }
   };
 
+  if (isLoading) {
+    return <p className="section-copy" role="status">Loading local application data...</p>;
+  }
+
   return (
     <div className="page-stack">
       <div className="job-application-heading">
@@ -115,7 +142,7 @@ export default function JobApplicationEditor() {
         onCancel={() => navigate('/job-tracker')}
         onChange={updateFormField}
         onImportJobDescription={importJobDescription}
-        onSubmit={saveApplication}
+        onSubmit={(event) => void saveApplication(event)}
         value={formState}
       />
     </div>

@@ -1,6 +1,7 @@
 import { formatExactDateValue, normalizeExactDateValue } from '../ui/datePickerUtils';
 import type { LocationOption } from '../../constants/location';
 import { EMPTY_RICH_TEXT_VALUE, normalizeRichText } from '../../features/rich-text/richText';
+import { LOCAL_DATA_KEYS, readLocalDocument, writeLocalDocument } from '../../features/storage/localDatabase';
 
 export type JobApplicationStatus = 'Saved' | 'Applied' | 'Interviewing' | 'Offer Received' | 'Rejected' | 'Withdrawn';
 export type JobApplicationWorkplaceType = 'On-site' | 'Hybrid' | 'Remote';
@@ -21,8 +22,6 @@ export type JobApplicationFormState = {
 };
 
 export type JobApplication = JobApplicationFormState & { id: string };
-
-export const JOB_TRACKER_STORAGE_KEY = 'applyfill.job-tracker.v1';
 
 export type StatusOption = { value: JobApplicationStatus; label: string };
 export type WorkplaceTypeOption = { value: JobApplicationWorkplaceType; label: string };
@@ -77,32 +76,26 @@ export const createEmptyApplicationForm = (defaultCountry: LocationOption | null
   notes: EMPTY_RICH_TEXT_VALUE
 });
 
-export const loadApplications = (): JobApplication[] => {
-  if (typeof window === 'undefined') return [];
-
-  try {
-    const storedValue = window.localStorage.getItem(JOB_TRACKER_STORAGE_KEY);
-    if (!storedValue) return [];
-
-    const parsed = JSON.parse(storedValue) as JobApplication[];
-    return Array.isArray(parsed)
-      ? parsed.map((application) => ({
+export const loadApplications = async (): Promise<JobApplication[]> => {
+  const storedValue = await readLocalDocument<unknown>(LOCAL_DATA_KEYS.jobApplications);
+  return Array.isArray(storedValue)
+    ? storedValue.map((application) => {
+      const value = application as Partial<JobApplication>;
+      return ({
         ...application,
-        appliedDate: normalizeExactDateValue(application.appliedDate),
-        jobDescription: normalizeRichText(application.jobDescription),
-        notes: normalizeRichText(application.notes),
-        workplaceType: application.workplaceType ?? null,
-        location: application.location ?? '',
-        city: application.city ?? '',
-        state: application.state ?? null,
-        country: application.country ?? null
-      }))
-      : [];
-  } catch {
-    return [];
-  }
+        appliedDate: normalizeExactDateValue(value.appliedDate ?? ''),
+        jobDescription: normalizeRichText(value.jobDescription ?? EMPTY_RICH_TEXT_VALUE),
+        notes: normalizeRichText(value.notes ?? EMPTY_RICH_TEXT_VALUE),
+        workplaceType: value.workplaceType ?? null,
+        location: value.location ?? '',
+        city: value.city ?? '',
+        state: value.state ?? null,
+        country: value.country ?? null
+      } as JobApplication);
+    })
+    : [];
 };
 
-export const saveApplications = (applications: JobApplication[]) => {
-  window.localStorage.setItem(JOB_TRACKER_STORAGE_KEY, JSON.stringify(applications));
-};
+export const saveApplications = (applications: JobApplication[]) => (
+  writeLocalDocument(LOCAL_DATA_KEYS.jobApplications, applications)
+);

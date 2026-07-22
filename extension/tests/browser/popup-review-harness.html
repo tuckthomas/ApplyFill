@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ApplyFill Extension Acceptance Harness</title>
+    <link rel="stylesheet" href="../../dist/popup.css" />
+  </head>
+  <body>
+    <script>
+      const fields = [
+        { id: 'first-name', control: 'input', inputType: 'text', label: 'First name', autocomplete: 'given-name', required: true, options: [] },
+        { id: 'email', control: 'input', inputType: 'email', label: 'Email', autocomplete: 'email', required: true, options: [] },
+        { id: 'portfolio', control: 'input', inputType: 'url', label: 'Portfolio URL', required: false, options: [] },
+        { id: 'authorization', control: 'select', label: 'Authorized to work in the United States?', required: true, options: [{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }] },
+        { id: 'cover-note', control: 'textarea', label: 'Why are you interested in this role?', required: false, options: [] },
+      ];
+      const reviewItems = [
+        { field: fields[0], sourceKey: 'contact.firstName', semantic: 'first-name', proposedValue: 'Jordan', classification: 'deterministic', confidence: 1, reason: 'Exact profile field match.' },
+        { field: fields[1], sourceKey: 'contact.email', semantic: 'email', proposedValue: 'jordan.lee@example.com', classification: 'deterministic', confidence: 1, reason: 'Exact profile field match.' },
+        { field: fields[2], sourceKey: 'links.portfolio', semantic: 'portfolio-url', proposedValue: 'https://portfolio.example.com', classification: 'model-suggested', confidence: .91, reason: 'The local model matched the page label to the approved portfolio link.' },
+        { field: fields[3], sourceKey: 'application.authorization', semantic: 'work-authorization', proposedValue: 'yes', classification: 'sensitive-confirmation-required', confidence: 1, reason: 'Sensitive application answer; immediate confirmation is required.' },
+        { field: fields[4], semantic: 'narrative-answer', classification: 'manual', confidence: 0, reason: 'No approved generated answer was supplied.' },
+      ];
+      const session = {
+        targetTabId: 42,
+        expiresAt: Date.now() + 300000,
+        fields,
+        reviewItems,
+        connectedOrigin: 'http://127.0.0.1:5173',
+        selectedDocument: { documentId: 'resume-1', versionId: 'v1', fileName: 'platform-engineer-resume.pdf' },
+      };
+      globalThis.chrome = {
+        tabs: { query: async () => [{ id: 42, url: 'https://jobs.example.test/apply' }] },
+        runtime: {
+          sendMessage: async (message) => {
+            if (message.type === 'popup.fill') {
+              return {
+                ok: true,
+                report: {
+                  completedAt: Date.now(),
+                  requiresManualReview: true,
+                  results: [
+                    { fieldId: 'first-name', label: 'First name', status: 'filled' },
+                    { fieldId: 'email', label: 'Email', status: 'filled' },
+                    { fieldId: 'portfolio', label: 'Portfolio URL', status: 'filled' },
+                    { fieldId: 'authorization', label: 'Authorized to work in the United States?', status: 'filled' },
+                    { fieldId: 'cover-note', label: 'Why are you interested in this role?', status: 'skipped', detail: 'Marked for manual review.' },
+                  ],
+                },
+              };
+            }
+            return { ok: true, session };
+          },
+        },
+      };
+    </script>
+    <main>
+      <header>
+        <p class="eyebrow">ApplyFill</p>
+        <h1>Local autofill review</h1>
+        <p id="status" class="status" role="status">Loading the synthetic acceptance session…</p>
+      </header>
+      <section id="start-panel"><p>Only the active tab is inspected. ApplyFill never submits the application.</p><button id="start" type="button">Inspect this tab</button></section>
+      <section id="connection-panel" hidden><h2>Connect ApplyFill</h2><p>Use this one-time code in ApplyFill. It expires after five minutes.</p><div class="nonce-row"><code id="nonce"></code><button id="copy-nonce" class="secondary" type="button">Copy</button></div><p id="field-summary" class="muted"></p></section>
+      <section id="review-panel" hidden><div class="review-heading"><div><h2>Review before filling</h2><p class="muted">Edit, deselect, or mark any proposal as manual.</p></div><button id="cancel" class="danger-text" type="button">Disconnect</button></div><p id="selected-document" class="warning" hidden></p><div id="review-list" class="review-list"></div><button id="fill" type="button">Review selected fields</button></section>
+      <section id="report-panel" hidden><h2>Fill report</h2><div id="report"></div><p class="warning">Review the page yourself before submitting. ApplyFill did not submit, attest, upload, authenticate, or solve a CAPTCHA.</p><button id="restart" class="secondary" type="button">Inspect again</button></section>
+      <dialog id="sensitive-dialog"><form method="dialog"><h2>Confirm sensitive fields</h2><p>Each checked item will be inserted directly by deterministic code. It is never sent to an AI model.</p><div id="sensitive-confirmations"></div><div class="dialog-actions"><button value="cancel" class="secondary">Go back</button><button id="confirm-fill" value="default">Confirm and fill</button></div></form></dialog>
+    </main>
+    <script src="../../dist/popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ApplyFill Synthetic Job Form</title>
+    <style>
+      body { max-width: 760px; margin: 30px auto; padding: 0 20px; font: 16px/1.5 system-ui, sans-serif; }
+      form { display: grid; gap: 14px; }
+      label, legend { font-weight: 700; }
+      input, textarea, select, button { font: inherit; padding: 8px; }
+      label input[type="radio"], label input[type="checkbox"] { margin-right: 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>Synthetic job application</h1>
+    <p>This local fixture has no network scripts and does not submit data.</p>
+    <form onsubmit="event.preventDefault()">
+      <label for="first-name">First name</label>
+      <input id="first-name" name="firstName" autocomplete="given-name" required />
+
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="email" required />
+
+      <label for="country">Country</label>
+      <select id="country" name="country" autocomplete="country-name">
+        <option value="">Choose one</option>
+        <option value="US">United States</option>
+        <option value="CA">Canada</option>
+      </select>
+
+      <fieldset>
+        <legend>Will you now or later require visa sponsorship?</legend>
+        <label><input type="radio" name="sponsorship" value="yes" />Yes</label>
+        <label><input type="radio" name="sponsorship" value="no" />No</label>
+      </fieldset>
+
+      <label for="narrative">Why are you interested in this role?</label>
+      <textarea id="narrative" name="narrative" maxlength="1000"></textarea>
+
+      <label for="resume">Resume</label>
+      <input id="resume" name="resume" type="file" accept=".pdf,.docx" />
+
+      <label><input type="checkbox" name="attestation" />I certify this application is accurate.</label>
+      <button type="submit">Submit application</button>
+    </form>
+  </body>
+</html>

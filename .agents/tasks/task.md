@@ -1,49 +1,43 @@
-- `[/]` Phase 1: Core Resume Builder
-  - `[x]` Project structure initialization
-    - `[x]` Setup ASP.NET Core .NET 10 Web API backend solution
-    - `[x]` Setup Vite + React + TypeScript frontend
-  - `[x]` Database & Data Models
-    - `[x]` Setup PostgreSQL connection
-    - `[x]` Add Entity Framework Core
-    - `[x]` Define structured resume/profile data models (User, UserProfile, Resume, etc.)
-    - `[x]` Create initial EF Core migrations
-  - `[/]` Authentication
-    - `[x]` Implement development-mode auth stub (bypassing sign-in for dev)
-    - `[ ]` Implement local account creation (email/password) (Deferred)
-    - `[ ]` Implement Google OAuth sign-in (Deferred)
-  - `[/]` Core UI
-  - `[x]` Build customizable dashboard with an application-pipeline widget and editable text widgets
-  - `[x]` Build Job Profile review screen and structured wizard (personal information, education, experience, projects, skills, and application questions)
-  - `[x]` Build browser-local Job Tracker and application editor
-  - `[x]` Add persisted theme and date-format preferences
-    - `[x]` Add basic layout/theme using Premium Vanilla CSS
-  - `[x]` AI Integration
-  - `[x]` Implement backend-managed Gemini enhancement endpoints for experience and project descriptions
-  - `[x]` Add UI controls for AI-assisted editing
-  - `[x]` Preview & Templates
-  - `[ ]` Implement initial resume template structure
-  - `[ ]` Build live preview component in frontend
+- `[x]` Local-first product foundation
+  - `[x]` Store profile, resume, tracker, and dashboard records in IndexedDB
+  - `[x]` Add versioned JSON copy/download/import and destructive local deletion
+  - `[x]` Remove PostgreSQL, persistence APIs, authentication stubs, and the application backend
+  - `[x]` Add privacy acknowledgment and durability disclosures
+  - `[x]` Add application-only identifiers, work authorization/sponsorship, demographics, GPA, and normalized phone fields
 
-- `[x]` Phase 1.5: UI Light Mode Refactor
-  - `[x]` Update `index.css` with new light theme variables and card styles
-  - `[x]` Refactor `ResumeBuilder.tsx` to new layout structure (Top Progress Bar)
-  - `[x]` Update Step components (Profile, Summary, Experience, etc.) to match new form input styles
+- `[x]` Browser-side resume generation
+  - `[x]` Add local resume collection and schema-versioned portable drafts
+  - `[x]` Define the resume-safe allowlist
+  - `[x]` Generate live preview, PDF, DOCX, and JSON entirely in the browser
+  - `[x]` Keep application-only, supervisor, reason-for-leaving, address, and editing fields outside renderers
 
-- `[x]` Phase 1.8: AI-Powered Rich Text Work Experience
-  - `[x]` Install Tiptap structured-editor dependencies
-  - `[x]` Add `EnhanceExperienceDescriptionAsync` to backend `IAiService` and `GeminiAiService`
-  - `[x]` Add `/enhance-experience` endpoint to `AiController`
-  - `[x]` Replace bullet point inputs in `ExperienceSection.tsx` with the shared Tiptap editor
-  - `[x]` Implement "AI Wand" button logic to format text into bullet points
+- `[x]` Desktop Local AI
+  - `[x]` Integrate LiteRT.js 2.5.3 and LiteRT-LM.js 0.14.0 with local WASM
+  - `[x]` Add lifecycle, capability detection, honest accelerator fallback, cancellation, diagnostics, and reset
+  - `[x]` Add same-origin, SHA-256-verified, Cache Storage-backed model delivery
+  - `[x]` Evaluate and approve Gemma 4 E2B for structured job analysis, profile fact selection, and reviewed resume drafts
+  - `[x]` Record WebGPU benchmark evidence and prohibit unsupported native tool calling
+  - `[x]` Add AI-safe projections, untrusted-text boundaries, strict structured JSON, and patch validation
+  - `[x]` Add analysis, relevance, summary/bullet proposals, review, edit, accept/reject, cancel, stale blocking, and undo
 
-- `[ ]` Phase 2: PDF Rendering & Data Integration
-  - `[ ]` Entity Framework & Repository
-    - `[ ]` Implement CRUD services for Resume entities
-    - `[ ]` Expose REST endpoints for saving/loading resumes
-  - `[ ]` Frontend Integration
-    - `[ ]` Connect ResumeBuilder state to backend APIs
-    - `[ ]` Implement saving and loading existing resumes
-  - `[ ]` Playwright PDF Export
-    - `[ ]` Setup Playwright for .NET headless rendering
-    - `[ ]` Create server-side Razor template for PDF rendering
-    - `[ ]` Expose PDF download endpoint
+- `[x]` Local autofill extension
+  - `[x]` Add least-privilege Manifest V3 extension with active-tab inspection
+  - `[x]` Add redacted nonce/origin/source-tab inspection for local mapping
+  - `[x]` Prefer deterministic mapping and use local AI only for ambiguous/narrative proposals
+  - `[x]` Add short-lived memory-only handoff, mapping review, sensitive-field double confirmation, and completion report
+  - `[x]` Prevent credentials, attestations, file upload, CAPTCHAs, and final submission
+  - `[x]` Add explicit disconnect/session destruction and extension release documentation
+
+- `[x]` Static/offline delivery
+  - `[x]` Add PWA manifest and versioned service worker
+  - `[x]` Keep model cache lifecycle independent from application-shell updates and user documents
+  - `[x]` Add Cloudflare Workers static-assets configuration and security headers
+  - `[x]` Enforce 25 MiB asset limit with 24 MiB model chunks and static build verification
+  - `[x]` Remove retired API URLs, provider configuration, server prerequisites, and backend documentation
+
+- `[x]` Hardware and release matrix (verified scope plus explicit unsupported/untested dispositions)
+  - `[x]` Verify Chrome 150 / RTX 2070 WebGPU runtime and six-case structured evaluation
+  - `[x]` Verify deterministic frontend and extension suites, production builds, audits, and browser UI
+  - `[x]` Record WebNN/NPU as unavailable on the current Ryzen 7 3800X / RTX 2070 system and unsupported for the selected LiteRT-LM.js LLM; make no NPU claim
+  - `[x]` Record unpacked-extension installation as a manual release gate because automated `chrome://extensions` access is policy-blocked; verify the built popup through its synthetic browser harness
+  - `[x]` Restrict performance claims to the tested host; make no lower-spec or minimum-hardware claim

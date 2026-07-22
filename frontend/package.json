@@ -6,18 +6,26 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/generate-service-worker.mjs && node scripts/verify-static-build.mjs",
+    "deploy": "pnpm build && wrangler deploy",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "model:prepare": "node scripts/prepare-litert-model.mjs",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "verify:static": "node scripts/verify-static-build.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
+    "@litert-lm/core": "0.14.0",
+    "@litertjs/core": "2.5.3",
+    "@react-pdf/renderer": "^4.5.1",
     "@tiptap/core": "^3.27.4",
-    "@tiptap/extension-underline": "^3.27.4",
     "@tiptap/react": "^3.27.4",
     "@tiptap/starter-kit": "^3.27.4",
     "clsx": "^2.1.1",
+    "docx": "^9.7.1",
     "lucide-react": "^1.22.0",
+    "pdf-lib": "^1.17.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-grid-layout": "2.2.3",
@@ -29,8 +37,12 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^29.1.1",
     "oxlint": "^1.69.0",
     "typescript": "~6.0.2",
-    "vite": "^8.1.0"
+    "vite": "^8.1.0",
+    "vitest": "^4.1.10",
+    "wrangler": "4.112.0"
   }
 }

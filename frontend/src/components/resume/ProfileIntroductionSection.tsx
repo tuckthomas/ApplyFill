@@ -5,7 +5,7 @@ import {
 } from '../../features/profile/profileConsent';
 
 type ProfileIntroductionSectionProps = {
-  consentedAtUtc: string | null;
+  acceptedAtUtc: string | null;
   consentError: string;
   hasAcknowledged: boolean;
   hasCurrentConsent: boolean;
@@ -13,14 +13,14 @@ type ProfileIntroductionSectionProps = {
 };
 
 export default function ProfileIntroductionSection({
-  consentedAtUtc,
+  acceptedAtUtc,
   consentError,
   hasAcknowledged,
   hasCurrentConsent,
   onAcknowledgedChange
 }: ProfileIntroductionSectionProps) {
-  const consentedAtLabel = consentedAtUtc
-    ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(consentedAtUtc))
+  const acceptedAtLabel = acceptedAtUtc
+    ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(acceptedAtUtc))
     : '';
 
   return (
@@ -62,17 +62,34 @@ export default function ProfileIntroductionSection({
         </div>
       </section>
 
+      <section className="profile-introduction-section" aria-labelledby="profile-local-storage">
+        <div>
+          <h4 className="section-title" id="profile-local-storage">Stored on This Device</h4>
+          <p className="section-copy">{PROFILE_AUTOMATION_DISCLOSURES.localStorage}</p>
+        </div>
+      </section>
+
+      <section className="profile-introduction-section" aria-labelledby="profile-sensitive-identifiers">
+        <div>
+          <h4 className="section-title" id="profile-sensitive-identifiers">Government Identifiers Need Extra Care</h4>
+          <p className="section-copy">{PROFILE_AUTOMATION_DISCLOSURES.sensitiveIdentifiers}</p>
+        </div>
+      </section>
+
+      <section className="profile-introduction-section" aria-labelledby="profile-ai-boundary">
+        <div>
+          <h4 className="section-title" id="profile-ai-boundary">Optional AI Requests</h4>
+          <p className="section-copy">{PROFILE_AUTOMATION_DISCLOSURES.aiBoundary}</p>
+        </div>
+      </section>
+
       <p className="profile-introduction-status">
         {PROFILE_AUTOMATION_DISCLOSURES.featureStatus}
       </p>
 
-      <p className="profile-introduction-audit">
-        {PROFILE_AUTOMATION_DISCLOSURES.consentAudit}
-      </p>
-
       {hasCurrentConsent ? (
         <div className="profile-consent-recorded" role="status">
-          <span>Consent recorded {consentedAtLabel ? `on ${consentedAtLabel}` : ''}.</span>
+          <span>Privacy acknowledgment saved locally {acceptedAtLabel ? `on ${acceptedAtLabel}` : ''}.</span>
         </div>
       ) : (
         <div className="profile-consent-capture">
@@ -82,7 +99,7 @@ export default function ProfileIntroductionSection({
             onChange={(event) => onAcknowledgedChange(event.target.checked)}
           />
           <p className="field-hint">
-            Consent is recorded only when you select this acknowledgment and press Agree and Continue.
+            This acknowledgment is stored only in your local profile when you press Agree and Continue.
           </p>
           {consentError ? <p className="form-error-message" role="alert">{consentError}</p> : null}
         </div>

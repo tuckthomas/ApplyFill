@@ -1,0 +1,19 @@
+{
+  "name": "ApplyFill",
+  "short_name": "ApplyFill",
+  "description": "Local-first resume building and job application assistance.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#8b5cf6",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

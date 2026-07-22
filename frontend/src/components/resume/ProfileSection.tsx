@@ -8,6 +8,11 @@ import RepeatableEmptyState from '../ui/RepeatableEmptyState';
 import RepeatableSectionHeader from '../ui/RepeatableSectionHeader';
 import AddressFlow from '../ui/AddressFlow';
 import type { AddressValue } from '../ui/AddressFlow';
+import {
+  formatPhoneNumber,
+  isIncompletePhoneNumber,
+  normalizePhoneNumber
+} from '../../features/profile/phoneNumber';
 
 export type AlternativeName = {
   id: number;
@@ -60,6 +65,7 @@ export default function ProfileSection({ data, onChange }: ProfileSectionProps) 
   const [alternativeNameDraft, setAlternativeNameDraft] = useState<AlternativeName | null>(null);
   const [addressDraft, setAddressDraft] = useState<AddressValue | null>(null);
   const [webLinkDraft, setWebLinkDraft] = useState<WebLink | null>(null);
+  const [phoneInput, setPhoneInput] = useState(() => formatPhoneNumber(data.phone));
 
   const setAlternativeNames = (updater: SetStateAction<AlternativeName[]>) => {
     onChange((current) => ({
@@ -399,11 +405,22 @@ export default function ProfileSection({ data, onChange }: ProfileSectionProps) 
             id="profile-phone"
             type="tel"
             className="form-input"
-            placeholder="(555) 123-4567"
+            placeholder="+1 (555) 123-4567"
             autoComplete="tel"
-            value={data.phone}
-            onChange={(event) => updateField('phone', event.target.value)}
+            aria-describedby="profile-phone-hint"
+            aria-invalid={isIncompletePhoneNumber(phoneInput)}
+            inputMode="tel"
+            maxLength={17}
+            value={phoneInput}
+            onChange={(event) => {
+              const formatted = formatPhoneNumber(event.target.value);
+              setPhoneInput(formatted);
+              updateField('phone', normalizePhoneNumber(formatted));
+            }}
           />
+          <p className={isIncompletePhoneNumber(phoneInput) ? 'field-error' : 'field-hint'} id="profile-phone-hint">
+            Include the one-digit country code and 10-digit phone number. Stored as + followed by 11 digits.
+          </p>
         </div>
 
         <RepeatableSectionHeader

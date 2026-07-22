@@ -1,6 +1,5 @@
 import type { JSONContent } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
 
 export const richTextExtensions = [
   StarterKit.configure({
@@ -11,8 +10,7 @@ export const richTextExtensions = [
     horizontalRule: false,
     link: false,
     strike: false
-  }),
-  Underline
+  })
 ];
 
 const EMPTY_DOCUMENT: JSONContent = {

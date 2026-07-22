@@ -24,7 +24,6 @@ import type {
   DashboardWidgetType
 } from '../components/dashboard/widgetLibrary';
 import {
-  JOB_TRACKER_STORAGE_KEY,
   loadApplications,
   saveApplications
 } from '../components/job-tracker/jobApplication';
@@ -35,37 +34,34 @@ import type {
 import AddButton from '../components/ui/AddButton';
 import './Dashboard.css';
 import { createRichTextFromPlainText, normalizeRichText } from '../features/rich-text/richText';
+import {
+  LOCAL_DATA_KEYS,
+  readLocalDocument,
+  subscribeToLocalDocument,
+  writeLocalDocument
+} from '../features/storage/localDatabase';
 
-const DASHBOARD_WIDGETS_STORAGE_KEY = 'applyfill.dashboard.widgets.v3';
-const DASHBOARD_LAYOUTS_STORAGE_KEY = 'applyfill.dashboard.layouts.v3';
+type LocalDashboardDocument = {
+  layouts: ResponsiveLayouts<DashboardBreakpoint>;
+  widgets: DashboardWidgetInstance[];
+};
 
 const copyDefaultWidgets = () => DEFAULT_WIDGET_INSTANCES.map((widget) => ({ ...widget }));
 
-const loadWidgets = (): DashboardWidgetInstance[] => {
-  try {
-    const storedValue = window.localStorage.getItem(DASHBOARD_WIDGETS_STORAGE_KEY);
-    if (!storedValue) return copyDefaultWidgets();
-    const parsed = JSON.parse(storedValue) as unknown;
-    return Array.isArray(parsed)
-      ? parsed.filter(isDashboardWidgetInstance).map((widget) => ({
-        ...widget,
-        content: widget.type === 'text' ? normalizeRichText(widget.content) : undefined
-      }))
-      : copyDefaultWidgets();
-  } catch {
-    return copyDefaultWidgets();
-  }
+const normalizeWidgets = (value: unknown): DashboardWidgetInstance[] => {
+  return Array.isArray(value)
+    ? value.filter(isDashboardWidgetInstance).map((widget) => ({
+      ...widget,
+      content: widget.type === 'text' ? normalizeRichText(widget.content) : undefined
+    }))
+    : copyDefaultWidgets();
 };
 
-const loadLayouts = (
+const normalizeLayouts = (
+  value: unknown,
   widgets: DashboardWidgetInstance[]
 ): ResponsiveLayouts<DashboardBreakpoint> => {
-  try {
-    const storedValue = window.localStorage.getItem(DASHBOARD_LAYOUTS_STORAGE_KEY);
-    return reconcileDashboardLayouts(storedValue ? JSON.parse(storedValue) : undefined, widgets);
-  } catch {
-    return createDefaultDashboardLayouts(widgets);
-  }
+  return reconcileDashboardLayouts(value, widgets);
 };
 
 const createWidget = (type: DashboardWidgetType): DashboardWidgetInstance => ({
@@ -75,28 +71,48 @@ const createWidget = (type: DashboardWidgetType): DashboardWidgetInstance => ({
 });
 
 export default function Dashboard() {
-  const [widgets, setWidgets] = useState<DashboardWidgetInstance[]>(loadWidgets);
-  const [applications, setApplications] = useState<JobApplication[]>(loadApplications);
+  const [widgets, setWidgets] = useState<DashboardWidgetInstance[]>(copyDefaultWidgets);
+  const [applications, setApplications] = useState<JobApplication[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isWidgetLibraryOpen, setIsWidgetLibraryOpen] = useState(false);
+  const [isLocalDataLoaded, setIsLocalDataLoaded] = useState(false);
+  const [storageError, setStorageError] = useState('');
   const [layouts, setLayouts] = useState<ResponsiveLayouts<DashboardBreakpoint>>(
-    () => loadLayouts(widgets)
+    () => createDefaultDashboardLayouts(widgets)
   );
 
   useEffect(() => {
-    window.localStorage.setItem(DASHBOARD_WIDGETS_STORAGE_KEY, JSON.stringify(widgets));
-  }, [widgets]);
+    let isCurrent = true;
+    Promise.all([
+      readLocalDocument<LocalDashboardDocument>(LOCAL_DATA_KEYS.dashboard),
+      loadApplications()
+    ]).then(([dashboard, loadedApplications]) => {
+      if (!isCurrent) return;
+      const loadedWidgets = normalizeWidgets(dashboard?.widgets);
+      setWidgets(loadedWidgets);
+      setLayouts(normalizeLayouts(dashboard?.layouts, loadedWidgets));
+      setApplications(loadedApplications);
+    }).catch(() => {
+      if (isCurrent) setStorageError('Dashboard data could not be loaded from this browser.');
+    }).finally(() => {
+      if (isCurrent) setIsLocalDataLoaded(true);
+    });
+    return () => { isCurrent = false; };
+  }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(DASHBOARD_LAYOUTS_STORAGE_KEY, JSON.stringify(layouts));
-  }, [layouts]);
+    if (!isLocalDataLoaded) return;
+    void writeLocalDocument(LOCAL_DATA_KEYS.dashboard, { layouts, widgets } satisfies LocalDashboardDocument)
+      .catch(() => setStorageError('Dashboard changes could not be saved in local browser storage.'));
+  }, [isLocalDataLoaded, layouts, widgets]);
 
   useEffect(() => {
-    const syncApplications = (event: StorageEvent) => {
-      if (event.key === JOB_TRACKER_STORAGE_KEY) setApplications(loadApplications());
+    const syncApplications = () => {
+      void loadApplications()
+        .then(setApplications)
+        .catch(() => setStorageError('Application data could not be refreshed from local storage.'));
     };
-    window.addEventListener('storage', syncApplications);
-    return () => window.removeEventListener('storage', syncApplications);
+    return subscribeToLocalDocument(LOCAL_DATA_KEYS.jobApplications, syncApplications);
   }, []);
 
   const updateApplicationStatus = useCallback((id: string, status: JobApplicationStatus) => {
@@ -104,7 +120,7 @@ export default function Dashboard() {
       const next = current.map((application) => (
         application.id === id ? { ...application, status } : application
       ));
-      saveApplications(next);
+      void saveApplications(next).catch(() => setStorageError('The application status could not be saved locally.'));
       return next;
     });
   }, []);
@@ -115,7 +131,7 @@ export default function Dashboard() {
       const next = exists
         ? current.map((currentApplication) => currentApplication.id === application.id ? application : currentApplication)
         : [...current, application];
-      saveApplications(next);
+      void saveApplications(next).catch(() => setStorageError('The application could not be saved locally.'));
       return next;
     });
   }, []);
@@ -244,6 +260,8 @@ export default function Dashboard() {
           )}
         </div>
       </header>
+
+      {storageError ? <p className="field-error" role="alert">{storageError}</p> : null}
 
       {gridItems.length ? (
         <DashboardGrid

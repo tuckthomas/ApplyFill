@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ApplyFill Local AI Hardware Harness</title>
+    <style>
+      :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; }
+      body { margin: 0; padding: 2rem; }
+      main { max-width: 54rem; margin: 0 auto; }
+      button { padding: .75rem 1rem; border-radius: .5rem; border: 1px solid #8b5cf6; background: #6d28d9; color: white; font: inherit; cursor: pointer; }
+      button:disabled { opacity: .55; cursor: wait; }
+      pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #111827; padding: 1rem; border-radius: .5rem; border: 1px solid #334155; min-height: 8rem; }
+      .note { color: #cbd5e1; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>ApplyFill Local AI Hardware Harness</h1>
+      <p class="note">
+        Development-only harness for the same-origin, hash-verified LiteRT-LM evaluation model.
+        It does not read a profile, resume, or IndexedDB.
+      </p>
+      <button id="run-benchmark" data-testid="run-local-ai-benchmark">Run hardware benchmark</button>
+      <h2>Status</h2>
+      <pre id="status" role="status">Ready to inspect browser capabilities.</pre>
+      <h2>Result</h2>
+      <pre id="result">No benchmark has run.</pre>
+    </main>
+    <script type="module" src="/src/features/local-ai/evaluation/benchmarkPage.ts"></script>
+  </body>
+</html>
+

@@ -44,6 +44,7 @@ function App() {
             <Route path="profile" element={<LegacyProfileRedirect to="/job-profile" />} />
             <Route path="profile/wizard" element={<LegacyProfileRedirect to="/job-profile/builder" />} />
             <Route path="resumes/builder" element={<Suspense fallback={<RouteFallback />}><ResumeBuilder /></Suspense>} />
+            <Route path="resumes/builder/:resumeId" element={<Suspense fallback={<RouteFallback />}><ResumeBuilder /></Suspense>} />
             <Route path="resumes" element={<Suspense fallback={<RouteFallback />}><Resumes /></Suspense>} />
             <Route path="job-tracker" element={<Suspense fallback={<RouteFallback />}><JobTracker /></Suspense>} />
             <Route path="job-tracker/new" element={<Suspense fallback={<RouteFallback />}><JobApplicationEditor /></Suspense>} />

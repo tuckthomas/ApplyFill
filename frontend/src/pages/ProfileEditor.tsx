@@ -15,14 +15,13 @@ import type { ApplicationQuestionsData } from '../components/resume/ApplicationQ
 import ProfileIntroductionSection from '../components/resume/ProfileIntroductionSection';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { loadProfileBuilderState, PROFILE_BUILDER_STEPS, PROFILE_BUILDER_STORAGE_KEY } from '../features/profile/profileBuilder';
+import { createDefaultProfileBuilderState, PROFILE_BUILDER_STEPS } from '../features/profile/profileBuilder';
 import type { ProfileBuilderState } from '../features/profile/profileBuilder';
+import { loadProfileBuilderState, saveProfileBuilderState } from '../features/profile/profileBuilder';
 import {
-  EMPTY_PROFILE_AUTOMATION_CONSENT,
   hasCurrentProfileAutomationConsent,
   PROFILE_AUTOMATION_CONSENT_VERSION
 } from '../features/profile/profileConsent';
-import type { ProfileAutomationConsent } from '../features/profile/profileConsent';
 
 const resolveSetStateAction = <Value,>(
   action: SetStateAction<Value>,
@@ -30,7 +29,11 @@ const resolveSetStateAction = <Value,>(
 ): Value => (typeof action === 'function' ? (action as (value: Value) => Value)(current) : action);
 
 export default function ProfileEditor() {
-  const [profileBuilderState, setProfileBuilderState] = useState<ProfileBuilderState>(loadProfileBuilderState);
+  const [profileBuilderState, setProfileBuilderState] = useState<ProfileBuilderState>(createDefaultProfileBuilderState);
+  const [isProfileLoaded, setIsProfileLoaded] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [profileReloadKey, setProfileReloadKey] = useState(0);
   const [hasAcknowledgedConsent, setHasAcknowledgedConsent] = useState(false);
   const [isConsentStatusLoaded, setIsConsentStatusLoaded] = useState(false);
   const [isSavingConsent, setIsSavingConsent] = useState(false);
@@ -45,11 +48,7 @@ export default function ProfileEditor() {
   const requestedStep = PROFILE_BUILDER_STEPS.findIndex((step) => step.id === searchParams.get('section'));
 
   useEffect(() => {
-    window.localStorage.setItem(PROFILE_BUILDER_STORAGE_KEY, JSON.stringify(profileBuilderState));
-  }, [profileBuilderState]);
-
-  useEffect(() => {
-    if (requestedStep < 0 || !isConsentStatusLoaded) return;
+    if (requestedStep < 0 || !isConsentStatusLoaded || !isProfileLoaded) return;
 
     if (requestedStep > 0 && !hasCurrentConsentRef.current) {
       setConsentError('Read and accept the disclosure before continuing to the profile fields.');
@@ -58,46 +57,31 @@ export default function ProfileEditor() {
     }
 
     setProfileBuilderState((current) => ({ ...current, activeStep: requestedStep }));
-  }, [isConsentStatusLoaded, requestedStep]);
+  }, [isConsentStatusLoaded, isProfileLoaded, requestedStep]);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let isCurrent = true;
 
-    const verifyConsent = async () => {
+    const loadProfile = async () => {
+      setIsProfileLoaded(false);
+      setIsConsentStatusLoaded(false);
+      setProfileError('');
       try {
-        const response = await fetch('http://localhost:5033/api/profile-consents/current', {
-          signal: controller.signal
-        });
-
-        if (response.ok) {
-          const consent = await response.json() as ProfileAutomationConsent;
-          setProfileBuilderState((current) => ({
-            ...current,
-            data: { ...current.data, automationConsent: consent }
-          }));
-        } else {
-          setProfileBuilderState((current) => ({
-            ...current,
-            activeStep: 0,
-            data: { ...current.data, automationConsent: EMPTY_PROFILE_AUTOMATION_CONSENT }
-          }));
-        }
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-        setConsentError('The consent service is unavailable. Profile fields remain locked until verification succeeds.');
-        setProfileBuilderState((current) => ({
-          ...current,
-          activeStep: 0,
-          data: { ...current.data, automationConsent: EMPTY_PROFILE_AUTOMATION_CONSENT }
-        }));
+        const loaded = await loadProfileBuilderState();
+        if (isCurrent) setProfileBuilderState((current) => ({ ...loaded, activeStep: current.activeStep }));
+      } catch {
+        if (isCurrent) setProfileError('Your profile could not be loaded from this browser. Check that site storage is allowed, then retry.');
       } finally {
-        if (!controller.signal.aborted) setIsConsentStatusLoaded(true);
+        if (isCurrent) {
+          setIsProfileLoaded(true);
+          setIsConsentStatusLoaded(true);
+        }
       }
     };
 
-    void verifyConsent();
-    return () => controller.abort();
-  }, []);
+    void loadProfile();
+    return () => { isCurrent = false; };
+  }, [profileReloadKey]);
 
   const setActiveStep = (step: number) => {
     if (step > 0 && !hasCurrentConsent) {
@@ -171,7 +155,33 @@ export default function ProfileEditor() {
     }));
   };
 
-  const handleNext = () => {
+  const saveCurrentProfile = async (markComplete = false) => {
+    if (isSavingProfile) return false;
+    setIsSavingProfile(true);
+    setProfileError('');
+    try {
+      const nextState = {
+        ...profileBuilderState,
+        isComplete: markComplete || profileBuilderState.isComplete
+      };
+      await saveProfileBuilderState(nextState);
+      setProfileBuilderState(nextState);
+      return true;
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : 'Your profile could not be saved in this browser.');
+      return false;
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const moveToStep = async (step: number) => {
+    if (activeStep > 0 && step !== activeStep && !await saveCurrentProfile()) return;
+    setActiveStep(step);
+  };
+
+  const handleNext = async () => {
+    if (activeStep > 0 && !await saveCurrentProfile()) return;
     if (activeStep < PROFILE_BUILDER_STEPS.length - 1) setActiveStep(activeStep + 1);
   };
 
@@ -182,45 +192,39 @@ export default function ProfileEditor() {
     setIsSavingConsent(true);
 
     try {
-      const response = await fetch('http://localhost:5033/api/profile-consents', {
-        body: JSON.stringify({ accepted: true, disclosureVersion: PROFILE_AUTOMATION_CONSENT_VERSION }),
-        headers: { 'Content-Type': 'application/json' },
-        method: 'POST'
-      });
-
-      if (!response.ok) throw new Error(await response.text());
-
-      const consent = await response.json() as ProfileAutomationConsent;
-      setProfileBuilderState((current) => ({
-        ...current,
+      const consent = {
+        acceptedAtUtc: new Date().toISOString(),
+        disclosureVersion: PROFILE_AUTOMATION_CONSENT_VERSION
+      };
+      const nextState: ProfileBuilderState = {
+        ...profileBuilderState,
         activeStep: 1,
-        data: { ...current.data, automationConsent: consent }
-      }));
+        data: { ...profileBuilderState.data, automationConsent: consent }
+      };
+      await saveProfileBuilderState(nextState);
+      setProfileBuilderState(nextState);
       setIsConsentStatusLoaded(true);
       setHasAcknowledgedConsent(false);
     } catch {
-      setConsentError('Consent could not be securely recorded. Check the local API connection and try again.');
+      setConsentError('Your acknowledgment could not be saved in this browser. Check that site storage is allowed and try again.');
     } finally {
       setIsSavingConsent(false);
     }
   };
 
-  const handleBack = () => {
-    if (activeStep > 0) setActiveStep(activeStep - 1);
+  const handleBack = async () => {
+    if (activeStep > 0 && await saveCurrentProfile()) setActiveStep(activeStep - 1);
   };
 
-  const finishProfile = () => {
-    const completedState = { ...profileBuilderState, isComplete: true };
-    window.localStorage.setItem(PROFILE_BUILDER_STORAGE_KEY, JSON.stringify(completedState));
-    setProfileBuilderState(completedState);
-    navigate('/job-profile');
+  const finishProfile = async () => {
+    if (await saveCurrentProfile(true)) navigate('/job-profile');
   };
 
   const renderStep = () => {
     switch (activeStep) {
       case 0: return (
         <ProfileIntroductionSection
-          consentedAtUtc={data.automationConsent.consentedAtUtc}
+          acceptedAtUtc={data.automationConsent.acceptedAtUtc}
           consentError={consentError}
           hasAcknowledged={hasAcknowledgedConsent}
           hasCurrentConsent={hasCurrentConsent}
@@ -245,7 +249,7 @@ export default function ProfileEditor() {
       <header className="page-header">
         <div>
           <h2 className="page-title">Job Profile Builder</h2>
-          <p className="page-copy">Create the reusable source profile used to assemble targeted resumes.</p>
+              <p className="page-copy">Create a reusable source profile stored only in this browser.</p>
         </div>
       </header>
 
@@ -267,8 +271,8 @@ export default function ProfileEditor() {
                   aria-label={`Step ${index + 1} of ${PROFILE_BUILDER_STEPS.length}: ${step.label}`}
                 className={`wizard-progress-step wizard-progress-step-${segmentState}`}
                   key={step.id}
-                  disabled={index > 0 && !hasCurrentConsent}
-                  onClick={() => setActiveStep(index)}
+                  disabled={!isProfileLoaded || isSavingProfile || (index > 0 && !hasCurrentConsent)}
+                  onClick={() => void moveToStep(index)}
                   type="button"
                 >
                   <span className="wizard-progress-track" aria-hidden="true" />
@@ -278,15 +282,24 @@ export default function ProfileEditor() {
             })}
           </nav>
 
+          {profileError && (
+            <div className="page-stack" role="alert">
+              <p className="field-error">{profileError}</p>
+              <button className="btn btn-secondary" onClick={() => setProfileReloadKey((value) => value + 1)} type="button">
+                Retry local profile
+              </button>
+            </div>
+          )}
+
           <div className="animate-fade-in" style={{ minHeight: '300px' }}>
-            {renderStep()}
+            {isProfileLoaded ? renderStep() : <p className="section-copy" role="status">Loading your saved profile...</p>}
           </div>
 
           <div className="toolbar-row wizard-navigation">
             <button
               className="btn btn-secondary"
-              onClick={handleBack}
-              disabled={activeStep === 0}
+              onClick={() => void handleBack()}
+              disabled={activeStep === 0 || !isProfileLoaded || isSavingProfile}
               type="button"
             >
               <ArrowLeft size={18} />
@@ -294,16 +307,20 @@ export default function ProfileEditor() {
             </button>
             <button
               className="btn btn-primary"
-              disabled={!isConsentStatusLoaded
+              disabled={!isConsentStatusLoaded || !isProfileLoaded || isSavingProfile
                 || (activeStep === 0 && !hasCurrentConsent && (!hasAcknowledgedConsent || isSavingConsent))}
               onClick={activeStep === 0 && !hasCurrentConsent
-                ? recordConsent
+                ? () => void recordConsent()
                 : activeStep === PROFILE_BUILDER_STEPS.length - 1
-                  ? finishProfile
-                  : handleNext}
+                  ? () => void finishProfile()
+                  : () => void handleNext()}
               type="button"
             >
-              {!isConsentStatusLoaded
+              {!isProfileLoaded
+                ? 'Loading Profile...'
+                : isSavingProfile
+                  ? 'Saving Profile...'
+                : !isConsentStatusLoaded
                 ? 'Verifying Consent...'
                 : isSavingConsent
                 ? 'Recording Consent...'
