@@ -47,11 +47,12 @@ export default function JobApplicationForm({
   onSubmit,
   value
 }: JobApplicationFormProps) {
-  const [activeTab, setActiveTab] = useState<'agent' | 'details' | 'notes'>(initialTab);
+  const allowedInitialTab = mode === 'add' ? 'details' : initialTab;
+  const [activeTab, setActiveTab] = useState<'agent' | 'details' | 'notes'>(allowedInitialTab);
   const idPrefix = useId().replace(/:/g, '');
   useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
+    setActiveTab(allowedInitialTab);
+  }, [allowedInitialTab]);
 
   return (
     <div className="tracker-form-panel" aria-label="Application form">
@@ -62,7 +63,12 @@ export default function JobApplicationForm({
         tabs={[
           { id: 'details', label: 'Application Details' },
           { id: 'notes', label: 'Notes', disabled: mode === 'add', disabledReason: mode === 'add' ? 'Save the application before adding notes.' : undefined },
-          ...(agentContent ? [{ id: 'agent', label: 'Agentic AI' }] : [])
+          ...(agentContent ? [{
+            id: 'agent',
+            label: 'Agentic AI',
+            disabled: mode === 'add',
+            disabledReason: mode === 'add' ? 'Save the application before using Agentic AI.' : undefined,
+          }] : [])
         ]}
         footer={activeTab !== 'agent' ? (
           <>

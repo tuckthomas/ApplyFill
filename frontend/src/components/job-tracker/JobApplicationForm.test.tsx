@@ -23,7 +23,7 @@ afterEach(async () => {
 });
 
 describe('JobApplicationForm', () => {
-  it('shows and opens Agentic AI while adding an application', async () => {
+  it('shows Agentic AI but disables it until the application is saved', async () => {
     const container = document.createElement('div');
     document.body.append(container);
     const root = createRoot(container);
@@ -49,9 +49,9 @@ describe('JobApplicationForm', () => {
     const agentTab = [...container.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
       .find((button) => button.textContent === 'Agentic AI');
     expect(agentTab).toBeDefined();
-    expect(agentTab?.disabled).toBe(false);
-
-    await act(async () => agentTab?.click());
-    expect(container.textContent).toContain('Agent workspace');
+    expect(agentTab?.disabled).toBe(true);
+    expect(agentTab?.closest('.tabbed-form__disabled-tooltip')?.getAttribute('data-tooltip'))
+      .toBe('Save the application before using Agentic AI.');
+    expect(container.textContent).not.toContain('Agent workspace');
   });
 });
