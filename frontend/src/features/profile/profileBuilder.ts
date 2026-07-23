@@ -113,6 +113,18 @@ export const createDefaultProfileBuilderState = (
   schemaVersion: PROFILE_BUILDER_SCHEMA_VERSION
 });
 
+export const hasMeaningfulProfileData = (data: ProfileBuilderData): boolean => {
+  const profile = data.profile;
+  return Boolean(
+    profile.firstName || profile.middleName || profile.lastName || profile.email || profile.phone
+    || profile.address1 || profile.address2 || profile.city || profile.state || profile.postalCode
+    || profile.country || profile.alternativeNames.length || profile.webLinks.length
+    || data.education.length || data.experience.length || data.credentials.length
+    || data.projects.length || data.skills.length || data.applicationQuestions.governmentIdentifiers.length
+    || data.applicationQuestions.workAuthorizations.length
+  );
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
 );

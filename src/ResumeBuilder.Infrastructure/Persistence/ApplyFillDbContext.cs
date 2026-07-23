@@ -5,6 +5,7 @@ namespace ResumeBuilder.Infrastructure.Persistence;
 public sealed class ApplyFillDbContext(DbContextOptions<ApplyFillDbContext> options) : DbContext(options)
 {
     public DbSet<ProfileRecord> Profiles => Set<ProfileRecord>();
+    public DbSet<ProfileSourceResumeRecord> ProfileSourceResumes => Set<ProfileSourceResumeRecord>();
     public DbSet<ResumeRecord> Resumes => Set<ResumeRecord>();
     public DbSet<ResumeArtifactRecord> ResumeArtifacts => Set<ResumeArtifactRecord>();
     public DbSet<JobApplicationRecord> JobApplications => Set<JobApplicationRecord>();
@@ -23,6 +24,7 @@ public sealed class ApplyFillDbContext(DbContextOptions<ApplyFillDbContext> opti
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ConfigureProfile(modelBuilder);
+        ConfigureProfileSourceResume(modelBuilder);
         ConfigureResume(modelBuilder);
         ConfigureJobApplication(modelBuilder);
         ConfigureApplicationRun(modelBuilder);
@@ -30,6 +32,18 @@ public sealed class ApplyFillDbContext(DbContextOptions<ApplyFillDbContext> opti
         ConfigureSensitiveApprovals(modelBuilder);
         ConfigureApiIdempotency(modelBuilder);
         ConfigureUserSettings(modelBuilder);
+    }
+
+    private static void ConfigureProfileSourceResume(ModelBuilder builder)
+    {
+        var entity = builder.Entity<ProfileSourceResumeRecord>();
+        entity.ToTable("profile_source_resumes");
+        entity.HasKey(x => x.Id);
+        entity.HasIndex(x => x.OwnerId).IsUnique();
+        entity.Property(x => x.FileName).HasMaxLength(240);
+        entity.Property(x => x.MediaType).HasMaxLength(120);
+        entity.Property(x => x.Sha256).HasMaxLength(64);
+        entity.Property(x => x.StorageKey).HasMaxLength(500);
     }
 
     private static void ConfigureProfile(ModelBuilder builder)

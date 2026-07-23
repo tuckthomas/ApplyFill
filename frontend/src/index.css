@@ -2197,6 +2197,154 @@ textarea.form-input {
   width: 100%;
 }
 
+.applyfill-pdf-viewer {
+  background: var(--background-color);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  flex-direction: column;
+  min-height: 460px;
+  overflow: hidden;
+}
+
+.applyfill-pdf-viewer:fullscreen {
+  border: 0;
+  border-radius: 0;
+  height: 100vh;
+}
+
+.pdf-viewer-toolbar {
+  align-items: center;
+  background: var(--card-background);
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 52px;
+  padding: 8px 10px;
+}
+
+.pdf-viewer-title {
+  color: var(--text-main);
+  flex: 1 1 140px;
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdf-viewer-page-controls,
+.pdf-viewer-zoom-controls {
+  align-items: center;
+  display: flex;
+  gap: 5px;
+}
+
+.pdf-viewer-page-controls input {
+  background: var(--input-background);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  color: var(--text-main);
+  padding: 6px;
+  text-align: center;
+  width: 54px;
+}
+
+.pdf-viewer-zoom-value {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-muted);
+  min-width: 74px;
+  padding: 7px 8px;
+}
+
+.pdf-viewer-zoom-value.is-active {
+  border-color: var(--primary-color);
+  color: var(--text-main);
+}
+
+.pdf-viewer-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.pdf-thumbnail-rail {
+  background: color-mix(in srgb, var(--card-background) 86%, black);
+  border-right: 1px solid var(--glass-border);
+  display: flex;
+  flex: 0 0 124px;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.pdf-thumbnail-rail button {
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 7px;
+  color: var(--text-muted);
+  display: grid;
+  gap: 5px;
+  justify-items: center;
+  padding: 6px;
+}
+
+.pdf-thumbnail-rail button.is-active {
+  border-color: var(--primary-color);
+  color: var(--text-main);
+}
+
+.pdf-thumbnail-canvas {
+  background: white;
+  box-shadow: var(--shadow-sm);
+  max-width: 90px;
+}
+
+.pdf-page-viewport {
+  align-items: flex-start;
+  background: color-mix(in srgb, var(--background-color) 82%, white);
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+  overflow: auto;
+  padding: 24px;
+}
+
+.pdf-page-canvas {
+  background: white;
+  box-shadow: 0 8px 30px rgb(0 0 0 / 28%);
+  flex: 0 0 auto;
+}
+
+.source-resume-preview-dialog {
+  height: min(92vh, 980px);
+  max-width: min(96vw, 1400px);
+  width: 1200px;
+}
+
+.source-resume-preview-dialog .applyfill-pdf-viewer {
+  flex: 1;
+  min-height: 0;
+}
+
+.source-resume-text-preview {
+  background: var(--input-background);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-main);
+  flex: 1;
+  font: inherit;
+  margin: 0;
+  overflow: auto;
+  padding: 20px;
+  white-space: pre-wrap;
+}
+
 .tracker-form-grid {
   display: grid;
   gap: 16px;

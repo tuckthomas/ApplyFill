@@ -27,7 +27,7 @@ Private AI runs through native local services behind provider-neutral contracts.
 - `frontend/src/features/browser-agent/` owns typed run/control/stream contracts.
 - `frontend/src/features/private-ai/` owns the local backend request boundary for resume workflows.
 - `frontend/src/features/local-ai/contracts/` contains only allowlists, schema validation, and patch safety; it must not execute a model.
-- `frontend/src/features/profile/resumeImport.ts` owns bounded PDF/DOCX/TXT extraction and deterministic contact/header redaction. Source files are ephemeral.
+- `frontend/src/features/profile/resumeImport.ts` owns bounded PDF/DOCX/TXT extraction and deterministic contact/header redaction. The original source resume is retained in the owner-scoped artifact store and previewed through the shared PDF viewer.
 - `frontend/src/features/resume/resumeExport.ts` owns resume-safe rendering.
 - Lightweight display preferences may remain in browser storage; substantive user records must not.
 

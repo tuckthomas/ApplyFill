@@ -39,7 +39,7 @@ This table is the product retention contract. “Database backup” means Postgr
 | Field or record | Classification | Durable location | Retention and deletion | Database backup | Model boundary |
 | --- | --- | --- | --- | --- | --- |
 | Resume draft, selections, template, and tailoring metadata | Private | PostgreSQL | Until resume/delete-all removal | Yes | Safe projection only |
-| Imported resume source file | Private file | Local owner-scoped artifact/temporary import area | Retain only if the user saves it as an artifact; otherwise delete after import/cancellation/failure | Metadata only unless artifacts are backed up separately | OCR/document model receives only the selected document locally |
+| Imported resume source file | Private file | Local owner-scoped artifact root; metadata/digest in PostgreSQL | Retain as the current profile source; replace after explicit overwrite confirmation; remove with profile/delete-all | Metadata only unless artifacts are backed up separately | OCR/document model receives only the selected document locally |
 | Generated PDF, DOCX, cover letter, or application artifact | Private file | Local owner-scoped artifact root; metadata/digest in PostgreSQL | Until artifact/parent record/delete-all removal | Metadata only; files require separate backup | Content model only for the approved generation task |
 | Job URL, company, role, description, notes, status, and dates | Private application history | PostgreSQL job tracker | Until job/delete-all removal | Yes | Minimum task-specific fields only |
 | Dashboard widget content and layout | Private or preference | PostgreSQL for substantive content; local browser storage only for approved presentation preferences | Substantive content until deletion; presentation preference until browser-site data is cleared | PostgreSQL content only | Never needed |
@@ -80,7 +80,7 @@ This table is the product retention contract. “Database backup” means Postgr
 
 - **Delete one record:** remove that record, dependent records owned solely by it, and its unshared local artifacts. Do not silently delete shared profile facts used elsewhere.
 - **Delete one application run:** stop active control, invalidate streams/leases, remove checkpoints, pending questions/approvals, temporary files, observations, frames, and its managed-browser data when not shared by another retained run.
-- **Delete profile:** remove the profile aggregate, protected application-only payload, and dependent saved answers according to the API's confirmed cascade. Independent exported files remain outside ApplyFill.
+- **Delete profile:** remove the profile aggregate, protected application-only payload, retained source-resume artifact, and dependent saved answers according to the API's confirmed cascade. Independent exported files remain outside ApplyFill.
 - **Delete all data:** stop active services safely, delete PostgreSQL user records, owner-scoped artifacts, browser profiles, temporary files, local preferences, and installation keys. Model files may be offered as a separate choice because they contain no profile data.
 - **Uninstall application:** must be a distinct choice from deleting user data. An updater or repair must preserve data unless the user explicitly chooses deletion.
 - **Expired or failed work:** cancellation, worker crash, model failure, and service shutdown must enter cleanup on the next startup if immediate cleanup could not finish.

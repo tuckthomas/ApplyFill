@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped(sp => sp.GetRequiredService<IDbContextFactory<ApplyFillDbContext>>().CreateDbContext());
 
         services.AddScoped<IProfileRepository, EfProfileRepository>();
+        services.AddScoped<IProfileSourceResumeRepository, EfProfileSourceResumeRepository>();
         services.AddScoped<IResumeRepository, EfResumeRepository>();
         services.AddScoped<IResumeArtifactRepository, EfResumeArtifactRepository>();
         services.AddScoped<IJobApplicationRepository, EfJobApplicationRepository>();

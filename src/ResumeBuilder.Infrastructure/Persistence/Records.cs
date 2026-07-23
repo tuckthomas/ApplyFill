@@ -16,6 +16,18 @@ public sealed class ProfileRecord
     public DateTimeOffset UpdatedAt { get; set; }
 }
 
+public sealed class ProfileSourceResumeRecord
+{
+    public Guid Id { get; set; }
+    public Guid OwnerId { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string MediaType { get; set; } = string.Empty;
+    public long SizeBytes { get; set; }
+    public string Sha256 { get; set; } = string.Empty;
+    public string StorageKey { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
 public sealed class ResumeRecord
 {
     public Guid Id { get; set; }

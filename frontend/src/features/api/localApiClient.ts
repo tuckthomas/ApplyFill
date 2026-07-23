@@ -26,7 +26,7 @@ export type ApiResponse<Result> = {
 
 const configuredBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() ?? '';
 
-const apiUrl = (path: string) => {
+export const apiUrl = (path: string) => {
   const base = configuredBaseUrl || window.location.origin;
   const url = new URL(path, base);
   if (!['http:', 'https:'].includes(url.protocol) || !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname.toLowerCase())) {

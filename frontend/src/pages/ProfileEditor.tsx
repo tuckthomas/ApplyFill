@@ -18,14 +18,14 @@ import ProfileIntroductionSection from '../components/resume/ProfileIntroduction
 import ProfileResumeImportSection from '../components/resume/ProfileResumeImportSection';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { createDefaultProfileBuilderState, PROFILE_BUILDER_STEPS } from '../features/profile/profileBuilder';
+import { createDefaultProfileBuilderState, hasMeaningfulProfileData, PROFILE_BUILDER_STEPS } from '../features/profile/profileBuilder';
 import type { ProfileBuilderState } from '../features/profile/profileBuilder';
 import { loadProfileBuilderState, saveProfileBuilderState } from '../features/profile/profileBuilder';
 import {
   hasCurrentProfileAutomationConsent,
   PROFILE_AUTOMATION_CONSENT_VERSION
 } from '../features/profile/profileConsent';
-import { mergeProfileImportProposal } from '../features/profile/resumeImport';
+import { replaceProfileWithImportProposal } from '../features/profile/resumeImport';
 import type { ProfileImportProposal, ProfileImportSelection } from '../features/profile/resumeImport';
 
 const resolveSetStateAction = <Value,>(
@@ -186,7 +186,7 @@ export default function ProfileEditor() {
       const nextState = {
         ...profileBuilderState,
         data: pendingImport
-          ? mergeProfileImportProposal(
+          ? replaceProfileWithImportProposal(
               profileBuilderState.data,
               pendingImport.proposal,
               pendingImport.selection,
@@ -274,6 +274,7 @@ export default function ProfileEditor() {
       );
       case 1: return (
         <ProfileResumeImportSection
+          hasExistingProfileData={hasMeaningfulProfileData(data)}
           onBusyChange={setIsResumeImportBusy}
           onSelectionChange={handleResumeImportSelection}
         />

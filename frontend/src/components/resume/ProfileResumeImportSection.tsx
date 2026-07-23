@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { StopCircle, Upload } from 'lucide-react';
+import { Eye, StopCircle, Upload } from 'lucide-react';
 import Button from '../ui/Button';
 import Checkbox from '../ui/Checkbox';
+import FormModal from '../ui/FormModal';
+import PdfViewer from '../pdf/PdfViewer';
 import { importResumeWithPrivateAi } from '../../features/private-ai/privateAiClient';
 import type { ResumeImportProgress } from '../../features/private-ai/privateAiClient';
 import {
@@ -15,8 +17,15 @@ import {
 } from '../../features/profile/resumeImport';
 import type { ProfileImportProposal, ProfileImportSelection } from '../../features/profile/resumeImport';
 import type { RenderedResumePage } from '../../features/profile/resumeImport';
+import {
+  loadProfileSourceResume,
+  loadProfileSourceResumeBlob,
+  saveProfileSourceResume,
+} from '../../features/profile/profileSourceResume';
+import type { ProfileSourceResumeMetadata } from '../../features/profile/profileSourceResume';
 
 type ProfileResumeImportSectionProps = {
+  hasExistingProfileData: boolean;
   onBusyChange: (isBusy: boolean) => void;
   onSelectionChange: (
     proposal: ProfileImportProposal | null,
@@ -71,7 +80,7 @@ const progressCeilings: Record<string, number> = {
   complete: 100,
 };
 
-export default function ProfileResumeImportSection({ onBusyChange, onSelectionChange }: ProfileResumeImportSectionProps) {
+export default function ProfileResumeImportSection({ hasExistingProfileData, onBusyChange, onSelectionChange }: ProfileResumeImportSectionProps) {
   const [fileName, setFileName] = useState('');
   const [proposal, setProposal] = useState<ProfileImportProposal | null>(null);
   const [selection, setSelection] = useState<ProfileImportSelection | null>(null);
@@ -79,6 +88,10 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
   const [progress, setProgress] = useState<ResumeImportProgress | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const [sourceResume, setSourceResume] = useState<ProfileSourceResumeMetadata | null>(null);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [previewText, setPreviewText] = useState('');
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [displayClock, setDisplayClock] = useState(Date.now());
   const controllerRef = useRef<AbortController | null>(null);
   const startedAtRef = useRef(Date.now());
@@ -86,6 +99,17 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
   const lastReportedProgressRef = useRef<Pick<ResumeImportProgress, 'progress' | 'stage'> | null>(null);
 
   useEffect(() => () => controllerRef.current?.abort(), []);
+  useEffect(() => {
+    let current = true;
+    void loadProfileSourceResume()
+      .then((value) => {
+        if (!current) return;
+        setSourceResume(value);
+        if (value) setFileName(value.fileName);
+      })
+      .catch(() => undefined);
+    return () => { current = false; };
+  }, []);
   useEffect(() => {
     onSelectionChange(proposal, selection);
   }, [onSelectionChange, proposal, selection]);
@@ -168,10 +192,18 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
       setStatus('Choose a resume to begin.');
       return;
     }
+    if (hasExistingProfileData && !window.confirm('Importing this resume will replace all information currently saved in your Job Profile. Continue?')) {
+      setFileName(sourceResume?.fileName ?? '');
+      setStatus('Your existing Job Profile was not changed.');
+      return;
+    }
     setIsExtracting(true);
     reportProgress({ elapsedSeconds: 0, message: `Opening ${file.name}…`, progress: 1, stage: 'opening' });
     setStatus(`Reading ${file.name}…`);
     try {
+      const savedSourceResume = await saveProfileSourceResume(file);
+      setSourceResume(savedSourceResume);
+      setFileName(savedSourceResume.fileName);
       const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
       let text = '';
       try {
@@ -193,6 +225,24 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
       setStatus(error instanceof Error ? error.message : 'The resume could not be read.');
     } finally {
       setIsExtracting(false);
+    }
+  };
+
+  const openPreview = async () => {
+    if (!sourceResume) return;
+    setStatus('Opening saved resume…');
+    try {
+      const blob = await loadProfileSourceResumeBlob();
+      setPreviewBlob(blob);
+      setPreviewText('');
+      if (sourceResume.mediaType !== 'application/pdf') {
+        const file = new File([blob], sourceResume.fileName, { type: sourceResume.mediaType });
+        setPreviewText(await extractResumeText(file));
+      }
+      setIsPreviewOpen(true);
+      setStatus('Saved resume is ready.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'The saved resume could not be opened.');
     }
   };
 
@@ -242,6 +292,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
           <label aria-disabled={isExtracting || isRunning} className={`btn btn-secondary profile-resume-file-button${isExtracting || isRunning ? ' is-disabled' : ''}`} htmlFor="profile-resume-file">
             <Upload aria-hidden="true" size={17} /> {fileName ? 'Choose a Different Resume' : 'Choose Resume'}
           </label>
+          {sourceResume ? <Button disabled={isExtracting || isRunning} onClick={() => void openPreview()}><Eye aria-hidden="true" size={17} /> Preview</Button> : null}
           <span className={`profile-resume-file-display${fileName ? ' has-file' : ''}`}>{fileName || 'No resume selected'}</span>
         </div>
         <p className="field-hint">PDF, Word (.docx), or text file, up to 10 MB.</p>
@@ -275,7 +326,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
           <div className="local-ai-review-header">
             <div>
               <h4 id="profile-import-review-title">Review Proposed Profile Data</h4>
-              <p className="field-hint">Keep the information you want checked. Checked items are added when you continue, while existing non-empty contact fields and duplicate entries are preserved.</p>
+              <p className="field-hint">Keep the information you want checked. Continuing replaces the current Job Profile with the checked information.</p>
             </div>
             <strong>{selectedCount} selected</strong>
           </div>
@@ -294,6 +345,18 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
           {proposal.skills.length ? <div className="profile-import-group"><h5>Skills</h5><div className="profile-import-skill-grid">{proposal.skills.map((item) => <Checkbox checked={selection.skills.has(item.id)} key={item.id} label={item.name} onChange={(event) => setSelection((current) => current ? { ...current, skills: toggleSet(current.skills, item.id, event.target.checked) } : current)} />)}</div></div> : null}
         </section>
       ) : null}
+
+      <FormModal
+        className="source-resume-preview-dialog"
+        closeLabel="Close resume preview"
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        title={sourceResume?.fileName ?? 'Saved Resume'}
+      >
+        {sourceResume?.mediaType === 'application/pdf'
+          ? <PdfViewer downloadName={sourceResume.fileName} file={previewBlob} title={sourceResume.fileName} />
+          : <pre className="source-resume-text-preview">{previewText}</pre>}
+      </FormModal>
     </div>
   );
 }

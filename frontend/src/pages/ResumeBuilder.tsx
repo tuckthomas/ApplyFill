@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { PDFViewer, usePDF } from '@react-pdf/renderer';
+import { usePDF } from '@react-pdf/renderer';
 import { ArrowLeft, BrainCircuit, Clipboard, Download, FileJson, FileText, Save, Upload } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ResumePdfDocument from '../components/resume/ResumePdfDocument';
 import LocalAiTailoringPanel from '../components/resume/LocalAiTailoringPanel';
 import Button from '../components/ui/Button';
 import Checkbox from '../components/ui/Checkbox';
+import PdfViewer from '../components/pdf/PdfViewer';
 import { loadProfileDocument } from '../features/profile/profileBuilder';
 import type { LocalProfileDocument } from '../features/profile/profileBuilder';
 import {
@@ -338,7 +339,12 @@ export default function ResumeBuilder() {
           {pdfInstance.error ? (
             <div className="empty-state"><p className="field-error">The PDF preview could not be rendered.</p></div>
           ) : (
-            <PDFViewer className="resume-pdf-viewer" showToolbar>{pdfDocument}</PDFViewer>
+            <PdfViewer
+              className="resume-pdf-viewer"
+              downloadName={resumeFileName(resume.title, 'pdf')}
+              file={pdfInstance.blob}
+              title={resume.title || 'Resume preview'}
+            />
           )}
         </section>
       </div>

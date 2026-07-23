@@ -111,6 +111,75 @@ public sealed class EfProfileRepository(ApplyFillDbContext dbContext) : IProfile
     }
 }
 
+public sealed class EfProfileSourceResumeRepository(ApplyFillDbContext dbContext) : IProfileSourceResumeRepository
+{
+    public async Task<ProfileSourceResume?> FindCurrentAsync(Guid ownerId, CancellationToken cancellationToken)
+    {
+        var row = await dbContext.ProfileSourceResumes.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.OwnerId == ownerId, cancellationToken);
+        return row is null ? null : Map(row);
+    }
+
+    public async Task<ProfileSourceResume?> ReplaceAsync(
+        ProfileSourceResume sourceResume,
+        CancellationToken cancellationToken)
+    {
+        var existing = await dbContext.ProfileSourceResumes
+            .SingleOrDefaultAsync(x => x.OwnerId == sourceResume.OwnerId, cancellationToken);
+        ProfileSourceResume? replaced = null;
+        if (existing is null)
+        {
+            dbContext.ProfileSourceResumes.Add(ToRecord(sourceResume));
+        }
+        else
+        {
+            replaced = Map(existing);
+            existing.Id = sourceResume.Id;
+            existing.FileName = sourceResume.FileName;
+            existing.MediaType = sourceResume.MediaType;
+            existing.SizeBytes = sourceResume.SizeBytes;
+            existing.Sha256 = sourceResume.Sha256;
+            existing.StorageKey = sourceResume.StorageKey;
+            existing.CreatedAt = sourceResume.CreatedAt;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return replaced;
+    }
+
+    public async Task<ProfileSourceResume?> DeleteAsync(Guid ownerId, CancellationToken cancellationToken)
+    {
+        var row = await dbContext.ProfileSourceResumes
+            .SingleOrDefaultAsync(x => x.OwnerId == ownerId, cancellationToken);
+        if (row is null) return null;
+        dbContext.ProfileSourceResumes.Remove(row);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return Map(row);
+    }
+
+    private static ProfileSourceResume Map(ProfileSourceResumeRecord row) => new(
+        row.Id,
+        row.OwnerId,
+        row.FileName,
+        row.MediaType,
+        row.SizeBytes,
+        row.Sha256,
+        row.StorageKey,
+        row.CreatedAt);
+
+    private static ProfileSourceResumeRecord ToRecord(ProfileSourceResume value) => new()
+    {
+        Id = value.Id,
+        OwnerId = value.OwnerId,
+        FileName = value.FileName,
+        MediaType = value.MediaType,
+        SizeBytes = value.SizeBytes,
+        Sha256 = value.Sha256,
+        StorageKey = value.StorageKey,
+        CreatedAt = value.CreatedAt,
+    };
+}
+
 public sealed class EfResumeRepository(ApplyFillDbContext dbContext) : IResumeRepository
 {
     public async Task<Resume?> FindAsync(Guid ownerId, Guid id, CancellationToken cancellationToken)

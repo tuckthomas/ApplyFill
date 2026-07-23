@@ -7,6 +7,7 @@ import type { SkillEntry, SkillLevel } from '../../components/resume/SkillsSecti
 import { createRichTextFromPlainText } from '../rich-text/richText';
 import { normalizePhoneNumber } from './phoneNumber';
 import type { ProfileBuilderData } from './profileBuilder';
+import { EMPTY_APPLICATION_QUESTIONS } from './applicationQuestions';
 
 export const RESUME_IMPORT_MAX_BYTES = 10 * 1024 * 1024;
 export const RESUME_IMPORT_MAX_TEXT = 30_000;
@@ -609,3 +610,41 @@ export const mergeProfileImportProposal = (
     skills: appendSelectedUnique(current.skills, proposal.skills, selected.skills, (item) => item.name)
   };
 };
+
+export const replaceProfileWithImportProposal = (
+  current: ProfileBuilderData,
+  proposal: ProfileImportProposal,
+  selected: ProfileImportSelection
+): ProfileBuilderData => {
+  const empty = createEmptyImportedProfileData(current);
+  return mergeProfileImportProposal(empty, proposal, selected);
+};
+
+const createEmptyImportedProfileData = (current: ProfileBuilderData): ProfileBuilderData => ({
+  automationConsent: current.automationConsent,
+  profile: {
+    address1: '',
+    address2: '',
+    alternativeNames: [],
+    city: '',
+    country: null,
+    email: '',
+    firstName: '',
+    lastName: '',
+    middleName: '',
+    phone: '',
+    postalCode: '',
+    state: null,
+    webLinks: [],
+  },
+  education: [],
+  experience: [],
+  credentials: [],
+  projects: [],
+  skills: [],
+  applicationQuestions: {
+    ...EMPTY_APPLICATION_QUESTIONS,
+    governmentIdentifiers: [],
+    workAuthorizations: [],
+  },
+});

@@ -14,7 +14,7 @@ These process boundaries are developer and packaging details. The ordinary produ
 
 ## Data flow
 
-The frontend reads and writes versioned API resources. It may optimistically render edits, but a backend response and concurrency token decide what is durable. Browser Agent state is persisted as an application run and streamed to the UI through SignalR. Binary artifacts are stored under an owner-scoped local artifact root; metadata and integrity digests are stored in PostgreSQL.
+The frontend reads and writes versioned API resources. It may optimistically render edits, but a backend response and concurrency token decide what is durable. Browser Agent state is persisted as an application run and streamed to the UI through SignalR. Binary artifacts, including the retained source resume, are stored under an owner-scoped local artifact root; metadata and integrity digests are stored in PostgreSQL. PDF display is centralized in the shared ApplyFill PDF viewer.
 
 The Browser Worker observes the current page, produces a bounded semantic snapshot and screenshot, asks the application planner for the next allowed action, executes it, verifies the result, and checkpoints before continuing. Page navigation does not create a new objective or require reconnection.
 

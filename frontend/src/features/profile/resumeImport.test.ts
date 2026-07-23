@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arrangePdfTextItems, createModelSafeResumeImportText, createProfileImportProposal, extractResumeContact, mergeExtractedResumeContacts, mergeProfileImportProposal, parseProfileImportModelOutput } from './resumeImport';
+import { arrangePdfTextItems, createModelSafeResumeImportText, createProfileImportProposal, extractResumeContact, mergeExtractedResumeContacts, mergeProfileImportProposal, parseProfileImportModelOutput, replaceProfileWithImportProposal } from './resumeImport';
 import type { ProfileImportModelOutput } from './resumeImport';
 import { createDefaultProfileBuilderState, createLocalProfileDocument, DEFAULT_PROFILE_BUILDER_DATA, parseProfileDocument } from './profileBuilder';
 import { getRichTextPlainText } from '../rich-text/richText';
@@ -126,6 +126,43 @@ describe('local resume import boundary', () => {
       experience: new Set(duplicateProposal.experience.map((item) => item.id))
     });
     expect(duplicateMerged.experience).toHaveLength(1);
+  });
+
+  it('replaces saved profile data while retaining the automation consent', () => {
+    const proposal = createProfileImportProposal(modelOutput, extractResumeContact('Jordan Lee\njordan@example.test'), 100);
+    const current = createDefaultProfileBuilderState().data;
+    current.profile.firstName = 'Existing';
+    current.profile.address1 = '123 Existing Street';
+    current.skills = [{ id: 1, level: null, name: 'Old skill' }];
+    current.applicationQuestions.governmentIdentifiers = [{
+      country: { label: 'United States', value: 'US' },
+      id: 1,
+      identifierType: 'Social Security number',
+      value: '000000000',
+    }];
+    current.automationConsent = {
+      acceptedAtUtc: '2026-07-23T00:00:00.000Z',
+      disclosureVersion: 'local-application-privacy-v5',
+    };
+
+    const replaced = replaceProfileWithImportProposal(current, proposal, {
+      contact: new Set(['firstName', 'lastName', 'email']),
+      education: new Set(proposal.education.map((item) => item.id)),
+      experience: new Set(proposal.experience.map((item) => item.id)),
+      credentials: new Set(),
+      projects: new Set(),
+      skills: new Set(),
+    });
+
+    expect(replaced.profile).toMatchObject({
+      address1: '',
+      email: 'jordan@example.test',
+      firstName: 'Jordan',
+      lastName: 'Lee',
+    });
+    expect(replaced.skills).toEqual([]);
+    expect(replaced.applicationQuestions.governmentIdentifiers).toEqual([]);
+    expect(replaced.automationConsent).toEqual(current.automationConsent);
   });
 
   it('moves previously saved certificate education entries into credentials', () => {
