@@ -363,7 +363,7 @@ export default function ProfileSection({ data, onChange }: ProfileSectionProps) 
           />
         </div>
         <div className="form-group">
-          <label className="form-label" htmlFor="profile-middle-name">Middle Name (Optional)</label>
+          <label className="form-label" htmlFor="profile-middle-name">Middle Name or Initial (Optional)</label>
           <input
             id="profile-middle-name"
             type="text"

@@ -52,7 +52,18 @@ describe('local resume import boundary', () => {
   it('accepts a punctuated middle initial in a resume name', () => {
     const contact = extractResumeContact('TUCKER       T. OLSON\nCONTACT\nperson@example.test');
 
-    expect(contact).toMatchObject({ firstName: 'TUCKER', middleName: 'T.', lastName: 'OLSON' });
+    expect(contact).toMatchObject({ firstName: 'Tucker', middleName: 'T', lastName: 'Olson' });
+  });
+
+  it('normalizes all-caps Mc names without changing already mixed-case names', () => {
+    expect(extractResumeContact('SEAN MCMAHON\nCONTACT')).toMatchObject({
+      firstName: 'Sean',
+      lastName: 'McMahon',
+    });
+    expect(extractResumeContact('Jamie McFadden\nCONTACT')).toMatchObject({
+      firstName: 'Jamie',
+      lastName: 'McFadden',
+    });
   });
 
   it('adds contact values detected after OCR without replacing stronger embedded-text values', () => {

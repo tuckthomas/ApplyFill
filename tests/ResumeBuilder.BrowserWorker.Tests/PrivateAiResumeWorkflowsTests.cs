@@ -41,6 +41,10 @@ public sealed class PrivateAiResumeWorkflowsTests
                 "resume-profile-proposal-skills",
             ],
             inference.VisionRequests.Select(request => request.TaskDefinitionId).ToArray());
+        Assert.Contains(
+            "one separate array item for every distinct job title and date range",
+            inference.VisionRequests.Single(request => request.TaskDefinitionId.EndsWith("-experience", StringComparison.Ordinal)).Instruction,
+            StringComparison.Ordinal);
         Assert.Single(inference.VisionRequest!.Images);
         Assert.NotNull(inference.VisionRequest.OutputJsonSchema);
         using var schema = JsonDocument.Parse(inference.VisionRequest.OutputJsonSchema);

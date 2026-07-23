@@ -1706,6 +1706,22 @@ textarea.form-input {
   justify-content: flex-end;
 }
 
+.job-role-edit-button {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  text-align: left;
+}
+
+.job-role-edit-button:hover strong,
+.job-role-edit-button:focus-visible strong {
+  color: var(--primary-color);
+}
+
 .job-draft-actions {
   display: flex;
   justify-content: flex-end;

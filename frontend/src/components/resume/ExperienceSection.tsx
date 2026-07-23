@@ -534,13 +534,13 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
                   </div>
                   <div className="job-summary-actions">
                     <button
-                      className="btn btn-secondary"
-                      disabled={!canAddRole}
+                      className="icon-button"
                       type="button"
-                      onClick={() => addRole(experience.employmentGroupId)}
-                      title={canAddRole ? undefined : 'Set the current role’s end date before adding the next role.'}
+                      onClick={() => expandExperience(latestRole?.id ?? experience.id)}
+                      aria-label={`Edit ${companyLabel}`}
+                      data-tooltip={`Edit ${companyLabel}`}
                     >
-                      <Plus aria-hidden="true" size={17} /> Add Role
+                      <Pencil aria-hidden="true" size={18} />
                     </button>
                     <button
                       className="icon-button icon-button-danger"
@@ -555,14 +555,11 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
                 <div className="page-stack" aria-label={`Roles at ${companyLabel}`}>
                   {groupRoles.map((role) => (
                     <div className="toolbar-row" key={role.id}>
-                      <div>
+                      <button className="job-role-edit-button" onClick={() => expandExperience(role.id)} type="button">
                         <strong>{role.jobTitle || 'Untitled role'}</strong>
                         <p className="field-hint">{formatDateRange(role)}</p>
-                      </div>
+                      </button>
                       <div className="job-summary-actions">
-                        <button className="icon-button" onClick={() => expandExperience(role.id)} aria-label={`Edit ${role.jobTitle || 'role'} at ${companyLabel}`} data-tooltip="Edit role" type="button">
-                          <Pencil aria-hidden="true" size={18} />
-                        </button>
                         {groupRoles.length > 1 ? (
                           <button className="icon-button icon-button-danger" onClick={() => removeExperience(role.id)} aria-label={`Remove ${role.jobTitle || 'role'} from ${companyLabel}`} type="button">
                             <Trash2 aria-hidden="true" size={18} />
@@ -797,6 +794,11 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
                 <span />
               )}
               <div className="modal-form-actions">
+                {isSaved && canAddRole ? (
+                  <button className="btn btn-secondary" onClick={() => addRole(experience.employmentGroupId)} type="button">
+                    <Plus aria-hidden="true" size={17} /> Add Role
+                  </button>
+                ) : null}
                 <button className="btn btn-secondary" data-modal-close type="button" onClick={() => closeExperienceForm(experience)}>
                   Cancel
                 </button>

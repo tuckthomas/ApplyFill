@@ -208,7 +208,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
   const displayedProgressLabel = displayedProgress.toFixed(1);
   const contactRows = proposal ? ([
     { key: 'firstName', label: 'First name', value: proposal.contact.firstName },
-    { key: 'middleName', label: 'Middle name', value: proposal.contact.middleName },
+    { key: 'middleName', label: 'Middle name or initial', value: proposal.contact.middleName },
     { key: 'lastName', label: 'Last name', value: proposal.contact.lastName },
     { key: 'email', label: 'Email', value: proposal.contact.email },
     { key: 'phone', label: 'Phone', value: proposal.contact.phone },

@@ -182,6 +182,23 @@ const likelyName = (line: string) => {
     && !resumeSectionHeading.test(line.trim());
 };
 
+const capitalizeNamePart = (value: string) => {
+  if (!value || value !== value.toUpperCase()) return value;
+  const capitalized = value.toLocaleLowerCase().replace(
+    /(^|[-'’])(\p{L})/gu,
+    (_, boundary: string, letter: string) => `${boundary}${letter.toLocaleUpperCase()}`,
+  );
+  return /^Mc\p{L}/u.test(capitalized)
+    ? `${capitalized.slice(0, 2)}${capitalized[2].toLocaleUpperCase()}${capitalized.slice(3)}`
+    : capitalized;
+};
+
+const normalizeMiddleNameOrInitial = (value: string) => {
+  const trimmed = value.trim();
+  if (/^\p{L}\.$/u.test(trimmed)) return trimmed.slice(0, 1).toLocaleUpperCase();
+  return capitalizeNamePart(trimmed);
+};
+
 const linkLabel = (url: string) => {
   try {
     const host = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, '');
@@ -214,9 +231,11 @@ export const extractResumeContact = (text: string, baseId = Date.now()): Extract
 
   return {
     email,
-    firstName: nameParts[0] ?? '',
-    middleName: nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '',
-    lastName: nameParts.length > 1 ? nameParts.at(-1) ?? '' : '',
+    firstName: capitalizeNamePart(nameParts[0] ?? ''),
+    middleName: nameParts.length > 2
+      ? nameParts.slice(1, -1).map(normalizeMiddleNameOrInitial).join(' ')
+      : '',
+    lastName: capitalizeNamePart(nameParts.length > 1 ? nameParts.at(-1) ?? '' : ''),
     phone,
     webLinks: urls.map((url, index) => ({
       id: baseId + index,
