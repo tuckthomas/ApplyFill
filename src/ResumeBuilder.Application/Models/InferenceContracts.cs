@@ -51,7 +51,8 @@ public sealed record VisionInferenceRequest(
     string Instruction,
     IReadOnlyList<ImageInput> Images,
     string? ContextJson,
-    int MaximumOutputTokens);
+    int MaximumOutputTokens,
+    string? OutputJsonSchema = null);
 
 public sealed record VisionInferenceResult(
     string OutputJson,

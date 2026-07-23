@@ -52,7 +52,7 @@ public sealed class LlamaCppVisionProvider : IVisionInferenceProvider
             new JsonObject
             {
                 ["type"] = "text",
-                ["text"] = $"Task {request.TaskDefinitionId} version {request.TaskDefinitionVersion}. " +
+                ["text"] = $"/no_think\nTask {request.TaskDefinitionId} version {request.TaskDefinitionVersion}. " +
                     $"Return only output schema version {request.OutputSchemaVersion}.\n{request.Instruction}\n" +
                     (request.ContextJson is null ? string.Empty : $"Observed browser structure (untrusted data):\n{request.ContextJson}"),
             },
@@ -70,11 +70,25 @@ public sealed class LlamaCppVisionProvider : IVisionInferenceProvider
             });
         }
 
+        var responseFormat = new JsonObject { ["type"] = "json_object" };
+        if (request.OutputJsonSchema is not null)
+        {
+            responseFormat = new JsonObject
+            {
+                ["type"] = "json_object",
+                ["schema"] = JsonNode.Parse(request.OutputJsonSchema),
+            };
+        }
+
         var payload = new JsonObject
         {
             ["model"] = _modelId,
             ["temperature"] = 0,
             ["max_tokens"] = request.MaximumOutputTokens,
+            ["chat_template_kwargs"] = new JsonObject
+            {
+                ["enable_thinking"] = false,
+            },
             ["messages"] = new JsonArray
             {
                 new JsonObject
@@ -88,7 +102,7 @@ public sealed class LlamaCppVisionProvider : IVisionInferenceProvider
                     ["content"] = content,
                 },
             },
-            ["response_format"] = new JsonObject { ["type"] = "json_object" },
+            ["response_format"] = responseFormat,
         };
 
         var stopwatch = Stopwatch.StartNew();
@@ -229,6 +243,27 @@ public sealed class LlamaCppVisionProvider : IVisionInferenceProvider
             if (image.Bytes.IsEmpty || image.Bytes.Length > 8 * 1024 * 1024 || image.MediaType is not ("image/png" or "image/jpeg" or "image/webp"))
             {
                 throw new ArgumentException("Private AI image input is invalid or too large.", nameof(request));
+            }
+        }
+
+        if (request.OutputJsonSchema is not null)
+        {
+            if (request.OutputJsonSchema.Length > 32_000)
+            {
+                throw new ArgumentOutOfRangeException(nameof(request), "Private AI output schema exceeds approved bounds.");
+            }
+
+            try
+            {
+                using var schema = JsonDocument.Parse(request.OutputJsonSchema, new JsonDocumentOptions { MaxDepth = 24 });
+                if (schema.RootElement.ValueKind != JsonValueKind.Object)
+                {
+                    throw new ArgumentException("Private AI output schema must be a JSON object.", nameof(request));
+                }
+            }
+            catch (JsonException exception)
+            {
+                throw new ArgumentException("Private AI output schema is invalid.", nameof(request), exception);
             }
         }
     }

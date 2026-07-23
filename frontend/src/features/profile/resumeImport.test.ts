@@ -25,6 +25,13 @@ describe('local resume import boundary', () => {
     expect(safe).toContain('Engineer at Example Corp');
   });
 
+  it('does not classify a resume section heading as a person name', () => {
+    const contact = extractResumeContact('PROFESSIONAL SUMMARY\nCredit analyst\nperson@example.test\n(260) 226-7175');
+
+    expect(contact.firstName).toBe('');
+    expect(contact.lastName).toBe('');
+  });
+
   it('adds contact values detected after OCR without replacing stronger embedded-text values', () => {
     const embedded = extractResumeContact('Jordan Lee\njordan@example.test\nhttps://github.com/jordan', 10);
     const ocr = extractResumeContact('Jordan L. Lee\n+1 (317) 555-0123\nhttps://linkedin.com/in/jordan', 20);

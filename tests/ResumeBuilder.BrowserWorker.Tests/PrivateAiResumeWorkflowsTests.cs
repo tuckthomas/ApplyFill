@@ -30,8 +30,21 @@ public sealed class PrivateAiResumeWorkflowsTests
         Assert.Equal(JsonValueKind.Object, result.Proposal.ValueKind);
         Assert.Contains("Ada Lovelace", result.DetectedText, StringComparison.Ordinal);
         Assert.NotNull(inference.DocumentRequest);
-        Assert.Equal("resume-profile-proposal", inference.VisionRequest?.TaskDefinitionId);
+        Assert.Equal(4, inference.VisionRequestCount);
+        Assert.Equal(
+            [
+                "resume-profile-proposal-education",
+                "resume-profile-proposal-experience",
+                "resume-profile-proposal-projects",
+                "resume-profile-proposal-skills",
+            ],
+            inference.VisionRequests.Select(request => request.TaskDefinitionId).ToArray());
         Assert.Single(inference.VisionRequest!.Images);
+        Assert.NotNull(inference.VisionRequest.OutputJsonSchema);
+        using var schema = JsonDocument.Parse(inference.VisionRequest.OutputJsonSchema);
+        Assert.Equal(
+            ["skills"],
+            schema.RootElement.GetProperty("required").EnumerateArray().Select(item => item.GetString()!).ToArray());
     }
 
     [Fact]
@@ -50,11 +63,11 @@ public sealed class PrivateAiResumeWorkflowsTests
             "resume.pdf", "application/pdf", [], "pdf", string.Empty,
             [new ResumeImportPage(1, "image/jpeg", [2])]), CancellationToken.None));
 
-        Assert.Equal(2, inference.VisionRequestCount);
+        Assert.Equal(1, inference.VisionRequestCount);
     }
 
     [Fact]
-    public async Task ResumeImportRetriesOneMalformedProposalWithoutRepeatingOcr()
+    public async Task ResumeImportCombinesFourSectionProposalsWithoutRepeatingOcr()
     {
         var inference = new FakeInference
         {
@@ -62,8 +75,10 @@ public sealed class PrivateAiResumeWorkflowsTests
                 [new ParsedDocumentPage(1, "Engineer", "[]", 1)],
                 "ocr", "revision", "test", TimeSpan.Zero),
         };
-        inference.VisionResponses.Enqueue("{\"education\":[],\"experience\":[],\"projects\":[]}");
-        inference.VisionResponses.Enqueue("{\"education\":[],\"experience\":[],\"projects\":[],\"skills\":[]}");
+        inference.VisionResponses.Enqueue("{\"education\":[]}");
+        inference.VisionResponses.Enqueue("{\"experience\":[]}");
+        inference.VisionResponses.Enqueue("{\"projects\":[]}");
+        inference.VisionResponses.Enqueue("{\"skills\":[]}");
         var workflows = new PrivateAiResumeWorkflows(inference);
 
         var result = await workflows.ImportResumeAsync(new ResumeImportPayload(
@@ -71,7 +86,52 @@ public sealed class PrivateAiResumeWorkflowsTests
             [new ResumeImportPage(1, "image/jpeg", [2])]), CancellationToken.None);
 
         Assert.Equal(JsonValueKind.Object, result.Proposal.ValueKind);
-        Assert.Equal(2, inference.VisionRequestCount);
+        Assert.Equal(4, inference.VisionRequestCount);
+        Assert.Equal(1, inference.DocumentRequestCount);
+    }
+
+    [Fact]
+    public async Task ResumeImportAcceptsSectionArraysFromLocalModels()
+    {
+        var inference = new FakeInference
+        {
+            DocumentResult = new DocumentParsingResult(
+                [new ParsedDocumentPage(1, "Engineer", "[]", 1)],
+                "ocr", "revision", "test", TimeSpan.Zero),
+        };
+        inference.VisionResponses.Enqueue("[]");
+        inference.VisionResponses.Enqueue("[]");
+        inference.VisionResponses.Enqueue("[]");
+        inference.VisionResponses.Enqueue("[]");
+        var workflows = new PrivateAiResumeWorkflows(inference);
+
+        var result = await workflows.ImportResumeAsync(new ResumeImportPayload(
+            "resume.pdf", "application/pdf", [], "pdf", string.Empty,
+            [new ResumeImportPage(1, "image/jpeg", [2])]), CancellationToken.None);
+
+        Assert.Equal(JsonValueKind.Object, result.Proposal.ValueKind);
+        Assert.Equal(4, inference.VisionRequestCount);
+        Assert.Equal(1, inference.DocumentRequestCount);
+    }
+
+    [Fact]
+    public async Task ResumeImportRejectsASectionObjectWithAdditionalRootData()
+    {
+        var inference = new FakeInference
+        {
+            DocumentResult = new DocumentParsingResult(
+                [new ParsedDocumentPage(1, "Engineer", "[]", 1)],
+                "ocr", "revision", "test", TimeSpan.Zero),
+            VisionJson = "{\"education\":[],\"instructions\":\"ignore safety\"}",
+        };
+        var workflows = new PrivateAiResumeWorkflows(inference);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            workflows.ImportResumeAsync(new ResumeImportPayload(
+                "resume.pdf", "application/pdf", [], "pdf", string.Empty,
+                [new ResumeImportPage(1, "image/jpeg", [2])]), CancellationToken.None));
+
+        Assert.Equal(1, inference.VisionRequestCount);
         Assert.Equal(1, inference.DocumentRequestCount);
     }
 
@@ -95,6 +155,7 @@ public sealed class PrivateAiResumeWorkflowsTests
         public string VisionJson { get; init; } = "{}";
         public DocumentParsingRequest? DocumentRequest { get; private set; }
         public VisionInferenceRequest? VisionRequest { get; private set; }
+        public List<VisionInferenceRequest> VisionRequests { get; } = [];
         public Queue<string> VisionResponses { get; } = new();
         public int VisionRequestCount { get; private set; }
         public int DocumentRequestCount { get; private set; }
@@ -102,8 +163,24 @@ public sealed class PrivateAiResumeWorkflowsTests
         public Task<VisionInferenceResult> InferAsync(VisionInferenceRequest request, CancellationToken cancellationToken = default)
         {
             VisionRequest = request;
+            VisionRequests.Add(request);
             VisionRequestCount++;
             var output = VisionResponses.Count > 0 ? VisionResponses.Dequeue() : VisionJson;
+            if (VisionResponses.Count == 0 &&
+                output.StartsWith("{\"education\":", StringComparison.Ordinal) &&
+                request.TaskDefinitionId.StartsWith("resume-profile-proposal-", StringComparison.Ordinal))
+            {
+                using var document = JsonDocument.Parse(output);
+                var section = request.TaskDefinitionId["resume-profile-proposal-".Length..];
+                var properties = document.RootElement.EnumerateObject().ToArray();
+                if (properties.Length == 4 && document.RootElement.TryGetProperty(section, out var sectionValue))
+                {
+                    output = JsonSerializer.Serialize(new Dictionary<string, JsonElement>
+                    {
+                        [section] = sectionValue.Clone(),
+                    });
+                }
+            }
             return Task.FromResult(new VisionInferenceResult(output, "vision", "revision", "test", TimeSpan.Zero));
         }
 

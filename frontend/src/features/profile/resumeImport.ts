@@ -150,12 +150,13 @@ const cleanText = (value: string) => value
   .replace(/\n{3,}/g, '\n\n')
   .trim();
 
+const resumeSectionHeading = /^(?:(?:professional|career|executive|personal|work|employment|volunteer|technical|core|key)\s+)*(?:summary|profile|experience|history|education|skills|competencies|projects|resume|curriculum vitae)$/i;
+
 const likelyName = (line: string) => {
   const words = line.trim().split(/\s+/);
-  const sectionWords = /^(?:summary|profile|experience|employment|education|skills|projects|resume|curriculum vitae)$/i;
   return line.length <= 80 && words.length >= 2 && words.length <= 4
     && words.every((word) => /^[\p{L}][\p{L}'’-]*$/u.test(word))
-    && !sectionWords.test(line.trim());
+    && !resumeSectionHeading.test(line.trim());
 };
 
 const linkLabel = (url: string) => {
@@ -174,7 +175,9 @@ const escapeRegularExpression = (value: string) => value.replace(/[.*+?^${}()|[\
 export const extractResumeContact = (text: string, baseId = Date.now()): ExtractedResumeContact => {
   const normalized = cleanText(text);
   const lines = normalized.split('\n').map((line) => line.trim()).filter(Boolean);
-  const nameLine = lines.slice(0, 5).find(likelyName) ?? '';
+  const firstLines = lines.slice(0, 5);
+  const firstSectionHeading = firstLines.findIndex((line) => resumeSectionHeading.test(line));
+  const nameLine = firstLines.slice(0, firstSectionHeading < 0 ? firstLines.length : firstSectionHeading).find(likelyName) ?? '';
   const nameParts = nameLine.split(/\s+/).filter(Boolean);
   const email = normalized.match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i)?.[0] ?? '';
   const phoneCandidates = normalized.match(/(?:\+?\d[\d().\s-]{8,}\d)/g) ?? [];
