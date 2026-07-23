@@ -1,6 +1,6 @@
 # Using the Browser Agent
 
-The Browser Agent works through job applications in a browser displayed inside ApplyFill. You do not install an extension, pair a tab, copy a connection code, or reconnect when the site moves to another page.
+The Browser Agent works through job applications in a browser displayed inside ApplyFill and keeps the same application run as the site moves between pages.
 
 For the exact sensitive-action policy and local-device limitations, see [Managed Browser Agent threat model](threat-model.md). For what is saved and when it is deleted, see [Data retention and deletion](data-retention.md).
 

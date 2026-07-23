@@ -62,7 +62,7 @@ Add or update a manifest under `private-ai/catalog/`; do not hard-code model nam
 
 ## Browser changes
 
-Do not automate a developer's installed browser or require an extension. Use the managed Playwright context and synthetic fixtures. Preserve mutually exclusive control leases, bounded input, observation/action verification, checkpoints, and explicit final submission approval.
+Use the managed Playwright context and synthetic fixtures. Preserve mutually exclusive control leases, bounded input, observation/action verification, checkpoints, and explicit final submission approval.
 
 ## Security and retention changes
 

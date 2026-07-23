@@ -20,7 +20,7 @@ The Browser Worker observes the current page, produces a bounded semantic snapsh
 
 ## Browser stream and control
 
-The managed browser is not an iframe and does not depend on a browser extension. ApplyFill displays sanitized JPEG frames and forwards bounded pointer, wheel, and keyboard events only while the user owns the control lease. Agent and user input are mutually exclusive. Run updates carry revisions so stale commands and stale stream events can be rejected.
+ApplyFill displays sanitized JPEG frames from the managed browser and forwards bounded pointer, wheel, and keyboard events only while the user owns the control lease. Agent and user input are mutually exclusive. Run updates carry revisions so stale commands and stale stream events can be rejected.
 
 ## Replaceable Private AI
 

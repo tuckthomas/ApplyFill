@@ -98,7 +98,7 @@ Prefer these components rather than rebuilding their behavior:
 - Private AI runs through local native services. Explain the allowlisted data boundary in plain language; never expose models, providers, runtimes, ports, accelerators, GPU layers, or quantization in the ordinary UI.
 - Private AI suggestions are proposals: show progress and cancellation, render before/after review, allow edit/select/reject, block stale results, and provide undo after acceptance.
 - Settings owns one **Set Up Private AI** action and clear ready/setup/failure status. Show progress as a percentage when known and provide a plain retry path.
-- Browser Agent automation stays inside ApplyFill's main layout. The same run persists across pages without pairing, connection codes, active-tab inspection, or extension installation.
+- Browser Agent automation stays inside ApplyFill's main layout, and the same run persists across pages.
 - Pause, Stop, Take Control, Return Control, pending-question, recovery, and final-review states must always remain visible. User and agent input are mutually exclusive.
 - Final submission is a separate explicit approval; never present reaching the last page as permission to submit.
 - Destructive deletion requires explicit confirmation and must name all substantive local records affected.

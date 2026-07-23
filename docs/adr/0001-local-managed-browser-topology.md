@@ -7,7 +7,7 @@
 
 ApplyFill's first supported architecture is a local/private installation composed of the React application, an ASP.NET Core 10 API, PostgreSQL 18, a dedicated .NET Browser Worker that owns Playwright Chromium, and native Private AI runtimes. The API, worker, database, browser-control channels, and model endpoints bind only to loopback or the private Compose network.
 
-The Browser Agent is a first-class ApplyFill route. It does not use an extension, an iframe, a user's installed browser, WebNN, WebGPU-hosted models, or a static Cloudflare deployment. A browser context remains attached to one application run across pages, redirects, popups, user-control handoffs, UI reloads, and safe recovery.
+The Browser Agent is a first-class ApplyFill route. A managed browser context remains attached to one application run across pages, redirects, popups, user-control handoffs, UI reloads, and safe recovery.
 
 PostgreSQL is authoritative for substantive records. Application-only sensitive values are protected before persistence with installation-bound keys stored outside PostgreSQL. Transient screenshots, browser observations, prompts, model responses, cookies, and credentials are not written to ordinary records.
 

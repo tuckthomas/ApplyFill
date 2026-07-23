@@ -4,7 +4,7 @@ This directory contains implementation guidance for coding agents and maintainer
 
 ## Current architecture
 
-ApplyFill is a local .NET 10, PostgreSQL 18, React, and managed-Playwright application. PostgreSQL is authoritative for substantive records. The Browser Agent appears inside the shared ApplyFill layout, retains one objective across multi-page navigation, and uses mutually exclusive user/agent control. There is no supported browser extension, pairing protocol, `/autofill-assist` route, browser LiteRT runtime, model cache, static-only deployment, or IndexedDB-authoritative compatibility path.
+ApplyFill is a local .NET 10, PostgreSQL 18, React, and managed-Playwright application. PostgreSQL is authoritative for substantive records. The Browser Agent appears inside the shared ApplyFill layout, retains one objective across multi-page navigation, and uses mutually exclusive user/agent control.
 
 Private AI runs through native local services behind provider-neutral contracts. Ordinary users see one **Set Up Private AI** action. Never expose providers, model filenames, runtimes, ports, accelerators, GPU layers, quantization, containers, or internal process topology in the ordinary UI. Runtime/model manifests live under `private-ai/catalog/`; workflows, prompts, safety policy, schemas, and validators must remain independently versioned.
 
@@ -21,7 +21,6 @@ Private AI runs through native local services behind provider-neutral contracts.
 - User and agent input are never concurrent. Taking or returning control requires a fresh observation and visible state transition.
 - Final submission requires explicit user approval and is never automatically retried after an uncertain outcome.
 - Do not log profile content, page values, credentials, cookies, prompts, screenshots, model responses, or private artifacts.
-- Do not reintroduce an extension, iframe automation, active-tab inspection, browser model runtime, WebGPU/WebNN setup, service-worker model caching, or Cloudflare static deployment.
 
 ## Frontend boundaries
 
