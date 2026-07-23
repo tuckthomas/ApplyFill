@@ -73,7 +73,7 @@ public sealed class ProfileSourceResumeController(
             await artifactStore.DeleteAsync(installation.Id, replaced.StorageKey, cancellationToken);
         }
 
-        return ToResponse(value);
+        return ToResponse(replaced is null ? value : value with { Id = replaced.Id });
     }
 
     [HttpGet("content")]

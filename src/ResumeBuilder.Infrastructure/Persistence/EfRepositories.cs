@@ -134,7 +134,6 @@ public sealed class EfProfileSourceResumeRepository(ApplyFillDbContext dbContext
         else
         {
             replaced = Map(existing);
-            existing.Id = sourceResume.Id;
             existing.FileName = sourceResume.FileName;
             existing.MediaType = sourceResume.MediaType;
             existing.SizeBytes = sourceResume.SizeBytes;
