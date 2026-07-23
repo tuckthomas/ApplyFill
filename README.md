@@ -10,8 +10,6 @@
 
 ApplyFill is a privacy-focused job-application workspace. It keeps a reusable Job Profile, resumes, tracked applications, and Browser Agent history on the user's computer. Its managed browser works through multi-page applications inside the normal ApplyFill layout while the user watches, pauses, stops, or takes control at any time.
 
-No browser extension is required or supported.
-
 ## What is implemented
 
 - A .NET 10 API with profile, resume, job-application, and application-run resources.
