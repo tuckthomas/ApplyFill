@@ -115,12 +115,17 @@ export const createDefaultProfileBuilderState = (
 
 export const hasMeaningfulProfileData = (data: ProfileBuilderData): boolean => {
   const profile = data.profile;
+  const hasText = (value: string) => Boolean(value.trim());
+  const hasOption = (value: { value: string } | null) => Boolean(value?.value.trim());
   return Boolean(
-    profile.firstName || profile.middleName || profile.lastName || profile.email || profile.phone
-    || profile.address1 || profile.address2 || profile.city || profile.state || profile.postalCode
-    || profile.country || profile.alternativeNames.length || profile.webLinks.length
-    || data.education.length || data.experience.length || data.credentials.length
-    || data.projects.length || data.skills.length || data.applicationQuestions.governmentIdentifiers.length
+    hasText(profile.firstName) || hasText(profile.middleName) || hasText(profile.lastName) || hasText(profile.email) || hasText(profile.phone)
+    || hasText(profile.address1) || hasText(profile.address2) || hasText(profile.city) || hasOption(profile.state) || hasText(profile.postalCode)
+    || hasOption(profile.country) || profile.alternativeNames.some((entry) => hasText(entry.name)) || profile.webLinks.some((entry) => hasText(entry.url))
+    || data.education.some((entry) => entry.isSaved && (hasText(entry.provider) || hasText(entry.fieldOfStudy)))
+    || data.experience.some((entry) => entry.isSaved && (hasText(entry.company) || hasText(entry.jobTitle)))
+    || data.credentials.some((entry) => hasText(entry.name) || hasText(entry.issuer))
+    || data.projects.some((entry) => entry.isSaved && (hasText(entry.name) || hasText(entry.organization)))
+    || data.skills.some((entry) => hasText(entry.name)) || data.applicationQuestions.governmentIdentifiers.length
     || data.applicationQuestions.workAuthorizations.length
   );
 };

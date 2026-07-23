@@ -79,12 +79,15 @@ export type ProfileImportProposal = {
 
 export type ProfileImportSelection = {
   contact: Set<keyof Pick<ProfileSectionData, 'firstName' | 'middleName' | 'lastName' | 'email' | 'phone' | 'webLinks'>>;
+  overwriteContact?: Set<keyof Pick<ProfileSectionData, 'firstName' | 'middleName' | 'lastName' | 'email' | 'phone' | 'webLinks'>>;
   education: Set<number>;
   credentials: Set<number>;
   experience: Set<number>;
   projects: Set<number>;
   skills: Set<number>;
 };
+
+export type ProfileImportMode = 'merge' | 'replace';
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -589,7 +592,10 @@ export const mergeProfileImportProposal = (
   const contactFields = ['firstName', 'middleName', 'lastName', 'email', 'phone'] as const;
   const profile = { ...current.profile };
   contactFields.forEach((field) => {
-    if (selected.contact.has(field) && !profile[field] && proposal.contact[field]) profile[field] = proposal.contact[field];
+    if (selected.contact.has(field) && proposal.contact[field]
+      && (!profile[field] || selected.overwriteContact?.has(field))) {
+      profile[field] = proposal.contact[field];
+    }
   });
   if (selected.contact.has('webLinks')) {
     const existingUrls = new Set(profile.webLinks.map((link) => normalize(link.url)));

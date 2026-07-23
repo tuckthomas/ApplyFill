@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Eye, StopCircle, Upload } from 'lucide-react';
+import { ArrowRightLeft, Eye, FilePlus2, RefreshCcw, StopCircle, Upload } from 'lucide-react';
 import Button from '../ui/Button';
 import Checkbox from '../ui/Checkbox';
 import FormModal from '../ui/FormModal';
@@ -15,8 +15,9 @@ import {
   renderResumePageImages,
   RESUME_IMPORT_ACCEPT
 } from '../../features/profile/resumeImport';
-import type { ProfileImportProposal, ProfileImportSelection } from '../../features/profile/resumeImport';
+import type { ProfileImportMode, ProfileImportProposal, ProfileImportSelection } from '../../features/profile/resumeImport';
 import type { RenderedResumePage } from '../../features/profile/resumeImport';
+import type { ProfileSectionData } from './ProfileSection';
 import {
   loadProfileSourceResume,
   loadProfileSourceResumeBlob,
@@ -25,11 +26,13 @@ import {
 import type { ProfileSourceResumeMetadata } from '../../features/profile/profileSourceResume';
 
 type ProfileResumeImportSectionProps = {
+  existingProfile: ProfileSectionData;
   hasExistingProfileData: boolean;
   onBusyChange: (isBusy: boolean) => void;
   onSelectionChange: (
     proposal: ProfileImportProposal | null,
     selection: ProfileImportSelection | null,
+    mode: ProfileImportMode | null,
   ) => void;
 };
 
@@ -49,6 +52,7 @@ const createSelection = (proposal: ProfileImportProposal): ProfileImportSelectio
   if (proposal.contact.webLinks.length) contact.add('webLinks');
   return {
     contact,
+    overwriteContact: new Set<ContactKey>(),
     education: new Set(proposal.education.map((item) => item.id)),
     experience: new Set(proposal.experience.map((item) => item.id)),
     credentials: new Set(proposal.credentials.map((item) => item.id)),
@@ -80,7 +84,7 @@ const progressCeilings: Record<string, number> = {
   complete: 100,
 };
 
-export default function ProfileResumeImportSection({ hasExistingProfileData, onBusyChange, onSelectionChange }: ProfileResumeImportSectionProps) {
+export default function ProfileResumeImportSection({ existingProfile, hasExistingProfileData, onBusyChange, onSelectionChange }: ProfileResumeImportSectionProps) {
   const [fileName, setFileName] = useState('');
   const [proposal, setProposal] = useState<ProfileImportProposal | null>(null);
   const [selection, setSelection] = useState<ProfileImportSelection | null>(null);
@@ -92,6 +96,9 @@ export default function ProfileResumeImportSection({ hasExistingProfileData, onB
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   const [previewText, setPreviewText] = useState('');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [importMode, setImportMode] = useState<ProfileImportMode | null>(null);
+  const [isImportChoiceOpen, setIsImportChoiceOpen] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [displayClock, setDisplayClock] = useState(Date.now());
   const controllerRef = useRef<AbortController | null>(null);
   const startedAtRef = useRef(Date.now());
@@ -111,8 +118,8 @@ export default function ProfileResumeImportSection({ hasExistingProfileData, onB
     return () => { current = false; };
   }, []);
   useEffect(() => {
-    onSelectionChange(proposal, selection);
-  }, [onSelectionChange, proposal, selection]);
+    onSelectionChange(proposal, selection, importMode);
+  }, [importMode, onSelectionChange, proposal, selection]);
   useEffect(() => {
     onBusyChange(isExtracting || isRunning);
   }, [isExtracting, isRunning, onBusyChange]);
@@ -178,25 +185,17 @@ export default function ProfileResumeImportSection({ hasExistingProfileData, onB
     }
   };
 
-  const chooseFile = async (file: File | undefined) => {
+  const beginImport = async (file: File, mode: ProfileImportMode) => {
     controllerRef.current?.abort();
     startedAtRef.current = Date.now();
     progressReceivedAtRef.current = startedAtRef.current;
     lastReportedProgressRef.current = null;
     setDisplayClock(startedAtRef.current);
-    setFileName(file?.name ?? '');
+    setFileName(file.name);
     setProposal(null);
     setSelection(null);
     setProgress(null);
-    if (!file) {
-      setStatus('Choose a resume to begin.');
-      return;
-    }
-    if (hasExistingProfileData && !window.confirm('Importing this resume will replace all information currently saved in your Job Profile. Continue?')) {
-      setFileName(sourceResume?.fileName ?? '');
-      setStatus('Your existing Job Profile was not changed.');
-      return;
-    }
+    setImportMode(mode);
     setIsExtracting(true);
     reportProgress({ elapsedSeconds: 0, message: `Opening ${file.name}…`, progress: 1, stage: 'opening' });
     setStatus(`Reading ${file.name}…`);
@@ -226,6 +225,40 @@ export default function ProfileResumeImportSection({ hasExistingProfileData, onB
     } finally {
       setIsExtracting(false);
     }
+  };
+
+  const chooseFile = (file: File | undefined) => {
+    if (!file) {
+      setFileName(sourceResume?.fileName ?? '');
+      setStatus('Choose a resume to begin.');
+      return;
+    }
+    if (hasExistingProfileData) {
+      controllerRef.current?.abort();
+      setProposal(null);
+      setSelection(null);
+      setImportMode(null);
+      setProgress(null);
+      setPendingFile(file);
+      setIsImportChoiceOpen(true);
+      setStatus('Choose how to apply this resume to your existing Job Profile.');
+      return;
+    }
+    void beginImport(file, 'replace');
+  };
+
+  const chooseImportMode = (mode: ProfileImportMode) => {
+    const file = pendingFile;
+    setPendingFile(null);
+    setIsImportChoiceOpen(false);
+    if (file) void beginImport(file, mode);
+  };
+
+  const cancelImportChoice = () => {
+    setPendingFile(null);
+    setIsImportChoiceOpen(false);
+    setFileName(sourceResume?.fileName ?? '');
+    setStatus('Your existing Job Profile was not changed.');
   };
 
   const openPreview = async () => {
@@ -264,6 +297,9 @@ export default function ProfileResumeImportSection({ hasExistingProfileData, onB
     { key: 'phone', label: 'Phone', value: proposal.contact.phone },
     { key: 'webLinks', label: 'Profile links', value: proposal.contact.webLinks.map((link) => link.url).join(', ') }
   ] satisfies Array<{ key: ContactKey; label: string; value: string }>).filter((row) => row.value) : [];
+  const currentContactValue = (key: ContactKey) => key === 'webLinks'
+    ? existingProfile.webLinks.map((link) => link.url).join(', ')
+    : existingProfile[key];
 
   return (
     <div className="page-stack profile-resume-import">
@@ -326,7 +362,9 @@ export default function ProfileResumeImportSection({ hasExistingProfileData, onB
           <div className="local-ai-review-header">
             <div>
               <h4 id="profile-import-review-title">Review Proposed Profile Data</h4>
-              <p className="field-hint">Keep the information you want checked. Continuing replaces the current Job Profile with the checked information.</p>
+              <p className="field-hint">{importMode === 'merge'
+                ? 'Choose what to add. For a saved contact value, select Replace to use the value from this resume.'
+                : 'Keep the information you want checked. Continuing replaces the current Job Profile with the checked information.'}</p>
             </div>
             <strong>{selectedCount} selected</strong>
           </div>
@@ -334,7 +372,16 @@ export default function ProfileResumeImportSection({ hasExistingProfileData, onB
           {contactRows.length ? (
             <div className="profile-import-group">
               <h5>Contact fields detected from the resume</h5>
-              {contactRows.map((row) => <Checkbox checked={selection.contact.has(row.key)} key={row.key} label={`${row.label}: ${row.value}`} onChange={(event) => setSelection((current) => current ? { ...current, contact: toggleSet(current.contact, row.key, event.target.checked) } : current)} />)}
+              {contactRows.map((row) => {
+                const currentValue = currentContactValue(row.key);
+                const canReplace = importMode === 'merge' && Boolean(currentValue);
+                return (
+                  <div className="profile-import-contact-row" key={row.key}>
+                    <Checkbox checked={selection.contact.has(row.key)} label={`${row.label}: ${row.value}`} onChange={(event) => setSelection((current) => current ? { ...current, contact: toggleSet(current.contact, row.key, event.target.checked) } : current)} />
+                    {canReplace ? <Checkbox checked={selection.overwriteContact?.has(row.key) ?? false} label={`Replace saved value: ${currentValue}`} onChange={(event) => setSelection((current) => current ? { ...current, overwriteContact: toggleSet(current.overwriteContact ?? new Set<ContactKey>(), row.key, event.target.checked) } : current)} /> : null}
+                  </div>
+                );
+              })}
             </div>
           ) : null}
 
@@ -356,6 +403,23 @@ export default function ProfileResumeImportSection({ hasExistingProfileData, onB
         {sourceResume?.mediaType === 'application/pdf'
           ? <PdfViewer downloadName={sourceResume.fileName} file={previewBlob} title={sourceResume.fileName} />
           : <pre className="source-resume-text-preview">{previewText}</pre>}
+      </FormModal>
+
+      <FormModal
+        className="resume-import-choice-dialog"
+        closeLabel="Cancel resume import"
+        description="Choose how the information from this resume should be applied after you review it."
+        isOpen={isImportChoiceOpen}
+        onClose={cancelImportChoice}
+        title="Update Existing Job Profile"
+      >
+        <div className="resume-import-choice-actions">
+          <Button onClick={() => chooseImportMode('merge')} variant="secondary"><ArrowRightLeft aria-hidden="true" size={18} /> Merge and Review</Button>
+          <p className="field-hint">Keep saved information by default. You choose which imported contact values replace saved values and which new items to add.</p>
+          <Button onClick={() => chooseImportMode('replace')} variant="danger"><RefreshCcw aria-hidden="true" size={18} /> Replace Profile</Button>
+          <p className="field-hint">Start over with only the checked information from this resume. Your consent acknowledgment stays in place.</p>
+          <Button onClick={cancelImportChoice} variant="secondary"><FilePlus2 aria-hidden="true" size={18} /> Cancel</Button>
+        </div>
       </FormModal>
     </div>
   );

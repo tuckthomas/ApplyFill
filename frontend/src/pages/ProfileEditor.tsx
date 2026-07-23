@@ -25,8 +25,8 @@ import {
   hasCurrentProfileAutomationConsent,
   PROFILE_AUTOMATION_CONSENT_VERSION
 } from '../features/profile/profileConsent';
-import { replaceProfileWithImportProposal } from '../features/profile/resumeImport';
-import type { ProfileImportProposal, ProfileImportSelection } from '../features/profile/resumeImport';
+import { mergeProfileImportProposal, replaceProfileWithImportProposal } from '../features/profile/resumeImport';
+import type { ProfileImportMode, ProfileImportProposal, ProfileImportSelection } from '../features/profile/resumeImport';
 
 const resolveSetStateAction = <Value,>(
   action: SetStateAction<Value>,
@@ -51,6 +51,7 @@ export default function ProfileEditor() {
     && hasCurrentProfileAutomationConsent(data.automationConsent);
   const hasCurrentConsentRef = useRef(hasCurrentConsent);
   const pendingResumeImportRef = useRef<{
+    mode: ProfileImportMode;
     proposal: ProfileImportProposal;
     selection: ProfileImportSelection;
   } | null>(null);
@@ -186,7 +187,7 @@ export default function ProfileEditor() {
       const nextState = {
         ...profileBuilderState,
         data: pendingImport
-          ? replaceProfileWithImportProposal(
+          ? (pendingImport.mode === 'replace' ? replaceProfileWithImportProposal : mergeProfileImportProposal)(
               profileBuilderState.data,
               pendingImport.proposal,
               pendingImport.selection,
@@ -209,8 +210,9 @@ export default function ProfileEditor() {
   const handleResumeImportSelection = useCallback((
     proposal: ProfileImportProposal | null,
     selection: ProfileImportSelection | null,
+    mode: ProfileImportMode | null,
   ) => {
-    pendingResumeImportRef.current = proposal && selection ? { proposal, selection } : null;
+    pendingResumeImportRef.current = proposal && selection && mode ? { mode, proposal, selection } : null;
   }, []);
 
   const moveToStep = async (step: number) => {
@@ -274,6 +276,7 @@ export default function ProfileEditor() {
       );
       case 1: return (
         <ProfileResumeImportSection
+          existingProfile={data.profile}
           hasExistingProfileData={hasMeaningfulProfileData(data)}
           onBusyChange={setIsResumeImportBusy}
           onSelectionChange={handleResumeImportSelection}

@@ -3,7 +3,7 @@ import { act, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ProfileImportProposal, ProfileImportSelection } from '../features/profile/resumeImport';
+import type { ProfileImportMode, ProfileImportProposal, ProfileImportSelection } from '../features/profile/resumeImport';
 import { createDefaultProfileBuilderState } from '../features/profile/profileBuilder';
 import { PROFILE_AUTOMATION_CONSENT_VERSION } from '../features/profile/profileConsent';
 import ProfileEditor from './ProfileEditor';
@@ -24,6 +24,7 @@ vi.mock('../components/resume/ProfileResumeImportSection', () => ({
     onSelectionChange: (
       proposal: ProfileImportProposal | null,
       selection: ProfileImportSelection | null,
+      mode: ProfileImportMode | null,
     ) => void;
   }) {
     useEffect(() => {
@@ -48,7 +49,7 @@ vi.mock('../components/resume/ProfileResumeImportSection', () => ({
         credentials: new Set(),
         projects: new Set(),
         skills: new Set(),
-      });
+      }, 'replace');
     }, [onSelectionChange]);
 
     return <p>Resume review ready</p>;

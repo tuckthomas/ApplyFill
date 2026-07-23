@@ -1017,6 +1017,35 @@ textarea.form-input {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.profile-import-contact-row {
+  border-bottom: 1px solid color-mix(in srgb, var(--glass-border) 72%, transparent);
+  display: grid;
+  gap: 8px;
+  padding: 0 0 12px;
+}
+
+.profile-import-contact-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.resume-import-choice-dialog {
+  max-width: 560px;
+}
+
+.resume-import-choice-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.resume-import-choice-actions .btn {
+  justify-content: center;
+}
+
+.resume-import-choice-actions .field-hint {
+  margin: -2px 0 8px;
+}
+
 .field-card {
   background: var(--panel-color);
   border: 1px solid var(--glass-border);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { arrangePdfTextItems, createModelSafeResumeImportText, createProfileImportProposal, extractResumeContact, mergeExtractedResumeContacts, mergeProfileImportProposal, parseProfileImportModelOutput, replaceProfileWithImportProposal } from './resumeImport';
 import type { ProfileImportModelOutput } from './resumeImport';
-import { createDefaultProfileBuilderState, createLocalProfileDocument, DEFAULT_PROFILE_BUILDER_DATA, parseProfileDocument } from './profileBuilder';
+import { createDefaultProfileBuilderState, createLocalProfileDocument, DEFAULT_PROFILE_BUILDER_DATA, hasMeaningfulProfileData, parseProfileDocument } from './profileBuilder';
 import { getRichTextPlainText } from '../rich-text/richText';
 
 const modelOutput: ProfileImportModelOutput = {
@@ -13,6 +13,22 @@ const modelOutput: ProfileImportModelOutput = {
 };
 
 describe('local resume import boundary', () => {
+  it('does not treat consent-only state or empty drafts as saved profile data', () => {
+    const state = createDefaultProfileBuilderState({
+      acceptedAtUtc: '2026-07-23T00:00:00.000Z',
+      disclosureVersion: 'local-application-privacy-v5',
+    });
+    state.data.education = [{
+      additionalDetails: '', city: '', country: null, endDate: '', endDatePrecision: 'Estimated', fieldOfStudy: '',
+      gpa: '', gpaScale: '', id: 1, isCurrentlyEnrolled: false, isEditing: true, isRemote: false, isSaved: false,
+      level: null, provider: '', startDate: '', startDatePrecision: 'Estimated', state: null,
+    }];
+
+    expect(hasMeaningfulProfileData(state.data)).toBe(false);
+    state.data.profile.firstName = 'Jordan';
+    expect(hasMeaningfulProfileData(state.data)).toBe(true);
+  });
+
   it('groups consecutive roles at one employer but separates a later return', () => {
     const proposal = createProfileImportProposal({
       ...modelOutput,
@@ -126,6 +142,26 @@ describe('local resume import boundary', () => {
       experience: new Set(duplicateProposal.experience.map((item) => item.id))
     });
     expect(duplicateMerged.experience).toHaveLength(1);
+  });
+
+  it('merges a selected contact field only when the user explicitly chooses replacement', () => {
+    const proposal = createProfileImportProposal(modelOutput, extractResumeContact('Jordan Lee\njordan@example.test'), 100);
+    const current = {
+      ...DEFAULT_PROFILE_BUILDER_DATA,
+      profile: { ...DEFAULT_PROFILE_BUILDER_DATA.profile, firstName: 'Existing' },
+    };
+    const selected = {
+      contact: new Set(['firstName'] as const),
+      overwriteContact: new Set(['firstName'] as const),
+      education: new Set<number>(),
+      credentials: new Set<number>(),
+      experience: new Set<number>(),
+      projects: new Set<number>(),
+      skills: new Set<number>(),
+    };
+
+    expect(mergeProfileImportProposal(current, proposal, selected).profile.firstName).toBe('Jordan');
+    expect(mergeProfileImportProposal(current, proposal, { ...selected, overwriteContact: new Set() }).profile.firstName).toBe('Existing');
   });
 
   it('replaces saved profile data while retaining the automation consent', () => {

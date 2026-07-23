@@ -21,7 +21,7 @@ ApplyFill is a privacy-focused job-application workspace. It keeps a reusable Jo
 - A managed Chromium worker built with Microsoft Playwright.
 - A multi-page Browser Agent surface with live frames, reconnecting updates, activity history, questions, pause/resume, take-control, stop, and final-review controls.
 - Provider-neutral local model/runtime manifests under `private-ai/catalog/` so evaluated vision and OCR models can be replaced without changing product workflows or database schemas.
-- Vision/OCR resume import with overwrite confirmation, retained original-file preview, structured validation, and review before profile replacement.
+- Vision/OCR resume import with Merge, Replace, or Cancel review, retained original-file preview, structured validation, and user-controlled contact-value replacement.
 - A shared PDF viewer with thumbnails, page navigation, zoom, fullscreen, and download across resume import and Resume Builder, plus PDF, DOCX, and JSON exports.
 
 ## Privacy boundary
