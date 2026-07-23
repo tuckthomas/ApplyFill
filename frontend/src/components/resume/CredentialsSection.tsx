@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import Select from '../ui/AppSelect';
 import { selectStyles } from '../../constants/location';
+import FormModal from '../ui/FormModal';
 import RepeatableEmptyState from '../ui/RepeatableEmptyState';
+import RepeatableSectionHeader from '../ui/RepeatableSectionHeader';
+import RichTextEditor from './RichTextEditor';
+import { EMPTY_RICH_TEXT_VALUE } from '../../features/rich-text/richText';
 
 export type CredentialType = 'Certificate' | 'Certification' | 'License' | 'Registration' | 'Permit' | 'Other';
 
@@ -33,7 +37,7 @@ const createCredential = (): CredentialEntry => ({
   issueDate: '',
   expirationDate: '',
   doesNotExpire: false,
-  details: '',
+  details: EMPTY_RICH_TEXT_VALUE,
 });
 
 type CredentialsSectionProps = {
@@ -42,12 +46,16 @@ type CredentialsSectionProps = {
 };
 
 export default function CredentialsSection({ credentials, onChange }: CredentialsSectionProps) {
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [draftId, setDraftId] = useState<number | null>(null);
+  const [validationMessage, setValidationMessage] = useState('');
 
   const addCredential = () => {
     const credential = createCredential();
     onChange((current) => [...current, credential]);
-    setExpandedId(credential.id);
+    setDraftId(credential.id);
+    setEditingId(credential.id);
+    setValidationMessage('');
   };
 
   const updateCredential = <Key extends keyof CredentialEntry>(
@@ -60,103 +68,147 @@ export default function CredentialsSection({ credentials, onChange }: Credential
     )));
   };
 
+  const closeCredential = (id: number) => {
+    if (draftId === id) {
+      onChange((current) => current.filter((credential) => credential.id !== id));
+      setDraftId(null);
+    }
+    setEditingId(null);
+    setValidationMessage('');
+  };
+
+  const saveCredential = (credential: CredentialEntry) => {
+    if (!credential.name.trim()) {
+      setValidationMessage('Credential name is required.');
+      return;
+    }
+    setDraftId(null);
+    setEditingId(null);
+    setValidationMessage('');
+  };
+
   return (
     <div className="page-stack">
-      <div className="toolbar-row">
-        <div>
-          <h3 className="section-title">Certifications &amp; Licenses</h3>
-        </div>
-        <button className="btn btn-primary" onClick={addCredential} type="button">
-          <Plus aria-hidden="true" size={18} /> Add Credential
-        </button>
-      </div>
+      <RepeatableSectionHeader
+        actionLabel="Add Credential"
+        onAdd={addCredential}
+        title="Certifications & Licenses"
+      />
 
       {credentials.length === 0 ? <RepeatableEmptyState title="No Credentials Added" /> : null}
 
       {credentials.map((credential, index) => {
         const prefix = `credential-${credential.id}`;
-        const expanded = expandedId === credential.id;
+        const credentialTitle = credential.name.trim() || `Credential ${index + 1}`;
+        const isEditing = editingId === credential.id;
+
         return (
-          <section className="field-card page-stack" key={credential.id}>
-            <div className="toolbar-row">
-              <div>
-                <h4 className="section-title">{credential.name || `Credential ${index + 1}`}</h4>
-                <p className="field-hint">{[credential.type, credential.issuer].filter(Boolean).join(' · ')}</p>
-              </div>
-              <div className="toolbar-row">
-                <button className="btn btn-secondary" onClick={() => setExpandedId(expanded ? null : credential.id)} type="button">
-                  {expanded ? 'Done' : 'Edit'}
-                </button>
-                <button
-                  aria-label={`Remove ${credential.name || `credential ${index + 1}`}`}
-                  className="icon-button icon-button-danger"
-                  onClick={() => onChange((current) => current.filter((item) => item.id !== credential.id))}
-                  type="button"
-                >
-                  <Trash2 aria-hidden="true" size={18} />
-                </button>
+          <section className="field-card job-transition-card" key={credential.id} aria-labelledby={`${prefix}-summary-title`}>
+            <div className="job-summary">
+              <div className="job-summary-header">
+                <div className="job-summary-identity">
+                  <h4 className="job-summary-title" id={`${prefix}-summary-title`}>{credentialTitle}</h4>
+                  <p className="job-summary-company">{[credential.type, credential.issuer].filter(Boolean).join(' · ')}</p>
+                </div>
+                <div className="job-summary-actions">
+                  <button className="icon-button" onClick={() => setEditingId(credential.id)} type="button" aria-label={`Edit ${credentialTitle}`} data-tooltip={`Edit ${credentialTitle}`}>
+                    <Pencil aria-hidden="true" size={18} />
+                  </button>
+                  <button
+                    aria-label={`Remove ${credentialTitle}`}
+                    className="icon-button icon-button-danger"
+                    onClick={() => onChange((current) => current.filter((item) => item.id !== credential.id))}
+                    type="button"
+                  >
+                    <Trash2 aria-hidden="true" size={18} />
+                  </button>
+                </div>
               </div>
             </div>
 
-            {expanded ? (
-              <div className="page-stack">
-                <div className="form-grid-2">
+            {isEditing ? (
+              <FormModal
+                className="credential-modal-dialog"
+                closeLabel={`Close ${draftId === credential.id ? 'add' : 'edit'} credential`}
+                description="Add the credential details once so they can be reused in applications and resumes."
+                dirtyKey={JSON.stringify(credential)}
+                initialFocusId={`${prefix}-type`}
+                isOpen
+                onClose={() => closeCredential(credential.id)}
+                title={draftId === credential.id ? 'Add Credential' : `Edit ${credentialTitle}`}
+              >
+                <form className="page-stack credential-modal-form" onSubmit={(event) => {
+                  event.preventDefault();
+                  saveCredential(credential);
+                }}>
+                  <div className="form-grid-2">
+                    <div className="form-group">
+                      <label className="form-label" htmlFor={`${prefix}-type`}>Credential Type</label>
+                      <Select
+                        inputId={`${prefix}-type`}
+                        options={typeOptions}
+                        styles={selectStyles}
+                        value={typeOptions.find((option) => option.value === credential.type)}
+                        onChange={(option) => updateCredential(credential.id, 'type', (option as { value: CredentialType }).value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor={`${prefix}-name`}>Credential Name</label>
+                      <input className="form-input" id={`${prefix}-name`} onChange={(event) => updateCredential(credential.id, 'name', event.target.value)} value={credential.name} />
+                    </div>
+                  </div>
+                  <div className="form-grid-2">
+                    <div className="form-group">
+                      <label className="form-label" htmlFor={`${prefix}-issuer`}>Issuing Organization</label>
+                      <input className="form-input" id={`${prefix}-issuer`} onChange={(event) => updateCredential(credential.id, 'issuer', event.target.value)} value={credential.issuer} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor={`${prefix}-id`}>Credential ID</label>
+                      <input className="form-input" id={`${prefix}-id`} onChange={(event) => updateCredential(credential.id, 'credentialId', event.target.value)} value={credential.credentialId} />
+                    </div>
+                  </div>
                   <div className="form-group">
-                    <label className="form-label" htmlFor={`${prefix}-type`}>Credential Type</label>
-                    <Select
-                      inputId={`${prefix}-type`}
-                      options={typeOptions}
-                      styles={selectStyles}
-                      value={typeOptions.find((option) => option.value === credential.type)}
-                      onChange={(option) => updateCredential(credential.id, 'type', (option as { value: CredentialType }).value)}
+                    <label className="form-label" htmlFor={`${prefix}-url`}>Credential URL</label>
+                    <input className="form-input" id={`${prefix}-url`} onChange={(event) => updateCredential(credential.id, 'credentialUrl', event.target.value)} type="url" value={credential.credentialUrl} />
+                  </div>
+                  <div className="form-grid-2">
+                    <div className="form-group">
+                      <label className="form-label" htmlFor={`${prefix}-issued`}>Issue Date</label>
+                      <input className="form-input" id={`${prefix}-issued`} onChange={(event) => updateCredential(credential.id, 'issueDate', event.target.value)} type="month" value={credential.issueDate} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor={`${prefix}-expires`}>Expiration Date</label>
+                      <input className="form-input" disabled={credential.doesNotExpire} id={`${prefix}-expires`} onChange={(event) => updateCredential(credential.id, 'expirationDate', event.target.value)} type="month" value={credential.expirationDate} />
+                    </div>
+                  </div>
+                  <label className="checkbox-row" htmlFor={`${prefix}-no-expiration`}>
+                    <input
+                      checked={credential.doesNotExpire}
+                      id={`${prefix}-no-expiration`}
+                      onChange={(event) => {
+                        updateCredential(credential.id, 'doesNotExpire', event.target.checked);
+                        if (event.target.checked) updateCredential(credential.id, 'expirationDate', '');
+                      }}
+                      type="checkbox"
                     />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor={`${prefix}-name`}>Credential Name</label>
-                    <input className="form-input" id={`${prefix}-name`} onChange={(event) => updateCredential(credential.id, 'name', event.target.value)} value={credential.name} />
-                  </div>
-                </div>
-                <div className="form-grid-2">
-                  <div className="form-group">
-                    <label className="form-label" htmlFor={`${prefix}-issuer`}>Issuing Organization</label>
-                    <input className="form-input" id={`${prefix}-issuer`} onChange={(event) => updateCredential(credential.id, 'issuer', event.target.value)} value={credential.issuer} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor={`${prefix}-id`}>Credential ID</label>
-                    <input className="form-input" id={`${prefix}-id`} onChange={(event) => updateCredential(credential.id, 'credentialId', event.target.value)} value={credential.credentialId} />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor={`${prefix}-url`}>Credential URL</label>
-                  <input className="form-input" id={`${prefix}-url`} onChange={(event) => updateCredential(credential.id, 'credentialUrl', event.target.value)} type="url" value={credential.credentialUrl} />
-                </div>
-                <div className="form-grid-2">
-                  <div className="form-group">
-                    <label className="form-label" htmlFor={`${prefix}-issued`}>Issue Date</label>
-                    <input className="form-input" id={`${prefix}-issued`} onChange={(event) => updateCredential(credential.id, 'issueDate', event.target.value)} type="month" value={credential.issueDate} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor={`${prefix}-expires`}>Expiration Date</label>
-                    <input className="form-input" disabled={credential.doesNotExpire} id={`${prefix}-expires`} onChange={(event) => updateCredential(credential.id, 'expirationDate', event.target.value)} type="month" value={credential.expirationDate} />
-                  </div>
-                </div>
-                <label className="checkbox-row" htmlFor={`${prefix}-no-expiration`}>
-                  <input
-                    checked={credential.doesNotExpire}
-                    id={`${prefix}-no-expiration`}
-                    onChange={(event) => {
-                      updateCredential(credential.id, 'doesNotExpire', event.target.checked);
-                      if (event.target.checked) updateCredential(credential.id, 'expirationDate', '');
-                    }}
-                    type="checkbox"
+                    <span>This credential does not expire</span>
+                  </label>
+                  <RichTextEditor
+                    editorClassName="rich-text-editor-credential"
+                    label="Details"
+                    labelId={`${prefix}-details-label`}
+                    onChange={(value) => updateCredential(credential.id, 'details', value)}
+                    placeholder="Add credential details"
+                    toolbarId={`${prefix}-details-toolbar`}
+                    value={credential.details}
                   />
-                  <span>This credential does not expire</span>
-                </label>
-                <div className="form-group">
-                  <label className="form-label" htmlFor={`${prefix}-details`}>Details</label>
-                  <textarea className="form-textarea" id={`${prefix}-details`} onChange={(event) => updateCredential(credential.id, 'details', event.target.value)} rows={4} value={credential.details} />
-                </div>
-              </div>
+                  {validationMessage ? <p className="form-error-message" role="alert">{validationMessage}</p> : null}
+                  <div className="modal-form-actions">
+                    <button className="btn btn-secondary" data-modal-close onClick={() => closeCredential(credential.id)} type="button">Cancel</button>
+                    <button className="btn btn-primary" type="submit">Save Credential</button>
+                  </div>
+                </form>
+              </FormModal>
             ) : null}
           </section>
         );

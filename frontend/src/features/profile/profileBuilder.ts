@@ -17,7 +17,7 @@ import type { ProfileAutomationConsent } from './profileConsent';
 import { apiRequest, ApiClientError } from '../api/localApiClient';
 import { notifyDataChanged } from '../api/dataEvents';
 import { isStoredPhoneNumber } from './phoneNumber';
-import { getRichTextPlainText } from '../rich-text/richText';
+import { createRichTextFromPlainText, getRichTextPlainText } from '../rich-text/richText';
 export const PROFILE_BUILDER_SCHEMA_VERSION = 2;
 export const PROFILE_DOCUMENT_FORMAT = 'applyfill.profile';
 
@@ -276,9 +276,24 @@ const migrateProfileDocument = (value: unknown): unknown => {
     : data.experience;
   const certificateEntries = education.filter((entry) => isRecord(entry) && isRecord(entry.level)
     && (entry.level.value === 'Certificate' || entry.level.label === 'Certificate'));
-  const credentials = Array.isArray(data.credentials) ? data.credentials : [];
+  const storedCredentials = Array.isArray(data.credentials) ? data.credentials : [];
+  const credentialsNeedMigration = storedCredentials.some((entry) => (
+    isRecord(entry)
+    && typeof entry.details === 'string'
+    && entry.details.trim().length > 0
+    && getRichTextPlainText(entry.details).length === 0
+  ));
+  const credentials = credentialsNeedMigration
+    ? storedCredentials.map((entry) => isRecord(entry)
+      && typeof entry.details === 'string'
+      && entry.details.trim().length > 0
+      && getRichTextPlainText(entry.details).length === 0
+      ? { ...entry, details: createRichTextFromPlainText(entry.details) }
+      : entry)
+    : storedCredentials;
   const migratedExperience = experienceNeedsMigration;
-  if (certificateEntries.length === 0 && Array.isArray(data.credentials) && !migratedExperience) return value;
+  if (certificateEntries.length === 0 && Array.isArray(data.credentials)
+    && !migratedExperience && !credentialsNeedMigration) return value;
   const existingIds = new Set(credentials.filter(isRecord).map((entry) => entry.id));
   return {
     ...value,
@@ -299,7 +314,9 @@ const migrateProfileDocument = (value: unknown): unknown => {
           issueDate: toCredentialMonth(entry.endDate || entry.startDate),
           expirationDate: '',
           doesNotExpire: false,
-          details: getRichTextPlainText(entry.additionalDetails),
+          details: typeof entry.additionalDetails === 'string'
+            ? entry.additionalDetails
+            : createRichTextFromPlainText(getRichTextPlainText(entry.additionalDetails)),
         })),
       ],
       education: education.filter((entry) => !certificateEntries.includes(entry)),

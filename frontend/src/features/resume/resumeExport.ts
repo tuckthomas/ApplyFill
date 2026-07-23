@@ -136,7 +136,7 @@ export const createResumeSafeViewModel = (
       credentialId: entry.credentialId.trim(),
       credentialUrl: safeHttpUrl(entry.credentialUrl.trim()),
       dateRange: formatDateRange(entry.issueDate, entry.expirationDate, entry.doesNotExpire),
-      details: entry.details.split(/\n+/).map((line) => line.trim()).filter(Boolean),
+      details: toDetailLines(entry.details),
       issuer: entry.issuer.trim(),
       name: entry.name.trim(),
       type: entry.type,

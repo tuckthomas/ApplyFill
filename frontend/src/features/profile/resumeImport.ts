@@ -529,7 +529,7 @@ export const createProfileImportProposal = (
     issueDate: item.issueDate,
     expirationDate: item.expirationDate,
     doesNotExpire: item.doesNotExpire,
-    details: item.details.join('\n'),
+    details: createRichTextFromPlainText(item.details.join('\n')),
   })),
   experience: output.experience.filter((item) => item.company.trim() || item.jobTitle.trim()).map((item, index, items) => {
     const isCurrent = item.current && !item.endDate;

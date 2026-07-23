@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { arrangePdfTextItems, createModelSafeResumeImportText, createProfileImportProposal, extractResumeContact, mergeExtractedResumeContacts, mergeProfileImportProposal, parseProfileImportModelOutput } from './resumeImport';
 import type { ProfileImportModelOutput } from './resumeImport';
 import { createDefaultProfileBuilderState, createLocalProfileDocument, DEFAULT_PROFILE_BUILDER_DATA, parseProfileDocument } from './profileBuilder';
+import { getRichTextPlainText } from '../rich-text/richText';
 
 const modelOutput: ProfileImportModelOutput = {
   credentials: [{ credentialId: 'CERT-123', credentialUrl: '', details: ['Commercial lending'], doesNotExpire: true, expirationDate: '', issueDate: '2023-06', issuer: 'Example Institute', name: 'Credit Certificate', type: 'Certificate' }],
@@ -90,6 +91,7 @@ describe('local resume import boundary', () => {
       issuer: 'Example Institute',
       name: 'Credit Certificate',
     });
+    expect(getRichTextPlainText(proposal.credentials[0].details)).toBe('Commercial lending');
     expect(proposal.education).toHaveLength(1);
     expect(proposal.experience[0].companyPhone).toBe('');
     expect(proposal.experience[0].reasonForLeaving).not.toContain('Example');
@@ -144,6 +146,20 @@ describe('local resume import boundary', () => {
       name: 'Commercial Lending Specialty',
       type: 'Certificate',
     })]);
+  });
+
+  it('migrates legacy plain-text credential details to rich text', () => {
+    const state = createDefaultProfileBuilderState();
+    state.data.credentials = [{
+      ...createProfileImportProposal(modelOutput, extractResumeContact('Jordan Lee'), 100).credentials[0],
+      details: 'Commercial lending\nPortfolio analysis',
+    }];
+
+    const document = parseProfileDocument(JSON.stringify(createLocalProfileDocument(state)));
+
+    expect(getRichTextPlainText(document.data.credentials[0].details)).toBe(
+      'Commercial lending\nPortfolio analysis',
+    );
   });
 
   it('rejects unknown model fields and malformed dates', () => {
