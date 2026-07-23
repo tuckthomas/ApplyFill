@@ -83,6 +83,7 @@ export default function PdfViewer({ className = '', downloadName = 'document.pdf
   const viewportRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const objectUrlRef = useRef<string | null>(null);
+  const fitAnimationFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     let current = true;
@@ -113,17 +114,27 @@ export default function PdfViewer({ className = '', downloadName = 'document.pdf
   useEffect(() => {
     if (!fitWidth || !viewportRef.current) return;
     const update = () => {
-      const available = viewportRef.current?.clientWidth ?? pageWidth;
-      setScale(Math.max(0.25, Math.min(3, (available - 48) / pageWidth)));
+      if (fitAnimationFrameRef.current !== null) cancelAnimationFrame(fitAnimationFrameRef.current);
+      fitAnimationFrameRef.current = requestAnimationFrame(() => {
+        const available = viewportRef.current?.clientWidth ?? pageWidth;
+        const nextScale = Math.max(0.25, Math.min(3, (available - 48) / pageWidth));
+        setScale((current) => Math.abs(current - nextScale) < 0.01 ? current : nextScale);
+        fitAnimationFrameRef.current = null;
+      });
     };
     const observer = new ResizeObserver(update);
     observer.observe(viewportRef.current);
     update();
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (fitAnimationFrameRef.current !== null) cancelAnimationFrame(fitAnimationFrameRef.current);
+      fitAnimationFrameRef.current = null;
+    };
   }, [fitWidth, pageWidth, showThumbnails]);
 
   const onRendered = useCallback((page: PDFPageProxy) => {
-    setPageWidth(page.getViewport({ scale: 1 }).width);
+    const width = page.getViewport({ scale: 1 }).width;
+    setPageWidth((current) => Math.abs(current - width) < 0.01 ? current : width);
   }, []);
 
   const changeScale = (next: number) => {
