@@ -90,6 +90,22 @@ export default function ResumePdfDocument({ model }: { model: ResumeSafeViewMode
           </View>
         ) : null}
 
+        {model.credentials.length ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Certifications &amp; Licenses</Text>
+            {model.credentials.map((item, index) => (
+              <View key={`${item.name}-${index}`} style={styles.item} wrap={false}>
+                <View style={styles.itemHeader}>
+                  <Text style={styles.itemTitle}>{item.name}</Text>
+                  <Text style={styles.itemDate}>{item.dateRange}</Text>
+                </View>
+                <Text style={styles.itemMeta}>{[item.type, item.issuer, item.credentialId].filter(Boolean).join(' · ')}</Text>
+                <Details lines={item.details} />
+              </View>
+            ))}
+          </View>
+        ) : null}
+
         {model.projects.length ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Projects</Text>

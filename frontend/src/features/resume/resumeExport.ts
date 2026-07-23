@@ -21,6 +21,16 @@ export type ResumeSafeEducation = {
   provider: string;
 };
 
+export type ResumeSafeCredential = {
+  credentialId: string;
+  credentialUrl: string;
+  dateRange: string;
+  details: string[];
+  issuer: string;
+  name: string;
+  type: string;
+};
+
 export type ResumeSafeProject = {
   dateRange: string;
   details: string[];
@@ -40,6 +50,7 @@ export type ResumeSafeViewModel = {
     phone: string;
   };
   education: ResumeSafeEducation[];
+  credentials: ResumeSafeCredential[];
   experience: ResumeSafeExperience[];
   projects: ResumeSafeProject[];
   skills: string[];
@@ -51,7 +62,7 @@ const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep
 
 const formatResumeDate = (value: string) => {
   if (!value.trim()) return '';
-  const match = /^(?:(\d{4})-(\d{2})-\d{2}|(\d{2})\/\d{2}\/(\d{4}))$/.exec(value.trim());
+  const match = /^(?:(\d{4})-(\d{2})(?:-\d{2})?|(\d{2})\/\d{2}\/(\d{4}))$/.exec(value.trim());
   if (!match) return value.trim();
   const year = match[1] ?? match[4];
   const month = Number(match[2] ?? match[3]);
@@ -85,6 +96,8 @@ export const createResumeSafeViewModel = (
   resume: LocalResumeDraft
 ): ResumeSafeViewModel => {
   const { profile, education, experience, projects, skills } = profileDocument.data;
+  const credentials = profileDocument.data.credentials ?? [];
+  const selectedCredentials = new Set(resume.selections.credentialIds);
   const selectedEducation = new Set(resume.selections.educationIds);
   const selectedExperience = new Set(resume.selections.experienceIds);
   const selectedProjects = new Set(resume.selections.projectIds);
@@ -108,6 +121,15 @@ export const createResumeSafeViewModel = (
       gpa: entry.gpa && entry.gpaScale ? `${entry.gpa}/${entry.gpaScale}` : '',
       location: entry.isRemote ? 'Remote' : formatLocation(entry.city, entry.state?.label, entry.country?.label),
       provider: entry.provider.trim()
+    })),
+    credentials: credentials.filter((entry) => selectedCredentials.has(entry.id)).map((entry) => ({
+      credentialId: entry.credentialId.trim(),
+      credentialUrl: safeHttpUrl(entry.credentialUrl.trim()),
+      dateRange: formatDateRange(entry.issueDate, entry.expirationDate, entry.doesNotExpire),
+      details: entry.details.split(/\n+/).map((line) => line.trim()).filter(Boolean),
+      issuer: entry.issuer.trim(),
+      name: entry.name.trim(),
+      type: entry.type,
     })),
     experience: experience.filter((entry) => selectedExperience.has(entry.id) && entry.isSaved).map((entry) => ({
       company: entry.company.trim(),

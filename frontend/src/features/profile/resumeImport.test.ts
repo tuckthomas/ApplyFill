@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { arrangePdfTextItems, createModelSafeResumeImportText, createProfileImportProposal, extractResumeContact, mergeExtractedResumeContacts, mergeProfileImportProposal, parseProfileImportModelOutput } from './resumeImport';
 import type { ProfileImportModelOutput } from './resumeImport';
-import { DEFAULT_PROFILE_BUILDER_DATA } from './profileBuilder';
+import { createDefaultProfileBuilderState, createLocalProfileDocument, DEFAULT_PROFILE_BUILDER_DATA, parseProfileDocument } from './profileBuilder';
 
 const modelOutput: ProfileImportModelOutput = {
+  credentials: [{ credentialId: 'CERT-123', credentialUrl: '', details: ['Commercial lending'], doesNotExpire: true, expirationDate: '', issueDate: '2023-06', issuer: 'Example Institute', name: 'Credit Certificate', type: 'Certificate' }],
   education: [{ current: true, details: ['Dean’s list'], endDate: '2020-05', fieldOfStudy: 'Computer Science', gpa: '3.8', gpaScale: '4', level: 'Bachelor of Science', provider: 'Example University', startDate: '2016-08' }],
   experience: [{ company: 'Example Corp', current: true, endDate: '', highlights: ['Built reliable systems'], jobTitle: 'Engineer', startDate: '2020-06' }],
   projects: [{ current: false, details: ['Created a local-first app'], endDate: '2024-04', name: 'ApplyFill', organization: '', projectType: 'Personal', role: 'Developer', startDate: '2024-01' }],
@@ -32,6 +33,12 @@ describe('local resume import boundary', () => {
     expect(contact.lastName).toBe('');
   });
 
+  it('accepts a punctuated middle initial in a resume name', () => {
+    const contact = extractResumeContact('TUCKER       T. OLSON\nCONTACT\nperson@example.test');
+
+    expect(contact).toMatchObject({ firstName: 'TUCKER', middleName: 'T.', lastName: 'OLSON' });
+  });
+
   it('adds contact values detected after OCR without replacing stronger embedded-text values', () => {
     const embedded = extractResumeContact('Jordan Lee\njordan@example.test\nhttps://github.com/jordan', 10);
     const ocr = extractResumeContact('Jordan L. Lee\n+1 (317) 555-0123\nhttps://linkedin.com/in/jordan', 20);
@@ -51,6 +58,12 @@ describe('local resume import boundary', () => {
     expect(proposal.experience[0]).toMatchObject({ company: 'Example Corp', startDate: '06/2020', isSaved: true });
     expect(proposal.education[0]).toMatchObject({ gpa: '3.80', gpaScale: '4.00' });
     expect(proposal.education[0]).toMatchObject({ endDate: '05/2020', isCurrentlyEnrolled: false });
+    expect(proposal.credentials[0]).toMatchObject({
+      credentialId: 'CERT-123',
+      issuer: 'Example Institute',
+      name: 'Credit Certificate',
+    });
+    expect(proposal.education).toHaveLength(1);
     expect(proposal.experience[0].companyPhone).toBe('');
     expect(proposal.experience[0].reasonForLeaving).not.toContain('Example');
   });
@@ -66,6 +79,7 @@ describe('local resume import boundary', () => {
       contact: new Set(['firstName', 'lastName', 'email']),
       education: new Set(proposal.education.map((item) => item.id)),
       experience: new Set(proposal.experience.map((item) => item.id)),
+      credentials: new Set(proposal.credentials.map((item) => item.id)),
       projects: new Set(proposal.projects.map((item) => item.id)),
       skills: new Set(proposal.skills.map((item) => item.id))
     });
@@ -79,10 +93,30 @@ describe('local resume import boundary', () => {
       experience: [...proposal.experience, { ...proposal.experience[0], id: 9_999 }]
     };
     const duplicateMerged = mergeProfileImportProposal(DEFAULT_PROFILE_BUILDER_DATA, duplicateProposal, {
-      contact: new Set(), education: new Set(), projects: new Set(), skills: new Set(),
+      contact: new Set(), education: new Set(), credentials: new Set(), projects: new Set(), skills: new Set(),
       experience: new Set(duplicateProposal.experience.map((item) => item.id))
     });
     expect(duplicateMerged.experience).toHaveLength(1);
+  });
+
+  it('moves previously saved certificate education entries into credentials', () => {
+    const proposal = createProfileImportProposal(modelOutput, extractResumeContact('Jordan Lee'), 100);
+    const state = createDefaultProfileBuilderState();
+    state.data.education = [{
+      ...proposal.education[0],
+      fieldOfStudy: 'Commercial Lending Specialty',
+      level: { label: 'Certificate', value: 'Certificate' },
+      provider: 'Lake City University',
+    }];
+
+    const document = parseProfileDocument(JSON.stringify(createLocalProfileDocument(state)));
+
+    expect(document.data.education).toHaveLength(0);
+    expect(document.data.credentials).toEqual([expect.objectContaining({
+      issuer: 'Lake City University',
+      name: 'Commercial Lending Specialty',
+      type: 'Certificate',
+    })]);
   });
 
   it('rejects unknown model fields and malformed dates', () => {

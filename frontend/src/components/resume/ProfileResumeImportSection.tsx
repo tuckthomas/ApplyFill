@@ -42,6 +42,7 @@ const createSelection = (proposal: ProfileImportProposal): ProfileImportSelectio
     contact,
     education: new Set(proposal.education.map((item) => item.id)),
     experience: new Set(proposal.experience.map((item) => item.id)),
+    credentials: new Set(proposal.credentials.map((item) => item.id)),
     projects: new Set(proposal.projects.map((item) => item.id)),
     skills: new Set(proposal.skills.map((item) => item.id))
   };
@@ -62,8 +63,9 @@ const progressCeilings: Record<string, number> = {
   reading: 39.9,
   organizing: 47.9,
   education: 59.9,
-  experience: 73.9,
-  projects: 85.9,
+  experience: 71.9,
+  credentials: 81.9,
+  projects: 89.9,
   skills: 95.9,
   finishing: 99.9,
   complete: 100,
@@ -139,7 +141,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
       setProposal(nextProposal);
       setSelection(createSelection(nextProposal));
       reportProgress({ elapsedSeconds: 0, message: 'Ready for review.', progress: 100, stage: 'complete' });
-      const count = nextProposal.education.length + nextProposal.experience.length + nextProposal.projects.length + nextProposal.skills.length;
+      const count = nextProposal.education.length + nextProposal.experience.length + nextProposal.credentials.length + nextProposal.projects.length + nextProposal.skills.length;
       setStatus(`${count} professional item${count === 1 ? '' : 's'} plus detected contact fields are ready for review. Nothing has been saved yet.`);
     } catch (error) {
       setProgress(null);
@@ -194,7 +196,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
     }
   };
 
-  const selectedCount = selection ? selection.contact.size + selection.education.size + selection.experience.size + selection.projects.size + selection.skills.size : 0;
+  const selectedCount = selection ? selection.contact.size + selection.education.size + selection.experience.size + selection.credentials.size + selection.projects.size + selection.skills.size : 0;
   const displayedElapsedSeconds = Math.max(0, (displayClock - startedAtRef.current) / 1000);
   const reportedProgress = progress?.progress ?? 0;
   const progressCeiling = progress ? (progressCeilings[progress.stage] ?? reportedProgress) : reportedProgress;
@@ -287,6 +289,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
 
           {proposal.experience.length ? <div className="profile-import-group"><h5>Work experience</h5>{proposal.experience.map((item) => <Checkbox checked={selection.experience.has(item.id)} key={item.id} label={`${item.jobTitle || 'Role not identified'} — ${item.company || 'Company not identified'}${item.startDate ? ` (${item.startDate}–${item.isCurrentJob ? 'Present' : item.endDate || 'unknown'})` : ''}`} onChange={(event) => setSelection((current) => current ? { ...current, experience: toggleSet(current.experience, item.id, event.target.checked) } : current)} />)}</div> : null}
           {proposal.education.length ? <div className="profile-import-group"><h5>Education</h5>{proposal.education.map((item) => <Checkbox checked={selection.education.has(item.id)} key={item.id} label={`${item.level?.label ?? 'Education'} — ${item.provider}${item.fieldOfStudy ? `, ${item.fieldOfStudy}` : ''}`} onChange={(event) => setSelection((current) => current ? { ...current, education: toggleSet(current.education, item.id, event.target.checked) } : current)} />)}</div> : null}
+          {proposal.credentials.length ? <div className="profile-import-group"><h5>Certifications &amp; Licenses</h5>{proposal.credentials.map((item) => <Checkbox checked={selection.credentials.has(item.id)} key={item.id} label={`${item.name} — ${item.issuer || item.type}`} onChange={(event) => setSelection((current) => current ? { ...current, credentials: toggleSet(current.credentials, item.id, event.target.checked) } : current)} />)}</div> : null}
           {proposal.projects.length ? <div className="profile-import-group"><h5>Projects</h5>{proposal.projects.map((item) => <Checkbox checked={selection.projects.has(item.id)} key={item.id} label={`${item.name}${item.role ? ` — ${item.role}` : ''}`} onChange={(event) => setSelection((current) => current ? { ...current, projects: toggleSet(current.projects, item.id, event.target.checked) } : current)} />)}</div> : null}
           {proposal.skills.length ? <div className="profile-import-group"><h5>Skills</h5><div className="profile-import-skill-grid">{proposal.skills.map((item) => <Checkbox checked={selection.skills.has(item.id)} key={item.id} label={item.name} onChange={(event) => setSelection((current) => current ? { ...current, skills: toggleSet(current.skills, item.id, event.target.checked) } : current)} />)}</div></div> : null}
         </section>

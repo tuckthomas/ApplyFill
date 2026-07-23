@@ -62,7 +62,6 @@ const EDUCATION_LEVEL_OPTIONS: SelectOption[] = [
   { value: 'Master of Science', label: 'Master of Science' },
   { value: 'MBA', label: 'MBA' },
   { value: 'Doctorate', label: 'Doctorate' },
-  { value: 'Certificate', label: 'Certificate' },
   { value: 'Vocational training', label: 'Vocational training' },
   { value: 'Online course', label: 'Online course' },
   { value: 'Other', label: 'Other' }

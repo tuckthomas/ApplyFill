@@ -4,7 +4,7 @@ import type { AiSafeResumeSnapshot } from './aiSafeProjection';
 import { applyResumeAiPatches, prepareResumeForAiPatches, validateResumeAiPatch } from './resumePatches';
 
 const snapshot: AiSafeResumeSnapshot = {
-  education: [], format: 'applyfill.ai-safe-resume-snapshot', projects: [], schemaVersion: 1,
+  credentials: [], education: [], format: 'applyfill.ai-safe-resume-snapshot', projects: [], schemaVersion: 1,
   sourceRevision: 'rev-1', skills: [], summary: 'Engineer',
   experience: [{ accomplishments: ['Reduced deployment time by 20%'], opaqueId: 'experience:1', organization: 'Example', role: 'Engineer' }]
 };

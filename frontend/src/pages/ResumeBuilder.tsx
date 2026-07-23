@@ -24,7 +24,7 @@ import { createResumeSafeViewModel } from '../features/resume/resumeExport';
 
 const EMPTY_MODEL = {
   contact: { email: '', links: [], location: '', name: '', phone: '' },
-  education: [], experience: [], projects: [], skills: [], summary: '', title: ''
+  credentials: [], education: [], experience: [], projects: [], skills: [], summary: '', title: ''
 };
 
 export default function ResumeBuilder() {
@@ -207,6 +207,7 @@ export default function ResumeBuilder() {
 
   const savedExperience = profile.data.experience.filter((entry) => entry.isSaved);
   const savedEducation = profile.data.education.filter((entry) => entry.isSaved);
+  const savedCredentials = profile.data.credentials;
   const savedProjects = profile.data.projects.filter((entry) => entry.isSaved);
 
   return (
@@ -276,6 +277,12 @@ export default function ResumeBuilder() {
               {savedExperience.length ? savedExperience.map((entry) => (
                 <Checkbox key={entry.id} checked={resume.selections.experienceIds.includes(entry.id)} onChange={(event) => toggleSelection('experienceIds', entry.id, event.target.checked)} label={<span><strong>{entry.jobTitle || 'Untitled role'}</strong><small>{entry.company}</small></span>} />
               )) : <p className="field-hint">No saved experience entries.</p>}
+            </fieldset>
+            <fieldset className="resume-selection-group">
+              <legend>Certifications &amp; Licenses</legend>
+              {savedCredentials.length ? savedCredentials.map((entry) => (
+                <Checkbox key={entry.id} checked={resume.selections.credentialIds.includes(entry.id)} onChange={(event) => toggleSelection('credentialIds', entry.id, event.target.checked)} label={<span><strong>{entry.name || entry.type}</strong><small>{entry.issuer}</small></span>} />
+              )) : <p className="field-hint">No credentials added.</p>}
             </fieldset>
             <fieldset className="resume-selection-group">
               <legend>Projects</legend>

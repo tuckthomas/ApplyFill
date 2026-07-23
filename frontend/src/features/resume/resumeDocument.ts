@@ -9,6 +9,7 @@ export const RESUME_SCHEMA_VERSION = 2;
 export type ResumeTemplateId = 'classic';
 
 export type ResumeSelections = {
+  credentialIds: number[];
   educationIds: number[];
   experienceIds: number[];
   projectIds: number[];
@@ -84,10 +85,16 @@ export const isLocalResumeDraft = (value: unknown): value is LocalResumeDraft =>
     && value.template === 'classic'
     && isDetailsRecord(value.contentOverrides.experienceDetails)
     && isDetailsRecord(value.contentOverrides.projectDetails)
+    && isNumberArray(value.selections.credentialIds)
     && isNumberArray(value.selections.educationIds)
     && isNumberArray(value.selections.experienceIds)
     && isNumberArray(value.selections.projectIds)
     && isNumberArray(value.selections.skillIds);
+};
+
+const addMissingCredentialSelections = (value: unknown): unknown => {
+  if (!isRecord(value) || !isRecord(value.selections) || 'credentialIds' in value.selections) return value;
+  return { ...value, selections: { ...value.selections, credentialIds: [] } };
 };
 
 export const isLocalResumeCollection = (value: unknown): value is LocalResumeCollection => (
@@ -120,6 +127,7 @@ export const createResumeDraft = (
   selections: {
     educationIds: profile.data.education.filter((entry) => entry.isSaved).map((entry) => entry.id),
     experienceIds: profile.data.experience.filter((entry) => entry.isSaved).map((entry) => entry.id),
+    credentialIds: (profile.data.credentials ?? []).map((entry) => entry.id),
     projectIds: profile.data.projects.filter((entry) => entry.isSaved).map((entry) => entry.id),
     skillIds: profile.data.skills.map((entry) => entry.id)
   },
@@ -135,9 +143,10 @@ export const createResumeDraft = (
 export const loadResumeCollection = async (): Promise<LocalResumeCollection> => {
   const response = await apiRequest<ResumeResponse[]>('/api/v1/resumes?skip=0&take=100');
   const resumes = response.value.map((item) => {
-    if (!isLocalResumeDraft(item.content)) throw new Error('A saved resume has an unsupported format.');
+    const content = addMissingCredentialSelections(item.content);
+    if (!isLocalResumeDraft(content)) throw new Error('A saved resume has an unsupported format.');
     const resume = {
-      ...item.content,
+      ...content,
       createdAtUtc: item.createdAt,
       id: item.id,
       title: item.name,
@@ -202,10 +211,10 @@ export const parsePortableResumeDocument = (json: string): PortableResumeDocumen
   if (!isRecord(value)
     || value.format !== RESUME_DOCUMENT_FORMAT
     || value.schemaVersion !== RESUME_SCHEMA_VERSION
-    || !isLocalResumeDraft(value.resume)) {
+    || !isLocalResumeDraft(addMissingCredentialSelections(value.resume))) {
     throw new Error(`This is not an ApplyFill resume schema version ${RESUME_SCHEMA_VERSION} document.`);
   }
-  return value as PortableResumeDocument;
+  return { ...value, resume: addMissingCredentialSelections(value.resume) } as PortableResumeDocument;
 };
 
 export const cloneImportedResume = (

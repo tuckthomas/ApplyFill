@@ -34,7 +34,7 @@ describe('resume-safe export boundary', () => {
     contentOverrides: { experienceDetails: {}, projectDetails: {} },
       createdAtUtc: '2026-07-18T12:00:00.000Z',
       id: 'resume-1',
-      selections: { educationIds: [], experienceIds: [10], projectIds: [], skillIds: [30] },
+      selections: { credentialIds: [], educationIds: [], experienceIds: [10], projectIds: [], skillIds: [30] },
       sourceProfileUpdatedAtUtc: '2026-07-18T12:00:00.000Z',
       summary: 'Product-minded engineer',
       targetJobUrl: '',

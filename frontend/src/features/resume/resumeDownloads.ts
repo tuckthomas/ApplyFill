@@ -68,6 +68,17 @@ export const createResumeDocxBlob = async (model: ResumeSafeViewModel): Promise<
       ...detailParagraphs(item.details)
     ));
   }
+  if (model.credentials.length) {
+    children.push(sectionHeading('Certifications & Licenses'));
+    model.credentials.forEach((item) => children.push(
+      new Paragraph({
+        children: [new TextRun({ bold: true, text: item.name }), new TextRun({ text: item.dateRange ? `\t${item.dateRange}` : '' })],
+        spacing: { before: 100, after: 30 }
+      }),
+      new Paragraph([item.type, item.issuer, item.credentialId].filter(Boolean).join(' | ')),
+      ...detailParagraphs(item.details)
+    ));
+  }
   if (model.projects.length) {
     children.push(sectionHeading('Projects'));
     model.projects.forEach((item) => children.push(

@@ -4,6 +4,8 @@ import ProfileSection from '../components/resume/ProfileSection';
 import type { ProfileSectionData } from '../components/resume/ProfileSection';
 import ExperienceSection from '../components/resume/ExperienceSection';
 import type { ExperienceEntry } from '../components/resume/ExperienceSection';
+import CredentialsSection from '../components/resume/CredentialsSection';
+import type { CredentialEntry } from '../components/resume/CredentialsSection';
 import ProjectsSection from '../components/resume/ProjectsSection';
 import type { ProjectEntry } from '../components/resume/ProjectsSection';
 import EducationSection from '../components/resume/EducationSection';
@@ -131,6 +133,16 @@ export default function ProfileEditor() {
       data: {
         ...current.data,
         experience: resolveSetStateAction(action, current.data.experience)
+      }
+    }));
+  };
+
+  const updateCredentials = (action: SetStateAction<CredentialEntry[]>) => {
+    setProfileBuilderState((current) => ({
+      ...current,
+      data: {
+        ...current.data,
+        credentials: resolveSetStateAction(action, current.data.credentials)
       }
     }));
   };
@@ -269,9 +281,10 @@ export default function ProfileEditor() {
       case 2: return <ProfileSection data={data.profile} onChange={updateProfile} />;
       case 3: return <EducationSection defaultCountry={data.profile.country} educations={data.education} onChange={updateEducation} />;
       case 4: return <ExperienceSection defaultCountry={data.profile.country} experiences={data.experience} onChange={updateExperience} />;
-      case 5: return <ProjectsSection projects={data.projects} onChange={updateProjects} />;
-      case 6: return <SkillsSection skills={data.skills} onChange={updateSkills} />;
-      case 7: return <ApplicationQuestionsSection data={data.applicationQuestions} onChange={updateApplicationQuestions} />;
+      case 5: return <CredentialsSection credentials={data.credentials} onChange={updateCredentials} />;
+      case 6: return <ProjectsSection projects={data.projects} onChange={updateProjects} />;
+      case 7: return <SkillsSection skills={data.skills} onChange={updateSkills} />;
+      case 8: return <ApplicationQuestionsSection data={data.applicationQuestions} onChange={updateApplicationQuestions} />;
       default: return null;
     }
   };
@@ -281,7 +294,6 @@ export default function ProfileEditor() {
       <header className="page-header">
         <div>
           <h2 className="page-title">Job Profile Builder</h2>
-              <p className="page-copy">Create a reusable source profile stored by ApplyFill on this computer.</p>
         </div>
       </header>
 

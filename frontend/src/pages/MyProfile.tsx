@@ -171,6 +171,12 @@ export default function MyProfile() {
         </div>
       </ProfileOverviewSection>
 
+      <ProfileOverviewSection title="Certifications &amp; Licenses" description="Professional credentials and licenses." onEdit={() => editSection('credentials')}>
+        <div className="profile-overview-list">
+          {data.credentials.length ? data.credentials.map((credential) => <div key={credential.id}><strong>{credential.name || credential.type}</strong><span>{[credential.issuer, credential.credentialId].filter(Boolean).join(' · ') || 'Details not provided'}</span></div>) : <p className="section-copy">No credentials added.</p>}
+        </div>
+      </ProfileOverviewSection>
+
       <ProfileOverviewSection title="Projects" description="Professional, academic, and personal projects." onEdit={() => editSection('projects')}>
         <div className="profile-overview-list">
           {data.projects.length ? data.projects.map((project) => <div key={project.id}><strong>{project.name || 'Project not named'}</strong><span>{[project.role, project.organization].filter(Boolean).join(' · ') || 'Details not provided'}</span>{plainText(project.description) && <small>{plainText(project.description)}</small>}</div>) : <p className="section-copy">No projects added.</p>}

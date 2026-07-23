@@ -37,7 +37,7 @@ PostgreSQL 18.4 is the authoritative release-like store for profiles, resumes/ar
 ## Aggregate model
 
 - [x] Define account/installation ownership appropriate to the approved local topology.
-- [x] Restore a canonical `Profile` aggregate with personal, contact, address, education, experience, projects, skills, application answers, consent, and version information.
+- [x] Restore a canonical `Profile` aggregate with personal, contact, address, education, experience, certifications and licenses, projects, skills, application answers, consent, and version information.
 - [x] Keep government identifiers and high-sensitivity application answers in a separately protected structure.
 - [x] Define `Resume` and immutable/generated `ResumeArtifact` records without exposing application-only fields to renderers.
 - [x] Define `JobApplication` records for tracker/dashboard state independently from a live agent run.

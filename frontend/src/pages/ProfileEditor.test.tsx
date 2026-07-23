@@ -38,12 +38,14 @@ vi.mock('../components/resume/ProfileResumeImportSection', () => ({
         },
         education: [],
         experience: [],
+        credentials: [],
         projects: [],
         skills: [],
       }, {
         contact: new Set(['firstName', 'lastName', 'email', 'phone']),
         education: new Set(),
         experience: new Set(),
+        credentials: new Set(),
         projects: new Set(),
         skills: new Set(),
       });

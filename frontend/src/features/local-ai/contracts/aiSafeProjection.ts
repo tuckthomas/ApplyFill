@@ -27,9 +27,17 @@ export type AiSafeEducation = {
   provider: string;
 };
 
+export type AiSafeCredential = {
+  issuer: string;
+  name: string;
+  opaqueId: string;
+  type: string;
+};
+
 export type AiSafeSkill = { name: string; opaqueId: string };
 
 export type AiSafeResumeSnapshot = {
+  credentials: AiSafeCredential[];
   education: AiSafeEducation[];
   experience: AiSafeExperience[];
   format: 'applyfill.ai-safe-resume-snapshot';
@@ -72,9 +80,18 @@ export const createAiSafeResumeSnapshot = (
   const selectedExperience = new Set(resume.selections.experienceIds);
   const selectedProjects = new Set(resume.selections.projectIds);
   const selectedEducation = new Set(resume.selections.educationIds);
+  const selectedCredentials = new Set(resume.selections.credentialIds);
   const selectedSkills = new Set(resume.selections.skillIds);
 
   const snapshot: AiSafeResumeSnapshot = {
+    credentials: (profile.data.credentials ?? [])
+      .filter((entry) => selectedCredentials.has(entry.id))
+      .map((entry) => ({
+        issuer: boundPlainText(entry.issuer, 200),
+        name: boundPlainText(entry.name, 200),
+        opaqueId: opaqueId('credential', entry.id),
+        type: entry.type,
+      })),
     education: profile.data.education
       .filter((entry) => entry.isSaved && selectedEducation.has(entry.id))
       .map((entry) => ({
@@ -129,7 +146,7 @@ export const createSummaryOnlySnapshot = (
   resume: LocalResumeDraft
 ): AiSafeResumeSnapshot => {
   const snapshot = createAiSafeResumeSnapshot(profile, resume);
-  return { ...snapshot, education: [], experience: [], projects: [], skills: [], summary: snapshot.summary };
+  return { ...snapshot, credentials: [], education: [], experience: [], projects: [], skills: [], summary: snapshot.summary };
 };
 
 export const AI_PROHIBITED_PROFILE_KEYS = [

@@ -1,4 +1,5 @@
 import type { EducationEntry } from '../../components/resume/EducationSection';
+import type { CredentialEntry, CredentialType } from '../../components/resume/CredentialsSection';
 import type { ExperienceEntry } from '../../components/resume/ExperienceSection';
 import type { ProfileSectionData, WebLink } from '../../components/resume/ProfileSection';
 import type { ProjectEntry } from '../../components/resume/ProjectsSection';
@@ -34,6 +35,17 @@ export type ProfileImportModelOutput = {
     provider: string;
     startDate: string;
   }>;
+  credentials: Array<{
+    credentialId: string;
+    credentialUrl: string;
+    details: string[];
+    doesNotExpire: boolean;
+    expirationDate: string;
+    issueDate: string;
+    issuer: string;
+    name: string;
+    type: CredentialType | '';
+  }>;
   experience: Array<{
     company: string;
     current: boolean;
@@ -58,6 +70,7 @@ export type ProfileImportModelOutput = {
 export type ProfileImportProposal = {
   contact: ExtractedResumeContact;
   education: EducationEntry[];
+  credentials: CredentialEntry[];
   experience: ExperienceEntry[];
   projects: ProjectEntry[];
   skills: SkillEntry[];
@@ -66,6 +79,7 @@ export type ProfileImportProposal = {
 export type ProfileImportSelection = {
   contact: Set<keyof Pick<ProfileSectionData, 'firstName' | 'middleName' | 'lastName' | 'email' | 'phone' | 'webLinks'>>;
   education: Set<number>;
+  credentials: Set<number>;
   experience: Set<number>;
   projects: Set<number>;
   skills: Set<number>;
@@ -90,16 +104,18 @@ const yearMonth = (value: unknown) => value === '' || (
 );
 
 const educationKeys = ['current', 'details', 'endDate', 'fieldOfStudy', 'gpa', 'gpaScale', 'level', 'provider', 'startDate'];
+const credentialKeys = ['credentialId', 'credentialUrl', 'details', 'doesNotExpire', 'expirationDate', 'issueDate', 'issuer', 'name', 'type'];
 const experienceKeys = ['company', 'current', 'endDate', 'highlights', 'jobTitle', 'startDate'];
 const projectKeys = ['current', 'details', 'endDate', 'name', 'organization', 'projectType', 'role', 'startDate'];
 const skillKeys = ['level', 'name'];
 const educationLevels = new Set([
   '', 'High school diploma or GED', 'Associate degree', 'Bachelor of Arts', 'Bachelor of Science',
-  'Master of Arts', 'Master of Science', 'MBA', 'Doctorate', 'Certificate', 'Vocational training',
+  'Master of Arts', 'Master of Science', 'MBA', 'Doctorate', 'Vocational training',
   'Online course', 'Other'
 ]);
 const projectTypes = new Set(['', 'Open source', 'Professional', 'Personal', 'Academic', 'Volunteer', 'Other']);
 const skillLevels = new Set(['', 'Novice', 'Intermediate', 'Advanced', 'Expert']);
+const credentialTypes = new Set(['', 'Certificate', 'Certification', 'License', 'Registration', 'Permit', 'Other']);
 
 const validGpa = (gpa: unknown, scale: unknown) => {
   if (gpa === '' && scale === '') return true;
@@ -110,7 +126,8 @@ const validGpa = (gpa: unknown, scale: unknown) => {
 };
 
 export const parseProfileImportModelOutput = (value: unknown): ProfileImportModelOutput => {
-  if (!isRecord(value) || !exactKeys(value, ['education', 'experience', 'projects', 'skills'])
+  if (!isRecord(value) || !exactKeys(value, ['credentials', 'education', 'experience', 'projects', 'skills'])
+    || !Array.isArray(value.credentials) || value.credentials.length > 30
     || !Array.isArray(value.education) || value.education.length > 20
     || !Array.isArray(value.experience) || value.experience.length > 30
     || !Array.isArray(value.projects) || value.projects.length > 20
@@ -124,6 +141,12 @@ export const parseProfileImportModelOutput = (value: unknown): ProfileImportMode
     && boundedString(item.fieldOfStudy, 200) && boundedString(item.provider, 200)
     && boundedString(item.level, 80) && educationLevels.has(item.level as string)
     && validGpa(item.gpa, item.gpaScale));
+  const credentialsValid = value.credentials.every((item) => isRecord(item) && exactKeys(item, credentialKeys)
+    && boundedString(item.credentialId, 200) && boundedString(item.credentialUrl, 500)
+    && boundedStrings(item.details) && yearMonth(item.expirationDate) && yearMonth(item.issueDate)
+    && typeof item.doesNotExpire === 'boolean'
+    && boundedString(item.issuer, 200) && boundedString(item.name, 200)
+    && boundedString(item.type, 80) && credentialTypes.has(item.type as string));
   const experienceValid = value.experience.every((item) => isRecord(item) && exactKeys(item, experienceKeys)
     && typeof item.current === 'boolean' && boundedStrings(item.highlights)
     && yearMonth(item.startDate) && yearMonth(item.endDate)
@@ -136,7 +159,7 @@ export const parseProfileImportModelOutput = (value: unknown): ProfileImportMode
   const skillsValid = value.skills.every((item) => isRecord(item) && exactKeys(item, skillKeys)
     && boundedString(item.name, 120) && boundedString(item.level, 20) && skillLevels.has(item.level as string));
 
-  if (!educationValid || !experienceValid || !projectsValid || !skillsValid) {
+  if (!credentialsValid || !educationValid || !experienceValid || !projectsValid || !skillsValid) {
     throw new Error('Private AI returned unsupported resume-import values. Nothing was changed.');
   }
   return value as ProfileImportModelOutput;
@@ -155,7 +178,7 @@ const resumeSectionHeading = /^(?:(?:professional|career|executive|personal|work
 const likelyName = (line: string) => {
   const words = line.trim().split(/\s+/);
   return line.length <= 80 && words.length >= 2 && words.length <= 4
-    && words.every((word) => /^[\p{L}][\p{L}'’-]*$/u.test(word))
+    && words.every((word) => /^(?:[\p{L}][\p{L}'’-]*|[\p{L}]\.)$/u.test(word))
     && !resumeSectionHeading.test(line.trim());
 };
 
@@ -477,6 +500,18 @@ export const createProfileImportProposal = (
       additionalDetails: createRichTextFromPlainText(item.details.join('\n')), isEditing: false, isSaved: true
     };
   }),
+  credentials: output.credentials.filter((item) => item.name.trim()).map((item, index) => ({
+    id: baseId + 1_500 + index,
+    type: item.type || 'Other',
+    name: item.name.trim(),
+    issuer: item.issuer.trim(),
+    credentialId: item.credentialId.trim(),
+    credentialUrl: item.credentialUrl.trim(),
+    issueDate: item.issueDate,
+    expirationDate: item.expirationDate,
+    doesNotExpire: item.doesNotExpire,
+    details: item.details.join('\n'),
+  })),
   experience: output.experience.filter((item) => item.company.trim() || item.jobTitle.trim()).map((item, index) => {
     const isCurrent = item.current && !item.endDate;
     return {
@@ -540,6 +575,8 @@ export const mergeProfileImportProposal = (
     profile,
     education: appendSelectedUnique(current.education, proposal.education, selected.education,
       (item) => `${item.provider}|${item.fieldOfStudy}|${item.startDate}`),
+    credentials: appendSelectedUnique(current.credentials, proposal.credentials, selected.credentials,
+      (item) => `${item.type}|${item.name}|${item.issuer}|${item.credentialId}`),
     experience: appendSelectedUnique(current.experience, proposal.experience, selected.experience,
       (item) => `${item.company}|${item.jobTitle}|${item.startDate}`),
     projects: appendSelectedUnique(current.projects, proposal.projects, selected.projects,

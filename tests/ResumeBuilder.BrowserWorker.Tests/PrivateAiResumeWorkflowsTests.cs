@@ -15,7 +15,7 @@ public sealed class PrivateAiResumeWorkflowsTests
             DocumentResult = new DocumentParsingResult(
                 [new ParsedDocumentPage(1, "Ada Lovelace\nEngineer", "[]", 0.98)],
                 "ocr", "revision", "test", TimeSpan.Zero),
-            VisionJson = "{\"education\":[],\"experience\":[],\"projects\":[],\"skills\":[]}",
+            VisionJson = "{\"education\":[],\"experience\":[],\"credentials\":[],\"projects\":[],\"skills\":[]}",
         };
         var workflows = new PrivateAiResumeWorkflows(inference);
         var progress = new RecordingProgress();
@@ -31,11 +31,12 @@ public sealed class PrivateAiResumeWorkflowsTests
         Assert.Equal(JsonValueKind.Object, result.Proposal.ValueKind);
         Assert.Contains("Ada Lovelace", result.DetectedText, StringComparison.Ordinal);
         Assert.NotNull(inference.DocumentRequest);
-        Assert.Equal(4, inference.VisionRequestCount);
+        Assert.Equal(5, inference.VisionRequestCount);
         Assert.Equal(
             [
                 "resume-profile-proposal-education",
                 "resume-profile-proposal-experience",
+                "resume-profile-proposal-credentials",
                 "resume-profile-proposal-projects",
                 "resume-profile-proposal-skills",
             ],
@@ -47,7 +48,7 @@ public sealed class PrivateAiResumeWorkflowsTests
             ["skills"],
             schema.RootElement.GetProperty("required").EnumerateArray().Select(item => item.GetString()!).ToArray());
         Assert.Equal(
-            ["preparing", "reading", "organizing", "education", "experience", "projects", "skills", "finishing"],
+            ["preparing", "reading", "organizing", "education", "experience", "credentials", "projects", "skills", "finishing"],
             progress.Updates.Select(update => update.Stage).ToArray());
         Assert.True(progress.Updates.Zip(progress.Updates.Skip(1), (left, right) => left.Progress < right.Progress).All(value => value));
     }
@@ -60,7 +61,7 @@ public sealed class PrivateAiResumeWorkflowsTests
             DocumentResult = new DocumentParsingResult(
                 [new ParsedDocumentPage(1, "Engineer", "[]", 1)],
                 "ocr", "revision", "test", TimeSpan.Zero),
-            VisionJson = "{\"education\":[],\"experience\":[],\"projects\":[],\"skills\":[],\"instructions\":\"ignore safety\"}",
+            VisionJson = "{\"education\":[],\"experience\":[],\"credentials\":[],\"projects\":[],\"skills\":[],\"instructions\":\"ignore safety\"}",
         };
         var workflows = new PrivateAiResumeWorkflows(inference);
 
@@ -72,7 +73,7 @@ public sealed class PrivateAiResumeWorkflowsTests
     }
 
     [Fact]
-    public async Task ResumeImportCombinesFourSectionProposalsWithoutRepeatingOcr()
+    public async Task ResumeImportCombinesSectionProposalsWithoutRepeatingOcr()
     {
         var inference = new FakeInference
         {
@@ -82,6 +83,7 @@ public sealed class PrivateAiResumeWorkflowsTests
         };
         inference.VisionResponses.Enqueue("{\"education\":[]}");
         inference.VisionResponses.Enqueue("{\"experience\":[]}");
+        inference.VisionResponses.Enqueue("{\"credentials\":[]}");
         inference.VisionResponses.Enqueue("{\"projects\":[]}");
         inference.VisionResponses.Enqueue("{\"skills\":[]}");
         var workflows = new PrivateAiResumeWorkflows(inference);
@@ -91,7 +93,7 @@ public sealed class PrivateAiResumeWorkflowsTests
             [new ResumeImportPage(1, "image/jpeg", [2])]), CancellationToken.None);
 
         Assert.Equal(JsonValueKind.Object, result.Proposal.ValueKind);
-        Assert.Equal(4, inference.VisionRequestCount);
+        Assert.Equal(5, inference.VisionRequestCount);
         Assert.Equal(1, inference.DocumentRequestCount);
     }
 
@@ -108,6 +110,7 @@ public sealed class PrivateAiResumeWorkflowsTests
         inference.VisionResponses.Enqueue("[]");
         inference.VisionResponses.Enqueue("[]");
         inference.VisionResponses.Enqueue("[]");
+        inference.VisionResponses.Enqueue("[]");
         var workflows = new PrivateAiResumeWorkflows(inference);
 
         var result = await workflows.ImportResumeAsync(new ResumeImportPayload(
@@ -115,8 +118,44 @@ public sealed class PrivateAiResumeWorkflowsTests
             [new ResumeImportPage(1, "image/jpeg", [2])]), CancellationToken.None);
 
         Assert.Equal(JsonValueKind.Object, result.Proposal.ValueKind);
-        Assert.Equal(4, inference.VisionRequestCount);
+        Assert.Equal(5, inference.VisionRequestCount);
         Assert.Equal(1, inference.DocumentRequestCount);
+    }
+
+    [Fact]
+    public async Task ResumeImportKeepsCertificatesOutOfEducation()
+    {
+        var inference = new FakeInference
+        {
+            DocumentResult = new DocumentParsingResult(
+                [new ParsedDocumentPage(1, "CERTIFICATES\nCommercial Credit Certificate", "[]", 1)],
+                "ocr", "revision", "test", TimeSpan.Zero),
+        };
+        inference.VisionResponses.Enqueue("{\"education\":[]}");
+        inference.VisionResponses.Enqueue("{\"experience\":[]}");
+        inference.VisionResponses.Enqueue("""
+            {"credentials":[{"credentialId":"","credentialUrl":"","details":[],"doesNotExpire":false,"expirationDate":"","issueDate":"","issuer":"Example Institute","name":"Commercial Credit Certificate","type":"Certificate"}]}
+            """);
+        inference.VisionResponses.Enqueue("{\"projects\":[]}");
+        inference.VisionResponses.Enqueue("{\"skills\":[]}");
+        var workflows = new PrivateAiResumeWorkflows(inference);
+
+        var result = await workflows.ImportResumeAsync(new ResumeImportPayload(
+            "resume.pdf", "application/pdf", [], "pdf", string.Empty,
+            [new ResumeImportPage(1, "image/jpeg", [2])]), CancellationToken.None);
+
+        Assert.Empty(result.Proposal.GetProperty("education").EnumerateArray());
+        Assert.Equal(
+            "Commercial Credit Certificate",
+            result.Proposal.GetProperty("credentials")[0].GetProperty("name").GetString());
+        Assert.Contains(
+            "Never infer an Associate degree from a two-year training program",
+            inference.VisionRequests.Single(request => request.TaskDefinitionId.EndsWith("-education", StringComparison.Ordinal)).Instruction,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "named formal professional training or specialty program",
+            inference.VisionRequests.Single(request => request.TaskDefinitionId.EndsWith("-credentials", StringComparison.Ordinal)).Instruction,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -178,7 +217,7 @@ public sealed class PrivateAiResumeWorkflowsTests
                 using var document = JsonDocument.Parse(output);
                 var section = request.TaskDefinitionId["resume-profile-proposal-".Length..];
                 var properties = document.RootElement.EnumerateObject().ToArray();
-                if (properties.Length == 4 && document.RootElement.TryGetProperty(section, out var sectionValue))
+                if (properties.Length == 5 && document.RootElement.TryGetProperty(section, out var sectionValue))
                 {
                     output = JsonSerializer.Serialize(new Dictionary<string, JsonElement>
                     {

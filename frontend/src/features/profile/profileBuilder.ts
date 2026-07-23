@@ -7,6 +7,7 @@ import type {
   WorkAuthorization
 } from './applicationQuestions';
 import type { EducationEntry } from '../../components/resume/EducationSection';
+import type { CredentialEntry } from '../../components/resume/CredentialsSection';
 import type { ExperienceEntry } from '../../components/resume/ExperienceSection';
 import type { ProfileSectionData } from '../../components/resume/ProfileSection';
 import type { ProjectEntry } from '../../components/resume/ProjectsSection';
@@ -16,6 +17,7 @@ import type { ProfileAutomationConsent } from './profileConsent';
 import { apiRequest, ApiClientError } from '../api/localApiClient';
 import { notifyDataChanged } from '../api/dataEvents';
 import { isStoredPhoneNumber } from './phoneNumber';
+import { getRichTextPlainText } from '../rich-text/richText';
 export const PROFILE_BUILDER_SCHEMA_VERSION = 2;
 export const PROFILE_DOCUMENT_FORMAT = 'applyfill.profile';
 
@@ -25,6 +27,7 @@ export const PROFILE_BUILDER_STEPS = [
   { id: 'profile', label: 'Personal Info' },
   { id: 'education', label: 'Education' },
   { id: 'experience', label: 'Work Experience' },
+  { id: 'credentials', label: 'Certifications & Licenses' },
   { id: 'projects', label: 'Projects' },
   { id: 'skills', label: 'Skills' },
   { id: 'application-questions', label: 'Application Questions' }
@@ -35,6 +38,7 @@ export type ProfileBuilderData = {
   profile: ProfileSectionData;
   education: EducationEntry[];
   experience: ExperienceEntry[];
+  credentials: CredentialEntry[];
   projects: ProjectEntry[];
   skills: SkillEntry[];
   applicationQuestions: ApplicationQuestionsData;
@@ -82,7 +86,7 @@ export const DEFAULT_PROFILE_SECTION_DATA: ProfileSectionData = {
 export const DEFAULT_PROFILE_BUILDER_DATA: ProfileBuilderData = {
   automationConsent: EMPTY_PROFILE_AUTOMATION_CONSENT,
   profile: DEFAULT_PROFILE_SECTION_DATA,
-  education: [], experience: [], projects: [], skills: [],
+  education: [], experience: [], credentials: [], projects: [], skills: [],
   applicationQuestions: EMPTY_APPLICATION_QUESTIONS
 };
 
@@ -96,6 +100,7 @@ export const createDefaultProfileBuilderState = (
     profile: { ...DEFAULT_PROFILE_SECTION_DATA },
     education: [],
     experience: [],
+    credentials: [],
     projects: [],
     skills: [],
     applicationQuestions: {
@@ -151,6 +156,13 @@ const isExperience = (value: unknown) => hasFields(
   ['isCurrentJob', 'mayContactSupervisor', 'isEditing', 'isSaved'],
   ['id']
 ) && isOption(value.state) && isOption(value.country) && isStoredPhoneNumber(value.companyPhone as string);
+
+const isCredential = (value: unknown) => hasFields(
+  value,
+  ['type', 'name', 'issuer', 'credentialId', 'credentialUrl', 'issueDate', 'expirationDate', 'details'],
+  ['doesNotExpire'],
+  ['id']
+) && ['Certificate', 'Certification', 'License', 'Registration', 'Permit', 'Other'].includes(value.type as string);
 
 const isProject = (value: unknown) => hasFields(
   value,
@@ -226,6 +238,8 @@ export const isLocalProfileDocument = (value: unknown): value is LocalProfileDoc
     && data.education.every(isEducation)
     && Array.isArray(data.experience)
     && data.experience.every(isExperience)
+    && Array.isArray(data.credentials)
+    && data.credentials.every(isCredential)
     && Array.isArray(data.projects)
     && data.projects.every(isProject)
     && Array.isArray(data.skills)
@@ -236,6 +250,50 @@ export const isLocalProfileDocument = (value: unknown): value is LocalProfileDoc
     && applicationQuestions.governmentIdentifiers.every(isGovernmentIdentifier)
     && Array.isArray(applicationQuestions.workAuthorizations)
     && applicationQuestions.workAuthorizations.every(isWorkAuthorization);
+};
+
+const toCredentialMonth = (value: unknown) => {
+  if (typeof value !== 'string') return '';
+  if (/^(?:19|20)\d{2}-(?:0[1-9]|1[0-2])$/.test(value)) return value;
+  const match = /^(0[1-9]|1[0-2])\/(?:(?:0[1-9]|[12]\d|3[01])\/)?((?:19|20)\d{2})$/.exec(value);
+  return match ? `${match[2]}-${match[1]}` : '';
+};
+
+const migrateProfileCredentials = (value: unknown): unknown => {
+  if (!isRecord(value) || value.format !== PROFILE_DOCUMENT_FORMAT
+    || value.schemaVersion !== PROFILE_BUILDER_SCHEMA_VERSION || !isRecord(value.data)) return value;
+  const data = value.data;
+  if ('credentials' in data && !Array.isArray(data.credentials)) return value;
+  const education = Array.isArray(data.education) ? data.education : [];
+  const certificateEntries = education.filter((entry) => isRecord(entry) && isRecord(entry.level)
+    && (entry.level.value === 'Certificate' || entry.level.label === 'Certificate'));
+  const credentials = Array.isArray(data.credentials) ? data.credentials : [];
+  if (certificateEntries.length === 0 && Array.isArray(data.credentials)) return value;
+  const existingIds = new Set(credentials.filter(isRecord).map((entry) => entry.id));
+  return {
+    ...value,
+    data: {
+      ...data,
+      credentials: [
+        ...credentials,
+        ...certificateEntries.filter((entry) => !existingIds.has(entry.id)).map((entry) => ({
+          id: entry.id,
+          type: 'Certificate',
+          name: typeof entry.fieldOfStudy === 'string' && entry.fieldOfStudy.trim()
+            ? entry.fieldOfStudy.trim()
+            : typeof entry.provider === 'string' ? entry.provider.trim() : 'Certificate',
+          issuer: typeof entry.provider === 'string' ? entry.provider.trim() : '',
+          credentialId: '',
+          credentialUrl: '',
+          issueDate: toCredentialMonth(entry.endDate || entry.startDate),
+          expirationDate: '',
+          doesNotExpire: false,
+          details: getRichTextPlainText(entry.additionalDetails),
+        })),
+      ],
+      education: education.filter((entry) => !certificateEntries.includes(entry)),
+    },
+  };
 };
 
 export const createLocalProfileDocument = (
@@ -268,7 +326,7 @@ export const loadCurrentProfileResource = async (): Promise<CurrentProfileResour
     }
     throw error;
   }
-  const value = response.value.content;
+  const value = migrateProfileCredentials(response.value.content);
   if (!isLocalProfileDocument(value)) throw new Error('The saved profile has an unsupported format.');
   let document = { ...value, updatedAtUtc: response.value.updatedAt };
   if (response.value.hasSensitiveApplicationData) {
@@ -311,6 +369,7 @@ export const parseProfileDocument = (json: string): LocalProfileDocument => {
   } catch {
     throw new Error('Choose a valid JSON file.');
   }
+  value = migrateProfileCredentials(value);
   if (!isLocalProfileDocument(value)) {
     throw new Error(`This is not an ApplyFill profile schema version ${PROFILE_BUILDER_SCHEMA_VERSION} document.`);
   }
