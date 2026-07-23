@@ -64,6 +64,7 @@ Each checklist is intended to be independently assignable after approval. A work
 | 07 | [Security, privacy, and safety](07-security-privacy-safety.md) | Threat model, policy engine, encryption, retention | Approval; gates every integration |
 | 08 | [Extension retirement and frontend integration](08-extension-retirement-integration.md) | Remove extension/LiteRT paths, API clients, cutover | Workstreams 01–06 usable end-to-end slice |
 | 09 | [Verification, deployment, and documentation](09-verification-deployment-documentation.md) | Test matrix, packaging, operational proof, docs/gallery | Harness immediately; final gate after all workstreams |
+| 10 | [Remaining release work](10-remaining-release-work.md) | Consolidated executable checklist for unresolved release and human acceptance work | Current development vertical slice |
 
 ## Shared contract ownership
 
