@@ -256,7 +256,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
             aria-valuemax={100}
             aria-valuemin={0}
             aria-valuenow={displayedProgress}
-            aria-valuetext={`${progress.message} About ${displayedProgressLabel}% complete, ${formatElapsed(displayedElapsedSeconds)} elapsed`}
+            aria-valuetext={`${progress.message} ${displayedProgressLabel}% complete, ${formatElapsed(displayedElapsedSeconds)} elapsed`}
             className="local-ai-progress"
             role="progressbar"
           >
@@ -264,7 +264,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
           </div>
           <div className="profile-resume-import-progress-copy" role="status" aria-live="polite">
             <strong>{progress.message}</strong>
-            <span>About {displayedProgressLabel}% · {formatElapsed(displayedElapsedSeconds)} elapsed</span>
+            <span>{displayedProgressLabel}% · {formatElapsed(displayedElapsedSeconds)} elapsed</span>
           </div>
           {isRunning ? <Button onClick={() => controllerRef.current?.abort()}><StopCircle aria-hidden="true" size={17} /> Cancel</Button> : null}
         </div>
