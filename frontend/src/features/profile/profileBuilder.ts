@@ -23,7 +23,7 @@ export const PROFILE_DOCUMENT_FORMAT = 'applyfill.profile';
 
 export const PROFILE_BUILDER_STEPS = [
   { id: 'introduction', label: 'Overview' },
-  { id: 'resume-import', label: 'Resume Import' },
+  { id: 'resume-import', label: 'Import' },
   { id: 'profile', label: 'Personal Info' },
   { id: 'education', label: 'Education' },
   { id: 'experience', label: 'Work Experience' },
