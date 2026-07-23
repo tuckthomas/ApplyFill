@@ -92,7 +92,8 @@ export default function JobApplicationEditor() {
         : persisted.at(-1) ?? application;
       setApplications(persisted);
       setExistingApplication(saved);
-      navigate(`/job-tracker/${saved.id}/edit`, { replace: true });
+      const query = searchParams.toString();
+      navigate(`/job-tracker/${saved.id}/edit${query ? `?${query}` : ''}`, { replace: true });
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'This application could not be saved.');
     }
@@ -143,11 +144,11 @@ export default function JobApplicationEditor() {
         </header>
       </div>
       <JobApplicationForm
-        agentContent={existingApplication ? (
+        agentContent={(
           <Suspense fallback={<p className="section-copy" role="status">Loading browser agent...</p>}>
             <BrowserAgent
               embedded
-              initialApplication={existingApplication}
+              initialApplication={formState}
               onRunChange={(runId) => {
                 const next = new URLSearchParams(searchParams);
                 next.set('tab', 'agent');
@@ -158,10 +159,10 @@ export default function JobApplicationEditor() {
               runIdOverride={searchParams.get('runId')}
             />
           </Suspense>
-        ) : null}
+        )}
         error={formError}
         isImportingJobDescription={isImportingJobDescription}
-        initialTab={searchParams.get('tab') === 'agent' && existingApplication ? 'agent' : 'details'}
+        initialTab={searchParams.get('tab') === 'agent' ? 'agent' : 'details'}
         jobDescriptionError={jobDescriptionError}
         mode={mode}
         onCancel={() => navigate('/job-tracker')}

@@ -112,16 +112,16 @@ export default function JobApplicationModal({ application, onClose, onSave }: Jo
       title={mode === 'add' ? 'Add Application' : 'Edit Application'}
     >
       <JobApplicationForm
-        agentContent={application ? (
+        agentContent={(
           <Suspense fallback={<p className="section-copy" role="status">Loading browser agent...</p>}>
             <BrowserAgent
               embedded
-              initialApplication={application}
+              initialApplication={formState}
               onRunChange={setAgentRunId}
               runIdOverride={agentRunId}
             />
           </Suspense>
-        ) : null}
+        )}
         error={formError}
         isImportingJobDescription={isImportingJobDescription}
         jobDescriptionError={jobDescriptionError}

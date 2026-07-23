@@ -50,11 +50,8 @@ export default function JobApplicationForm({
   const [activeTab, setActiveTab] = useState<'agent' | 'details' | 'notes'>(initialTab);
   const idPrefix = useId().replace(/:/g, '');
   useEffect(() => {
-    if (mode === 'add') setActiveTab('details');
-  }, [mode]);
-  useEffect(() => {
-    if (mode === 'edit') setActiveTab(initialTab);
-  }, [initialTab, mode]);
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   return (
     <div className="tracker-form-panel" aria-label="Application form">
@@ -65,7 +62,7 @@ export default function JobApplicationForm({
         tabs={[
           { id: 'details', label: 'Application Details' },
           { id: 'notes', label: 'Notes', disabled: mode === 'add', disabledReason: mode === 'add' ? 'Save the application before adding notes.' : undefined },
-          ...(agentContent ? [{ id: 'agent', label: 'Browser Agent' }] : [])
+          ...(agentContent ? [{ id: 'agent', label: 'Agentic AI' }] : [])
         ]}
         footer={activeTab !== 'agent' ? (
           <>
