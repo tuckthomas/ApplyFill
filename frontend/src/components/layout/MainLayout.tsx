@@ -11,10 +11,10 @@ export function MainLayout() {
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark';
   });
-  const [expandedNavGroup, setExpandedNavGroup] = useState<string | null>(() => {
-    if (location.pathname.startsWith('/job-tracker')) return 'applications';
-    if (location.pathname.startsWith('/job-profile')) return 'job-profile';
-    return null;
+  const [expandedNavGroups, setExpandedNavGroups] = useState<Set<string>>(() => {
+    if (location.pathname.startsWith('/job-tracker')) return new Set(['applications']);
+    if (location.pathname.startsWith('/job-profile')) return new Set(['job-profile']);
+    return new Set();
   });
 
   useEffect(() => {
@@ -71,11 +71,24 @@ export function MainLayout() {
       item.groupId && item.href !== '/' && location.pathname.startsWith(item.href)
     ));
 
-    if (activeGroup?.groupId) setExpandedNavGroup(activeGroup.groupId);
+    if (activeGroup?.groupId) {
+      setExpandedNavGroups((current) => {
+        if (current.has(activeGroup.groupId)) return current;
+        return new Set([...current, activeGroup.groupId]);
+      });
+    }
   }, [location.pathname, navigation]);
 
   const toggleNavGroup = (groupId: string) => {
-    setExpandedNavGroup((current) => current === groupId ? null : groupId);
+    setExpandedNavGroups((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
   };
 
   return (
@@ -102,7 +115,7 @@ export function MainLayout() {
         <nav className="sidebar-nav">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href || (item.href !== '/' && location.pathname.startsWith(item.href));
-            const isGroupExpanded = item.groupId === expandedNavGroup;
+            const isGroupExpanded = item.groupId ? expandedNavGroups.has(item.groupId) : false;
             const closeMobileSidebar = () => {
               if (window.matchMedia('(max-width: 900px)').matches) {
                 setIsSidebarExpanded(false);
