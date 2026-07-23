@@ -81,6 +81,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
   const controllerRef = useRef<AbortController | null>(null);
   const startedAtRef = useRef(Date.now());
   const progressReceivedAtRef = useRef(Date.now());
+  const lastReportedProgressRef = useRef<Pick<ResumeImportProgress, 'progress' | 'stage'> | null>(null);
 
   useEffect(() => () => controllerRef.current?.abort(), []);
   useEffect(() => {
@@ -97,7 +98,11 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
   }, [isExtracting, isRunning]);
 
   const reportProgress = (update: ResumeImportProgress) => {
-    progressReceivedAtRef.current = Date.now();
+    const previous = lastReportedProgressRef.current;
+    if (!previous || previous.stage !== update.stage || previous.progress !== update.progress) {
+      progressReceivedAtRef.current = Date.now();
+      lastReportedProgressRef.current = { progress: update.progress, stage: update.stage };
+    }
     setProgress(update);
   };
 
@@ -151,6 +156,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
     controllerRef.current?.abort();
     startedAtRef.current = Date.now();
     progressReceivedAtRef.current = startedAtRef.current;
+    lastReportedProgressRef.current = null;
     setDisplayClock(startedAtRef.current);
     setFileName(file?.name ?? '');
     setProposal(null);
