@@ -22,8 +22,9 @@ import {
   X,
 } from 'lucide-react';
 import Button from '../components/ui/Button';
+import AppSelect from '../components/ui/AppSelect';
 import ManagedBrowserViewport from '../components/browser-agent/ManagedBrowserViewport';
-import { browserAgentClient } from '../features/browser-agent';
+import { browserAgentClient, loadBrowserAgentStartResources } from '../features/browser-agent';
 import type {
   BrowserAgentClient,
   BrowserAgentQuestionAnswer,
@@ -33,13 +34,24 @@ import type {
   BrowserRunSnapshot,
   BrowserRunState,
   BrowserRunSummary,
+  BrowserAgentStartResources,
   PrivateAiStatus,
 } from '../features/browser-agent';
 import './BrowserAgent.css';
 
 type BrowserAgentPageProps = {
   client?: BrowserAgentClient;
+  loadStartResources?: () => Promise<BrowserAgentStartResources>;
 };
+
+type BrowserAgentBusyAction = BrowserRunCommand | 'answer' | 'delete' | 'recover';
+
+const isNotFoundError = (error: unknown) => Boolean(
+  error
+  && typeof error === 'object'
+  && 'status' in error
+  && error.status === 404,
+);
 
 const runStatePresentation: Record<BrowserRunState, { label: string; message: string; tone: string }> = {
   ready: { label: 'Ready', message: 'ApplyFill is ready to begin.', tone: 'neutral' },
@@ -81,19 +93,26 @@ const humanSetupStage = (status: PrivateAiStatus) => {
   return status.stage || 'Preparing Private AI';
 };
 
-export function BrowserAgentPage({ client = browserAgentClient }: BrowserAgentPageProps) {
+export function BrowserAgentPage({
+  client = browserAgentClient,
+  loadStartResources = loadBrowserAgentStartResources,
+}: BrowserAgentPageProps) {
   const { runId } = useParams();
   const navigate = useNavigate();
   const [privateAi, setPrivateAi] = useState<PrivateAiStatus | null>(null);
   const [history, setHistory] = useState<BrowserRunSummary[]>([]);
   const [run, setRun] = useState<BrowserRunSnapshot | null>(null);
   const [connectionState, setConnectionState] = useState<BrowserConnectionState>('disconnected');
+  const [connectionAttempt, setConnectionAttempt] = useState(0);
   const [pageLoading, setPageLoading] = useState(true);
-  const [commandBusy, setCommandBusy] = useState<BrowserRunCommand | 'answer' | 'delete' | null>(null);
+  const [commandBusy, setCommandBusy] = useState<BrowserAgentBusyAction | null>(null);
   const [message, setMessage] = useState('');
+  const [recoverableRunId, setRecoverableRunId] = useState<string | null>(null);
   const [startUrl, setStartUrl] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [jobTitle, setJobTitle] = useState('');
+  const [startResources, setStartResources] = useState<BrowserAgentStartResources>({ applications: [], profileId: null, resumes: [] });
+  const [selectedResumeId, setSelectedResumeId] = useState('');
   const [stopDialogOpen, setStopDialogOpen] = useState(false);
   const [questionValue, setQuestionValue] = useState('');
   const [selectedOption, setSelectedOption] = useState('');
@@ -101,23 +120,41 @@ export function BrowserAgentPage({ client = browserAgentClient }: BrowserAgentPa
   const inputErrorShown = useRef(false);
 
   const refreshLandingData = useCallback(async (signal?: AbortSignal) => {
-    const [statusResult, runsResult] = await Promise.allSettled([
+    const [statusResult, runsResult, resourcesResult] = await Promise.allSettled([
       client.getPrivateAiStatus(signal),
       client.listRuns(signal),
+      loadStartResources(),
     ]);
     if (statusResult.status === 'fulfilled') setPrivateAi(statusResult.value);
     else if (!signal?.aborted) setMessage('ApplyFill is still starting. Try again in a moment.');
     if (runsResult.status === 'fulfilled') setHistory(runsResult.value);
-  }, [client]);
+    if (resourcesResult.status === 'fulfilled') {
+      setStartResources(resourcesResult.value);
+      if (resourcesResult.value.resumes.length === 1) setSelectedResumeId(resourcesResult.value.resumes[0].id);
+    } else if (!signal?.aborted) {
+      setMessage('ApplyFill could not load your Job Profile and resumes. Try again.');
+    }
+  }, [client, loadStartResources]);
 
   useEffect(() => {
     const controller = new AbortController();
     setPageLoading(true);
     if (runId) {
+      setRun(null);
+      setRecoverableRunId(null);
       client.getRun(runId, controller.signal)
-        .then((snapshot) => setRun(snapshot))
+        .then((snapshot) => {
+          setRun(snapshot);
+          setRecoverableRunId(null);
+        })
         .catch((error: unknown) => {
-          if (!controller.signal.aborted) setMessage(error instanceof Error ? error.message : 'This application run could not be opened.');
+          if (controller.signal.aborted) return;
+          if (isNotFoundError(error)) {
+            setRecoverableRunId(runId);
+            setMessage('This saved application is not open right now. You can resume it from its latest safe checkpoint.');
+          } else {
+            setMessage(error instanceof Error ? error.message : 'This application run could not be opened.');
+          }
         })
         .finally(() => { if (!controller.signal.aborted) setPageLoading(false); });
       void client.getPrivateAiStatus(controller.signal).then(setPrivateAi).catch(() => undefined);
@@ -133,18 +170,33 @@ export function BrowserAgentPage({ client = browserAgentClient }: BrowserAgentPa
     if (!runId) return;
     let active = true;
     let disconnect: (() => Promise<void>) | undefined;
+    setConnectionState('connecting');
     void client.connect(runId, (event) => {
       if (!active) return;
       if (event.type === 'connection') setConnectionState(event.state);
-      if (event.type === 'snapshot' && event.snapshot.id === runId) setRun(event.snapshot);
+      if (event.type === 'snapshot' && event.snapshot.id === runId) {
+        setRun((current) => current && current.id === event.snapshot.id && current.revision >= event.snapshot.revision
+          ? current
+          : event.snapshot);
+      }
       if (event.type === 'frame' && event.runId === runId) {
-        setRun((current) => current ? {
-          ...current,
-          frameHeight: event.height,
-          frameUpdatedAt: event.frameUpdatedAt,
-          frameUrl: event.frameUrl,
-          frameWidth: event.width,
-        } : current);
+        setRun((current) => {
+          if (!current) return current;
+          const currentGeneration = current.framePageGeneration ?? -1;
+          const currentSequence = current.frameSequence ?? -1;
+          if (event.pageGeneration < currentGeneration ||
+            (event.pageGeneration === currentGeneration && event.sequence <= currentSequence)) return current;
+          return {
+            ...current,
+            frameHeight: event.height,
+            frameSequence: event.sequence,
+            framePageGeneration: event.pageGeneration,
+            frameDeviceScaleFactor: event.deviceScaleFactor,
+            frameUpdatedAt: event.frameUpdatedAt,
+            frameUrl: event.frameUrl,
+            frameWidth: event.width,
+          };
+        });
       }
     }).then((teardown) => {
       if (active) disconnect = teardown;
@@ -156,7 +208,7 @@ export function BrowserAgentPage({ client = browserAgentClient }: BrowserAgentPa
       active = false;
       if (disconnect) void disconnect();
     };
-  }, [client, runId]);
+  }, [client, connectionAttempt, runId]);
 
   useEffect(() => {
     if (!privateAi || !transientPrivateAiStates.has(privateAi.state)) return;
@@ -203,6 +255,16 @@ export function BrowserAgentPage({ client = browserAgentClient }: BrowserAgentPa
     }
   };
 
+  const retryLandingData = async () => {
+    setMessage('');
+    setPageLoading(true);
+    try {
+      await refreshLandingData();
+    } finally {
+      setPageLoading(false);
+    }
+  };
+
   const startRun = async (event: React.FormEvent) => {
     event.preventDefault();
     setMessage('');
@@ -210,12 +272,27 @@ export function BrowserAgentPage({ client = browserAgentClient }: BrowserAgentPa
       setMessage('Enter the full web address of a job posting or application.');
       return;
     }
+    if (!startResources.profileId) {
+      setMessage('Complete and save your Job Profile before starting an application.');
+      return;
+    }
+    const normalizedStartUrl = new URL(startUrl).href;
+    const trackedApplication = startResources.applications.find((application) => {
+      try {
+        return new URL(application.targetJobUrl).href === normalizedStartUrl;
+      } catch {
+        return false;
+      }
+    });
     setCommandBusy('resume');
     try {
       const snapshot = await client.startRun({
         targetUrl: startUrl,
-        companyName: companyName.trim() || undefined,
-        jobTitle: jobTitle.trim() || undefined,
+        companyName: companyName.trim() || trackedApplication?.companyName || undefined,
+        jobApplicationId: trackedApplication?.id,
+        jobTitle: jobTitle.trim() || trackedApplication?.jobTitle || undefined,
+        profileId: startResources.profileId,
+        resumeId: selectedResumeId || undefined,
       });
       setRun(snapshot);
       navigate(`/agent/${snapshot.id}`);
@@ -247,10 +324,12 @@ export function BrowserAgentPage({ client = browserAgentClient }: BrowserAgentPa
 
   const answerQuestion = async () => {
     if (!run?.pendingQuestion) return;
+    const question = run.pendingQuestion;
+    const isSensitiveApproval = question.category === 'sensitive-approval';
     const answer: BrowserAgentQuestionAnswer = {
       optionId: selectedOption || undefined,
-      value: questionValue.trim() || undefined,
-      saveToProfile: saveAnswer,
+      value: isSensitiveApproval ? undefined : questionValue.trim() || undefined,
+      saveToProfile: isSensitiveApproval ? false : saveAnswer,
     };
     if (!answer.optionId && !answer.value) {
       setMessage('Choose an answer or type a response before continuing.');
@@ -259,9 +338,40 @@ export function BrowserAgentPage({ client = browserAgentClient }: BrowserAgentPa
     setMessage('');
     setCommandBusy('answer');
     try {
-      setRun(await client.answerQuestion(run.id, run.pendingQuestion.id, answer, run.revision));
+      if (isSensitiveApproval) {
+        if (!['approve', 'deny'].includes(answer.optionId ?? '')) {
+          setMessage('Choose whether ApplyFill may use this saved answer for this application.');
+          return;
+        }
+        if (!question.approvalId || !question.approvalConcurrencyToken) {
+          setMessage('This approval request is incomplete. Refresh the application before continuing.');
+          return;
+        }
+        await client.decideSensitiveApproval(
+          run.id,
+          question.approvalId,
+          answer.optionId === 'approve',
+          question.approvalConcurrencyToken,
+        );
+      }
+      setRun(await client.answerQuestion(run.id, question.id, answer, run.revision));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Your answer could not be saved. Try again.');
+    } finally {
+      setCommandBusy(null);
+    }
+  };
+
+  const recoverRun = async () => {
+    if (!recoverableRunId) return;
+    setMessage('');
+    setCommandBusy('recover');
+    try {
+      const snapshot = await client.recoverRun(recoverableRunId);
+      setRun(snapshot);
+      setRecoverableRunId(null);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'This application could not be resumed from its saved checkpoint.');
     } finally {
       setCommandBusy(null);
     }
@@ -308,31 +418,32 @@ export function BrowserAgentPage({ client = browserAgentClient }: BrowserAgentPa
         }}><History aria-hidden="true" size={17} /> Application Runs</Button> : null}
       </header>
 
-      {message ? <div className="browser-agent-message" role="alert"><AlertTriangle aria-hidden="true" size={20} /><span>{message}</span><button aria-label="Dismiss message" onClick={() => setMessage('')} type="button"><X size={18} /></button></div> : null}
+      {message ? (
+        <div className="browser-agent-message" role="alert">
+          <AlertTriangle aria-hidden="true" size={20} />
+          <span>{message}</span>
+          {!runId ? <button className="browser-agent-message-retry" onClick={() => void retryLandingData()} type="button">Try Again</button> : null}
+          <button aria-label="Dismiss message" onClick={() => setMessage('')} type="button"><X size={18} /></button>
+        </div>
+      ) : null}
 
-      {!run ? (
-        <BrowserAgentLanding
-          commandBusy={commandBusy}
-          companyName={companyName}
-          history={history}
-          jobTitle={jobTitle}
-          onCompanyNameChange={setCompanyName}
-          onDeleteRun={(summary) => void removeRun(summary)}
-          onJobTitleChange={setJobTitle}
-          onOpenRun={(id) => navigate(`/agent/${id}`)}
-          onSetup={() => void setupPrivateAi()}
-          onStart={(event) => void startRun(event)}
-          onUrlChange={setStartUrl}
-          privateAi={privateAi}
-          startUrl={startUrl}
-        />
-      ) : (
+      {recoverableRunId ? (
+        <section aria-labelledby="browser-agent-recovery-title" className="browser-agent-recovery surface-panel">
+          <div><RefreshCw aria-hidden="true" size={22} /><div><h2 id="browser-agent-recovery-title">Resume this application?</h2><p>ApplyFill will reopen the private application page from its latest safe checkpoint. Nothing will be submitted.</p></div></div>
+          <Button disabled={commandBusy !== null} onClick={() => void recoverRun()} variant="primary">
+            {commandBusy === 'recover' ? <LoaderCircle aria-hidden="true" className="animate-spin" size={17} /> : <CirclePlay aria-hidden="true" size={17} />} Resume This Application
+          </Button>
+        </section>
+      ) : null}
+
+      {run ? (
         <BrowserAgentWorkspace
           commandBusy={commandBusy}
           connectionState={connectionState}
           onAnswer={() => void answerQuestion()}
           onCommand={(command) => void sendCommand(command)}
           onInput={sendInput}
+          onRetryConnection={() => setConnectionAttempt((value) => value + 1)}
           onSaveAnswerChange={setSaveAnswer}
           onSelectedOptionChange={setSelectedOption}
           onStop={() => setStopDialogOpen(true)}
@@ -342,7 +453,27 @@ export function BrowserAgentPage({ client = browserAgentClient }: BrowserAgentPa
           saveAnswer={saveAnswer}
           selectedOption={selectedOption}
         />
-      )}
+      ) : !recoverableRunId ? (
+        <BrowserAgentLanding
+          commandBusy={commandBusy}
+          companyName={companyName}
+          history={history}
+          jobTitle={jobTitle}
+          profileReady={Boolean(startResources.profileId)}
+          resumes={startResources.resumes}
+          selectedResumeId={selectedResumeId}
+          onCompanyNameChange={setCompanyName}
+          onDeleteRun={(summary) => void removeRun(summary)}
+          onJobTitleChange={setJobTitle}
+          onOpenRun={(id) => navigate(`/agent/${id}`)}
+          onResumeChange={setSelectedResumeId}
+          onSetup={() => void setupPrivateAi()}
+          onStart={(event) => void startRun(event)}
+          onUrlChange={setStartUrl}
+          privateAi={privateAi}
+          startUrl={startUrl}
+        />
+      ) : null}
 
       {stopDialogOpen && run ? (
         <div className="browser-agent-dialog-backdrop" onMouseDown={() => setStopDialogOpen(false)}>
@@ -362,16 +493,20 @@ export function BrowserAgentPage({ client = browserAgentClient }: BrowserAgentPa
 }
 
 type BrowserAgentLandingProps = {
-  commandBusy: BrowserRunCommand | 'answer' | 'delete' | null;
+  commandBusy: BrowserAgentBusyAction | null;
   companyName: string;
   history: BrowserRunSummary[];
   jobTitle: string;
+  profileReady: boolean;
   privateAi: PrivateAiStatus | null;
+  resumes: Array<{ id: string; title: string }>;
+  selectedResumeId: string;
   startUrl: string;
   onCompanyNameChange: (value: string) => void;
   onDeleteRun: (run: BrowserRunSummary) => void;
   onJobTitleChange: (value: string) => void;
   onOpenRun: (id: string) => void;
+  onResumeChange: (value: string) => void;
   onSetup: () => void;
   onStart: (event: React.FormEvent<HTMLFormElement>) => void;
   onUrlChange: (value: string) => void;
@@ -430,7 +565,24 @@ function BrowserAgentLanding(props: BrowserAgentLandingProps) {
               <input className="form-input" disabled={!aiReady} id="agent-job-title" onChange={(event) => props.onJobTitleChange(event.target.value)} value={props.jobTitle} />
             </div>
           </div>
-          <Button disabled={!aiReady || !props.startUrl.trim() || props.commandBusy !== null} type="submit" variant="primary"><Play aria-hidden="true" size={18} /> Start Application</Button>
+          <div className="form-group">
+            <label className="form-label" htmlFor="agent-resume">Resume <span>(optional)</span></label>
+            <AppSelect<{ label: string; value: string }>
+              inputId="agent-resume"
+              isClearable
+              isDisabled={!aiReady || !props.profileReady}
+              isSearchable={props.resumes.length > 6}
+              onChange={(option) => props.onResumeChange(option?.value ?? '')}
+              options={props.resumes.map((resume) => ({ label: resume.title, value: resume.id }))}
+              placeholder={props.resumes.length ? 'Choose a resume' : 'No saved resumes'}
+              value={props.resumes
+                .filter((resume) => resume.id === props.selectedResumeId)
+                .map((resume) => ({ label: resume.title, value: resume.id }))[0] ?? null}
+            />
+            <p className="field-hint">ApplyFill can upload the selected resume when the application asks for one.</p>
+          </div>
+          {!props.profileReady ? <p className="field-error" role="alert">Complete and save your Job Profile before starting an application.</p> : null}
+          <Button disabled={!aiReady || !props.profileReady || !props.startUrl.trim() || props.commandBusy !== null} type="submit" variant="primary"><Play aria-hidden="true" size={18} /> Start Application</Button>
         </form>
       </main>
 
@@ -456,7 +608,7 @@ function BrowserAgentLanding(props: BrowserAgentLandingProps) {
 }
 
 type BrowserAgentWorkspaceProps = {
-  commandBusy: BrowserRunCommand | 'answer' | 'delete' | null;
+  commandBusy: BrowserAgentBusyAction | null;
   connectionState: BrowserConnectionState;
   questionValue: string;
   run: BrowserRunSnapshot;
@@ -465,6 +617,7 @@ type BrowserAgentWorkspaceProps = {
   onAnswer: () => void;
   onCommand: (command: BrowserRunCommand) => void;
   onInput: (input: BrowserInput) => void;
+  onRetryConnection: () => void;
   onSaveAnswerChange: (checked: boolean) => void;
   onSelectedOptionChange: (value: string) => void;
   onStop: () => void;
@@ -514,7 +667,12 @@ function BrowserAgentWorkspace(props: BrowserAgentWorkspaceProps) {
       {run.controlReason ? <p className="browser-control-reason"><LockKeyhole aria-hidden="true" size={17} /> {run.controlReason}</p> : null}
 
       <div className="browser-agent-workspace-grid">
-        <ManagedBrowserViewport connectionState={props.connectionState} onInput={props.onInput} run={run} />
+        <ManagedBrowserViewport
+          connectionState={props.connectionState}
+          onInput={props.onInput}
+          onRetryConnection={props.onRetryConnection}
+          run={run}
+        />
         <aside className="browser-agent-activity" aria-labelledby="browser-agent-activity-title">
           <h2 id="browser-agent-activity-title">Progress</h2>
           {run.currentAction ? <div className="browser-current-action"><LoaderCircle aria-hidden="true" className="animate-spin" size={18} /><div><strong>Now</strong><span>{run.currentAction}</span></div></div> : null}

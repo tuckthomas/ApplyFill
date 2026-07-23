@@ -1,5 +1,6 @@
 import type { LocalProfileDocument } from '../profile/profileBuilder';
-import { LOCAL_DATA_KEYS, readLocalDocument, writeLocalDocument } from '../storage/localDatabase';
+import { apiRequest } from '../api/localApiClient';
+import { notifyDataChanged } from '../api/dataEvents';
 
 export const RESUME_COLLECTION_FORMAT = 'applyfill.resume-collection';
 export const RESUME_DOCUMENT_FORMAT = 'applyfill.resume';
@@ -45,6 +46,18 @@ export type PortableResumeDocument = {
   resume: LocalResumeDraft;
   schemaVersion: typeof RESUME_SCHEMA_VERSION;
 };
+
+type ResumeResponse = {
+  concurrencyToken: string;
+  content: unknown;
+  createdAt: string;
+  id: string;
+  name: string;
+  schemaVersion: number;
+  updatedAt: string;
+};
+
+const resumeTokens = new Map<string, string>();
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -120,37 +133,57 @@ export const createResumeDraft = (
 });
 
 export const loadResumeCollection = async (): Promise<LocalResumeCollection> => {
-  const value = await readLocalDocument<unknown>(LOCAL_DATA_KEYS.resumes);
-  if (value === null) return createEmptyCollection();
-  if (!isLocalResumeCollection(value)) throw new Error('The locally stored resumes have an unsupported format.');
-  return value;
+  const response = await apiRequest<ResumeResponse[]>('/api/v1/resumes?skip=0&take=100');
+  const resumes = response.value.map((item) => {
+    if (!isLocalResumeDraft(item.content)) throw new Error('A saved resume has an unsupported format.');
+    const resume = {
+      ...item.content,
+      createdAtUtc: item.createdAt,
+      id: item.id,
+      title: item.name,
+      updatedAtUtc: item.updatedAt,
+    };
+    resumeTokens.set(item.id, item.concurrencyToken);
+    return resume;
+  });
+  return {
+    ...createEmptyCollection(),
+    resumes,
+    updatedAtUtc: resumes.reduce((latest, resume) => resume.updatedAtUtc > latest ? resume.updatedAtUtc : latest, ''),
+  };
 };
 
 export const saveResumeDraft = async (
   resume: LocalResumeDraft,
   updatedAtUtc = new Date().toISOString()
 ): Promise<LocalResumeDraft> => {
-  const collection = await loadResumeCollection();
   const saved = { ...resume, updatedAtUtc };
-  const resumes = collection.resumes.some((item) => item.id === saved.id)
-    ? collection.resumes.map((item) => item.id === saved.id ? saved : item)
-    : [...collection.resumes, saved];
-  await writeLocalDocument(LOCAL_DATA_KEYS.resumes, {
-    ...collection,
-    resumes,
-    updatedAtUtc
-  });
-  return saved;
+  const token = resumeTokens.get(saved.id);
+  const response = await apiRequest<ResumeResponse>(token
+    ? `/api/v1/resumes/${encodeURIComponent(saved.id)}`
+    : '/api/v1/resumes', {
+    body: JSON.stringify({ content: saved, name: saved.title, schemaVersion: RESUME_SCHEMA_VERSION }),
+    method: token ? 'PUT' : 'POST',
+  }, token ? { concurrencyToken: token } : {});
+  const persisted = {
+    ...saved,
+    createdAtUtc: response.value.createdAt,
+    id: response.value.id,
+    title: response.value.name,
+    updatedAtUtc: response.value.updatedAt,
+  };
+  resumeTokens.set(persisted.id, response.value.concurrencyToken || response.etag || '');
+  notifyDataChanged('resumes');
+  return persisted;
 };
 
 export const deleteResumeDraft = async (resumeId: string): Promise<void> => {
-  const collection = await loadResumeCollection();
-  const updatedAtUtc = new Date().toISOString();
-  await writeLocalDocument(LOCAL_DATA_KEYS.resumes, {
-    ...collection,
-    resumes: collection.resumes.filter((resume) => resume.id !== resumeId),
-    updatedAtUtc
-  });
+  if (!resumeTokens.has(resumeId)) await loadResumeCollection();
+  const token = resumeTokens.get(resumeId);
+  if (!token) throw new Error('Reload this resume before deleting it.');
+  await apiRequest<void>(`/api/v1/resumes/${encodeURIComponent(resumeId)}`, { method: 'DELETE' }, { concurrencyToken: token });
+  resumeTokens.delete(resumeId);
+  notifyDataChanged('resumes');
 };
 
 export const createPortableResumeDocument = (resume: LocalResumeDraft): PortableResumeDocument => ({

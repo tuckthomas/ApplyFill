@@ -1,8 +1,10 @@
 # Resume Builder & Agent-Ready Application Web App
 
-> **HISTORICAL / SUPERSEDED — updated 2026-07-18:** This plan predates ApplyFill's static local-first architecture and repeatedly proposes server persistence and server-owned document generation. Do not implement those sections. Current architecture is documented in the root README and `.agents/README.md`: substantive records live in browser IndexedDB, portable documents use versioned JSON, PDF/DOCX are generated from a resume-safe client allowlist, approved AI runs through LiteRT-LM.js in the browser, and no application backend ships.
+> **ARCHIVED AND SUPERSEDED — 2026-07-22:** This document spans more than one abandoned architecture and is not current implementation guidance. ApplyFill now uses the React UI, .NET 10 API, PostgreSQL 18, a managed-Chromium Browser Agent, and native local Private AI services. See [current architecture](../../../docs/architecture.md), [threat model](../../../docs/threat-model.md), and [data retention](../../../docs/data-retention.md).
 
-> **Planning status:** This document describes intended architecture and future phases. It is not an implementation inventory. For the currently delivered frontend behavior, routes, persistence boundaries, and screenshots, read the root `README.md`; for actively tracked work, read `../tasks/task.md`.
+> **Historical supersession note from 2026-07-18:** At that transition point, this plan was superseded by a static local-first architecture in which substantive records lived in browser IndexedDB, portable documents used versioned JSON, PDF/DOCX were generated from a resume-safe client allowlist, approved AI ran through LiteRT-LM.js, and no application backend shipped. That replacement architecture has itself now been superseded.
+
+> **Planning status:** This document describes historical intended architecture and future phases. It is not an implementation inventory. For current behavior and boundaries, use the linked current documentation above.
 
 ## Goal
 Build a modern, AI-integrated resume and job-application support platform. The core product will focus on a premium structured resume-building workflow, PDF-first resume output, a .NET-owned document generation pipeline, optional Google Drive / OneDrive storage, and optional agent-ready integrations for advanced users who want to run their own local automation environment.

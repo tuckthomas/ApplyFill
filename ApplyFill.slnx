@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ResumeBuilder.Api/ResumeBuilder.Api.csproj" />
+    <Project Path="src/ResumeBuilder.Application/ResumeBuilder.Application.csproj" />
+    <Project Path="src/ResumeBuilder.BrowserWorker/ResumeBuilder.BrowserWorker.csproj" />
+    <Project Path="src/ResumeBuilder.Domain/ResumeBuilder.Domain.csproj" />
+    <Project Path="src/ResumeBuilder.Infrastructure/ResumeBuilder.Infrastructure.csproj" />
+    <Project Path="src/ResumeBuilder.PrivateAi/ResumeBuilder.PrivateAi.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ResumeBuilder.BrowserWorker.Tests/ResumeBuilder.BrowserWorker.Tests.csproj" />
+    <Project Path="tests/ResumeBuilder.PrivateAi.Tests/ResumeBuilder.PrivateAi.Tests.csproj" />
+    <Project Path="tests/ResumeBuilder.SyntheticAts/ResumeBuilder.SyntheticAts.csproj" />
+    <Project Path="tests/ResumeBuilder.SyntheticAts/Tests/ResumeBuilder.SyntheticAts.Tests.csproj" />
+    <Project Path="tests/ResumeBuilder.Tests/ResumeBuilder.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="GlobalUsings.cs" />
+    <Compile Remove="SyntheticAtsFixtureTests.cs" />
+    <Compile Remove="Tests\**\*.cs" />
+  </ItemGroup>
+
+</Project>

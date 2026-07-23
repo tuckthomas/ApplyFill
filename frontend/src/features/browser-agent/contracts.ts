@@ -34,10 +34,13 @@ export type BrowserAgentQuestion = {
   id: string;
   prompt: string;
   context: string;
-  category: 'login' | 'mfa' | 'captcha' | 'sensitive' | 'legal' | 'choice' | 'unsupported';
+  category: 'login' | 'mfa' | 'captcha' | 'sensitive' | 'sensitive-approval' | 'legal' | 'choice' | 'unsupported';
   options?: BrowserAgentQuestionOption[];
   allowFreeText?: boolean;
   canSaveToProfile?: boolean;
+  approvalId?: string;
+  approvalConcurrencyToken?: string;
+  maskedValue?: string;
 };
 
 export type BrowserRunReview = {
@@ -67,6 +70,9 @@ export type BrowserRunSnapshot = {
   frameUpdatedAt?: string;
   frameWidth?: number;
   frameHeight?: number;
+  frameSequence?: number;
+  framePageGeneration?: number;
+  frameDeviceScaleFactor?: number;
   frameUrl?: string;
   pendingQuestion?: BrowserAgentQuestion;
   activity: BrowserAgentActivity[];
@@ -79,9 +85,12 @@ export type BrowserRunSummary = Pick<BrowserRunSnapshot,
   'id' | 'state' | 'companyName' | 'jobTitle' | 'currentDomain' | 'applicationStage' | 'updatedAt' | 'canResume'>;
 
 export type StartBrowserRunRequest = {
-  targetUrl: string;
   companyName?: string;
+  jobApplicationId?: string;
   jobTitle?: string;
+  profileId: string;
+  resumeId?: string;
+  targetUrl: string;
 };
 
 export type BrowserRunCommand =
@@ -92,10 +101,14 @@ export type BrowserRunCommand =
   | 'stop'
   | 'approve-submit';
 
-export type BrowserInput =
-  | { kind: 'pointer'; event: 'move' | 'down' | 'up'; x: number; y: number; button?: number; sequence: number }
-  | { kind: 'wheel'; deltaX: number; deltaY: number; x: number; y: number; sequence: number }
-  | { kind: 'key'; event: 'down' | 'up'; key: string; code: string; alt: boolean; control: boolean; meta: boolean; shift: boolean; sequence: number };
+type FrameBoundInput = { frameSequence: number; pageGeneration: number };
+
+export type BrowserInput = FrameBoundInput & (
+  | { kind: 'pointer'; event: 'move' | 'down' | 'up'; x: number; y: number; button?: number }
+  | { kind: 'wheel'; deltaX: number; deltaY: number; x: number; y: number }
+  | { kind: 'key'; event: 'down' | 'up'; key: string; code: string; alt: boolean; control: boolean; meta: boolean; shift: boolean }
+  | { kind: 'resize'; viewportWidth: number; viewportHeight: number }
+);
 
 export type BrowserAgentQuestionAnswer = {
   optionId?: string;
@@ -116,7 +129,7 @@ export type PrivateAiStatus = {
 
 export type BrowserAgentStreamEvent =
   | { type: 'snapshot'; snapshot: BrowserRunSnapshot }
-  | { type: 'frame'; runId: string; frameUrl: string; frameUpdatedAt: string; width: number; height: number }
+  | { type: 'frame'; runId: string; frameUrl: string; frameUpdatedAt: string; width: number; height: number; sequence: number; pageGeneration: number; deviceScaleFactor: number }
   | { type: 'connection'; state: BrowserConnectionState };
 
 export interface BrowserAgentClient {
@@ -124,8 +137,10 @@ export interface BrowserAgentClient {
   setupPrivateAi(signal?: AbortSignal): Promise<PrivateAiStatus>;
   listRuns(signal?: AbortSignal): Promise<BrowserRunSummary[]>;
   getRun(runId: string, signal?: AbortSignal): Promise<BrowserRunSnapshot>;
+  recoverRun(runId: string, signal?: AbortSignal): Promise<BrowserRunSnapshot>;
   startRun(request: StartBrowserRunRequest, signal?: AbortSignal): Promise<BrowserRunSnapshot>;
   command(runId: string, command: BrowserRunCommand, revision: number, signal?: AbortSignal): Promise<BrowserRunSnapshot>;
+  decideSensitiveApproval(runId: string, approvalId: string, approved: boolean, concurrencyToken: string, signal?: AbortSignal): Promise<void>;
   answerQuestion(runId: string, questionId: string, answer: BrowserAgentQuestionAnswer, revision: number, signal?: AbortSignal): Promise<BrowserRunSnapshot>;
   sendInput(runId: string, input: BrowserInput): Promise<void>;
   deleteRun(runId: string, signal?: AbortSignal): Promise<void>;

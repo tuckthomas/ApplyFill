@@ -4,7 +4,6 @@ import Button from '../ui/Button';
 import Checkbox from '../ui/Checkbox';
 import type { LocalProfileDocument } from '../../features/profile/profileBuilder';
 import type { LocalResumeDraft } from '../../features/resume/resumeDocument';
-import type { LocalAiRuntime } from '../../features/local-ai/runtime/types';
 import {
   applyResumeAiPatches,
   createAiSafeResumeSnapshot,
@@ -12,45 +11,35 @@ import {
   validateResumeAiPatch
 } from '../../features/local-ai/contracts';
 import type { ResumeAiPatch } from '../../features/local-ai/contracts';
-import { runResumeTailoringWorkflow } from '../../features/local-ai/workflows/resumeTailoring';
+import { tailorResumeWithPrivateAi } from '../../features/private-ai/privateAiClient';
 
 type LocalAiTailoringPanelProps = {
   onClose: () => void;
   onResumeChange: (resume: LocalResumeDraft) => void;
   profile: LocalProfileDocument;
   resume: LocalResumeDraft;
-  runtime: LocalAiRuntime | null;
 };
 
 type ReviewPatch = ResumeAiPatch & { afterDraft: string };
 
-export default function LocalAiTailoringPanel({ onClose, onResumeChange, profile, resume, runtime }: LocalAiTailoringPanelProps) {
+export default function LocalAiTailoringPanel({ onClose, onResumeChange, profile, resume }: LocalAiTailoringPanelProps) {
   const [jobText, setJobText] = useState('');
   const [patches, setPatches] = useState<ReviewPatch[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [analysis, setAnalysis] = useState<{ employer: string; role: string; requiredSkills: string[]; preferredSkills: string[]; responsibilities: string[]; keywords: string[] } | null>(null);
   const [relevance, setRelevance] = useState<Array<{ opaqueId: string; reason: string; score: number }>>([]);
   const [generatedRevision, setGeneratedRevision] = useState('');
-  const [status, setStatus] = useState('No profile or job data has been sent anywhere.');
+  const [status, setStatus] = useState('Nothing is sent to Private AI until you start.');
   const [isRunning, setIsRunning] = useState(false);
   const [undoResume, setUndoResume] = useState<LocalResumeDraft | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
   const snapshot = useMemo(() => createAiSafeResumeSnapshot(profile, resume), [profile, resume]);
   const isStale = Boolean(generatedRevision && generatedRevision !== snapshot.sourceRevision);
-  const runtimeReady = runtime?.snapshot.state === 'ready';
 
   useEffect(() => () => controllerRef.current?.abort(), []);
 
   const generate = async () => {
-    if (!runtime) {
-      setStatus('The local AI runtime is unavailable in this browser. Open Settings to review compatibility.');
-      return;
-    }
-    if (!runtimeReady) {
-      setStatus('Download and initialize a local model in Settings before generating suggestions.');
-      return;
-    }
     const controller = new AbortController();
     controllerRef.current = controller;
     setIsRunning(true);
@@ -59,10 +48,8 @@ export default function LocalAiTailoringPanel({ onClose, onResumeChange, profile
     setRelevance([]);
     setStatus('Preparing an allowlisted, contact-free snapshot…');
     try {
-      const result = await runResumeTailoringWorkflow(runtime, profile, resume, jobText, {
-        onProgress: (progress) => setStatus(progress.message),
-        signal: controller.signal
-      });
+      setStatus('Private AI is reviewing the approved professional sections…');
+      const result = await tailorResumeWithPrivateAi(profile, resume, jobText, controller.signal);
       const review = result.patches.map((patch) => ({ ...patch, afterDraft: patch.after }));
       setAnalysis(result.analysis);
       setRelevance([...result.relevance.items].sort((left, right) => right.score - left.score));
@@ -70,12 +57,12 @@ export default function LocalAiTailoringPanel({ onClose, onResumeChange, profile
       setSelected(new Set(review.map((patch) => patch.patchId)));
       setGeneratedRevision(result.sourceRevision);
       setStatus(review.length
-        ? `${review.length} local suggestion${review.length === 1 ? '' : 's'} ready for review. Nothing has changed yet.`
-        : 'Analysis completed locally, but the model proposed no supported changes.');
+        ? `${review.length} suggestion${review.length === 1 ? '' : 's'} ready for review. Nothing has changed yet.`
+        : 'Analysis completed, but Private AI proposed no supported changes.');
     } catch (error) {
       setStatus(error instanceof DOMException && error.name === 'AbortError'
-        ? 'Local generation cancelled. Your resume was not changed.'
-        : error instanceof Error ? error.message : 'Local generation failed. Your resume was not changed.');
+        ? 'Private AI cancelled. Your resume was not changed.'
+        : error instanceof Error ? error.message : 'Private AI failed. Your resume was not changed.');
     } finally {
       controllerRef.current = null;
       setIsRunning(false);
@@ -110,11 +97,11 @@ export default function LocalAiTailoringPanel({ onClose, onResumeChange, profile
         <div className="settings-preferences-heading">
           <BrainCircuit aria-hidden="true" size={24} />
           <div>
-            <h3 className="section-title" id="local-ai-tailoring-title">Tailor with Local AI</h3>
-            <p className="section-copy">Runs in this desktop browser. Suggestions are proposals and never change your resume until you accept them.</p>
+            <h3 className="section-title" id="local-ai-tailoring-title">Tailor with Private AI</h3>
+            <p className="section-copy">Runs through ApplyFill on this computer. Suggestions never change your resume until you accept them.</p>
           </div>
         </div>
-        <button className="icon-button" type="button" onClick={onClose} aria-label="Close local AI tailoring" data-tooltip="Close"><X aria-hidden="true" size={20} /></button>
+        <button className="icon-button" type="button" onClick={onClose} aria-label="Close Private AI tailoring" data-tooltip="Close"><X aria-hidden="true" size={20} /></button>
       </div>
 
       <div className="local-ai-privacy-note">
@@ -156,12 +143,11 @@ export default function LocalAiTailoringPanel({ onClose, onResumeChange, profile
       </div>
 
       <p className="field-hint local-ai-status" role="status" aria-live="polite">{status}</p>
-      {!runtimeReady ? <p className="field-hint">Runtime state: {runtime?.snapshot.state ?? 'unavailable'}. Model setup and accelerator controls are in Settings.</p> : null}
       {isStale ? <p className="field-error" role="alert">The source changed after generation. These suggestions cannot be accepted until you regenerate them.</p> : null}
 
       {analysis ? (
         <section className="local-ai-analysis" aria-labelledby="local-ai-analysis-title">
-          <h4 id="local-ai-analysis-title">Local Job Analysis</h4>
+          <h4 id="local-ai-analysis-title">Private Job Analysis</h4>
           <p><strong>{analysis.role || 'Role not identified'}</strong>{analysis.employer ? ` at ${analysis.employer}` : ''}</p>
           <p><strong>Required skills:</strong> {analysis.requiredSkills.join(', ') || 'None identified'}</p>
           <p><strong>Preferred skills:</strong> {analysis.preferredSkills.join(', ') || 'None identified'}</p>

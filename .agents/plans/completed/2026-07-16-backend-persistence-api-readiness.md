@@ -1,6 +1,8 @@
 # Backend Persistence and API Readiness
 
-> **SUPERSEDED — updated 2026-07-18:** ApplyFill adopted a static, local-first architecture. The database, application backend, persistence/authentication layers, and remote AI provider were removed. Records now use browser IndexedDB, and approved AI workflows run locally through LiteRT-LM.js. The material below is retained only as historical implementation evidence and is not an active plan.
+> **ARCHIVED AND SUPERSEDED — 2026-07-22:** This readiness plan and its intermediate static/browser-local replacement are both historical. ApplyFill now uses the React UI, .NET 10 API, PostgreSQL 18, a managed-Chromium Browser Agent, and native local Private AI services. See [current architecture](../../../docs/architecture.md), [threat model](../../../docs/threat-model.md), and [data retention](../../../docs/data-retention.md). The material below remains historical implementation evidence and is not an active plan.
+
+> **Historical supersession note from 2026-07-18:** At that transition point, ApplyFill adopted a static local-first architecture, removed the database/backend persistence path, stored records in IndexedDB, and ran approved AI through browser LiteRT-LM.js. That replacement architecture has itself now been superseded.
 
 **Status:** Superseded and archived by the local-first privacy architecture  
 **Created:** 2026-07-16  

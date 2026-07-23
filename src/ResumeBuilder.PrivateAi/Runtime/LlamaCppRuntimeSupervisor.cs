@@ -43,10 +43,9 @@ public sealed class LlamaCppRuntimeSupervisor(HttpClient healthClient) : IAsyncD
             UseShellExecute = false,
             CreateNoWindow = true,
             WindowStyle = ProcessWindowStyle.Hidden,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
             WorkingDirectory = Path.GetDirectoryName(Path.GetFullPath(configuration.ExecutablePath))!,
         };
+        startInfo.Environment["LLAMA_API_KEY"] = apiKey;
         startInfo.ArgumentList.Add("--model");
         startInfo.ArgumentList.Add(Path.GetFullPath(configuration.ModelPath));
         startInfo.ArgumentList.Add("--mmproj");
@@ -62,9 +61,8 @@ public sealed class LlamaCppRuntimeSupervisor(HttpClient healthClient) : IAsyncD
         startInfo.ArgumentList.Add("--gpu-layers");
         startInfo.ArgumentList.Add(configuration.GpuLayers);
         startInfo.ArgumentList.Add("--no-webui");
-        startInfo.ArgumentList.Add("--api-key");
-        startInfo.ArgumentList.Add(apiKey);
         startInfo.ArgumentList.Add("--offline");
+        startInfo.ArgumentList.Add("--log-disable");
         startInfo.ArgumentList.Add("--fit");
         startInfo.ArgumentList.Add("on");
         startInfo.ArgumentList.Add("--fit-target");

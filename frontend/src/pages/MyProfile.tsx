@@ -62,8 +62,10 @@ export default function MyProfile() {
         if (!isCurrent) return;
         setProfileDocument(document);
         setProfileBuilderState(document ? toProfileBuilderState(document) : createDefaultProfileBuilderState());
-      } catch {
-        if (isCurrent) setLoadError('Your saved profile could not be loaded from this browser. Check that site storage is allowed, then retry.');
+      } catch (error) {
+        if (isCurrent) setLoadError(error instanceof Error
+          ? error.message
+          : 'Your saved profile could not be loaded from ApplyFill. Keep ApplyFill open, then try again.');
       } finally {
         if (isCurrent) setIsLoading(false);
       }
@@ -123,7 +125,7 @@ export default function MyProfile() {
       <header className="page-header">
         <div>
           <h2 className="page-title">Job Profile</h2>
-          <p className="page-copy">Review or export the reusable profile stored only in this browser.</p>
+          <p className="page-copy">Review or export the reusable profile stored by ApplyFill on this computer.</p>
         </div>
         <Button onClick={() => navigate('/job-profile/builder')} variant="secondary">
           <Wand2 size={18} aria-hidden="true" />

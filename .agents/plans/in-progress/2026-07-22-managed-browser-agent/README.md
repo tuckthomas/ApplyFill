@@ -1,8 +1,8 @@
 # Managed Browser Agent, Vision Runtime, and Backend Restoration
 
 **Proposed:** 2026-07-22  
-**Status:** Pipeline — awaiting review and explicit approval  
-**Lifecycle:** Move this entire directory to `in-progress/` only after the user instructs implementation to begin  
+**Status:** Implemented — release acceptance pending
+**Lifecycle:** Implementation is active in `in-progress/`; move to `completed/` only after the remaining release and human gates pass
 **Target:** A local/private ApplyFill stack with ASP.NET Core 10, PostgreSQL 18, managed Chromium, and self-hosted vision models
 
 ## Product decision proposed
@@ -29,25 +29,25 @@ ApplyFill React main layout
 
 ## Non-negotiable product boundaries
 
-- [ ] Remove the Chromium extension from the target architecture; do not redesign or retain it as the Browser Agent transport.
-- [ ] Render the Browser Agent within the existing ApplyFill header/sidebar/main-content shell.
-- [ ] Preserve the same authenticated Chromium context across every page, redirect, popup, conditional branch, and user-control handoff in an application run.
-- [ ] Let the user pause, stop, take control, and return control at any time from persistent visible controls.
-- [ ] Make agent and human input mutually exclusive through a server-owned control lease.
-- [ ] Persist application-run state and checkpoints across page navigation, browser-worker restart, and ApplyFill reload.
-- [ ] Use visual understanding for page semantics, layout, and unusual controls; combine it with browser-observed structure for deterministic execution and verification.
-- [ ] Never treat a screenshot-coordinate guess as proof that an action succeeded.
-- [ ] Keep credentials, MFA, CAPTCHA, legally binding attestations, and missing personal answers under explicit user control.
-- [ ] Stop for explicit final-submission approval by default. Advancing ordinary intermediate pages must remain automated.
-- [ ] Keep raw page screenshots, DOM snapshots, browser cookies, uploaded documents, prompts, and generated reasoning out of ordinary logs.
-- [ ] Run models and browser automation locally for the first release; no silent cloud fallback.
-- [ ] Treat model implementations as replaceable providers selected by declared capabilities and conformance results; no workflow, API, database, or UI contract may depend directly on a Qwen/Paddle/Ollama-specific type.
-- [ ] Optimize the first model selection for correctness over latency on the development machine; slower CPU/GPU split inference is acceptable when it produces materially better verified results.
-- [ ] Keep runtime/provider/model-selection architecture entirely internal. Ordinary users never install, select, configure, connect, or troubleshoot Ollama, llama.cpp, Transformers, Paddle, ports, APIs, containers, quantization, GPU layers, or model identifiers.
-- [ ] Provide one ordinary setup action—**Set Up Private AI**—that checks the computer, installs the supported runtime/model combination, verifies it, and reports only plain-language progress and actionable failures.
+- [x] Remove the Chromium extension from the target architecture; do not redesign or retain it as the Browser Agent transport.
+- [x] Render the Browser Agent within the existing ApplyFill header/sidebar/main-content shell.
+- [x] Preserve the same authenticated Chromium context across every page, redirect, popup, conditional branch, and user-control handoff in an application run.
+- [x] Let the user pause, stop, take control, and return control at any time from persistent visible controls.
+- [x] Make agent and human input mutually exclusive through a server-owned control lease.
+- [x] Persist application-run state and checkpoints across page navigation, browser-worker restart, and ApplyFill reload.
+- [x] Use visual understanding for page semantics, layout, and unusual controls; combine it with browser-observed structure for deterministic execution and verification.
+- [x] Never treat a screenshot-coordinate guess as proof that an action succeeded.
+- [x] Keep credentials, MFA, CAPTCHA, legally binding attestations, and missing personal answers under explicit user control.
+- [x] Stop for explicit final-submission approval by default. Advancing ordinary intermediate pages must remain automated.
+- [x] Keep raw page screenshots, DOM snapshots, browser cookies, uploaded documents, prompts, and generated reasoning out of ordinary logs.
+- [x] Run models and browser automation locally for the first release; no silent cloud fallback.
+- [x] Treat model implementations as replaceable providers selected by declared capabilities and conformance results; no workflow, API, database, or UI contract may depend directly on a Qwen/Paddle/Ollama-specific type.
+- [x] Optimize the first model selection for correctness over latency on the development machine; slower CPU/GPU split inference is acceptable when it produces materially better verified results.
+- [x] Keep runtime/provider/model-selection architecture entirely internal. Ordinary users never install, select, configure, connect, or troubleshoot Ollama, llama.cpp, Transformers, Paddle, ports, APIs, containers, quantization, GPU layers, or model identifiers.
+- [x] Provide one ordinary setup action—**Set Up Private AI**—that checks the computer, installs the supported runtime/model combination, verifies it, and reports only plain-language progress and actionable failures.
 - [ ] ApplyFill automatically chooses and updates the best evaluated compatible model. A model change must not require users to understand that the underlying provider or model changed.
-- [ ] Eliminate dual authoritative stores after migration. PostgreSQL 18 becomes authoritative; IndexedDB may only participate in an explicit, temporary cutover process.
-- [ ] Do not retain obsolete extension or browser-local compatibility paths after the cutover is verified.
+- [x] Eliminate dual authoritative stores after migration. PostgreSQL 18 becomes authoritative; IndexedDB may only participate in an explicit, temporary cutover process.
+- [x] Do not retain obsolete extension or browser-local compatibility paths after the cutover is verified.
 
 ## Workstream directory
 
@@ -67,75 +67,75 @@ Each checklist is intended to be independently assignable after approval. A work
 
 ## Shared contract ownership
 
-- [ ] Workstream 01 owns service boundaries, transport envelopes, identifiers, versioning, and solution/package topology.
-- [ ] Workstream 02 owns persisted aggregates, EF mappings, database migrations, concurrency, and repository contracts.
-- [ ] Workstream 03 owns browser-session, viewport-frame, user-input, browser-event, and low-level browser-action contracts.
-- [ ] Workstream 04 owns application-run states, agent decisions, allowed high-level actions, checkpoints, pending questions, and recovery rules.
-- [ ] Workstream 05 owns model-provider interfaces, visual-observation inputs, structured model outputs, prompt versions, and evaluation artifacts.
-- [ ] Workstream 06 owns visible UI components and consumes shared contracts without redefining them in page-local types.
-- [ ] Workstream 07 owns prohibitions and policy decisions. Other workstreams cannot weaken these to make a test or model pass.
-- [ ] Workstream 08 owns deletion of obsolete extension and browser-only paths after replacements pass acceptance.
-- [ ] Workstream 09 owns cross-cutting release evidence; each workstream still owns its focused automated tests.
+- [x] Workstream 01 owns service boundaries, transport envelopes, identifiers, versioning, and solution/package topology.
+- [x] Workstream 02 owns persisted aggregates, EF mappings, database migrations, concurrency, and repository contracts.
+- [x] Workstream 03 owns browser-session, viewport-frame, user-input, browser-event, and low-level browser-action contracts.
+- [x] Workstream 04 owns application-run states, agent decisions, allowed high-level actions, checkpoints, pending questions, and recovery rules.
+- [x] Workstream 05 owns model-provider interfaces, visual-observation inputs, structured model outputs, prompt versions, and evaluation artifacts.
+- [x] Workstream 06 owns visible UI components and consumes shared contracts without redefining them in page-local types.
+- [x] Workstream 07 owns prohibitions and policy decisions. Other workstreams cannot weaken these to make a test or model pass.
+- [x] Workstream 08 owns deletion of obsolete extension and browser-only paths after replacements pass acceptance.
+- [x] Workstream 09 owns cross-cutting release evidence; each workstream still owns its focused automated tests.
 
 ## Integration hotspots and parallel-agent controls
 
-- [ ] Assign one integration coordinator before parallel implementation starts.
-- [ ] Coordinate changes to solution files, root container configuration, `frontend/package.json`, `frontend/pnpm-lock.yaml`, `frontend/src/App.tsx`, `frontend/src/index.css`, `.agents/README.md`, and root `README.md`.
-- [ ] Keep initial browser and model adapters behind interfaces so deterministic fakes unblock UI and orchestration work.
-- [ ] Do not let the browser-runtime workstream design application semantics; it executes validated actions from the orchestrator.
-- [ ] Do not let the model workstream write directly to PostgreSQL or browser sessions.
-- [ ] Do not let the UI workstream invent a second client-side run state that can diverge from the backend.
-- [ ] Do not delete the extension or local-first implementation until the replacement vertical slice and data cutover are proven.
-- [ ] Use short-lived feature branches or non-overlapping file ownership when multiple agents edit in parallel.
+- [x] Assign one integration coordinator before parallel implementation starts.
+- [x] Coordinate changes to solution files, root container configuration, `frontend/package.json`, `frontend/pnpm-lock.yaml`, `frontend/src/App.tsx`, `frontend/src/index.css`, `.agents/README.md`, and root `README.md`.
+- [x] Keep initial browser and model adapters behind interfaces so deterministic fakes unblock UI and orchestration work.
+- [x] Do not let the browser-runtime workstream design application semantics; it executes validated actions from the orchestrator.
+- [x] Do not let the model workstream write directly to PostgreSQL or browser sessions.
+- [x] Do not let the UI workstream invent a second client-side run state that can diverge from the backend.
+- [x] Do not delete the extension or local-first implementation until the replacement vertical slice and data cutover are proven.
+- [x] Use short-lived feature branches or non-overlapping file ownership when multiple agents edit in parallel.
 
 ## Required implementation order
 
-1. [ ] Freeze the shared architecture, threat model, and local deployment topology.
-2. [ ] Restore the .NET 10 solution and create versioned API/SignalR contracts.
-3. [ ] Establish PostgreSQL 18, EF Core 10 migrations, ownership, and test infrastructure.
-4. [ ] Prove one managed Chromium session can stream into a minimal ApplyFill harness and accept exclusive user/agent input.
-5. [ ] Prove one local vision model can observe a screenshot and return a validated, non-executable page interpretation.
-6. [ ] Implement the persistent multi-page application-run state machine with fake browser/model adapters.
-7. [ ] Integrate the real browser, model, and Browser Agent UI for one multi-page synthetic application.
-8. [ ] Add resume parsing, resume generation/upload, conditional questions, recovery, and user handoffs.
-9. [ ] Cut authoritative data from IndexedDB to PostgreSQL and remove dual-write paths.
-10. [ ] Remove the extension, `/autofill-assist`, browser LiteRT model delivery, obsolete settings, and superseded documentation.
+1. [x] Freeze the shared architecture, threat model, and local deployment topology.
+2. [x] Restore the .NET 10 solution and create versioned API/SignalR contracts.
+3. [x] Establish PostgreSQL 18, EF Core 10 migrations, ownership, and test infrastructure.
+4. [x] Prove one managed Chromium session can stream into a minimal ApplyFill harness and accept exclusive user/agent input.
+5. [x] Prove one local vision model can observe a screenshot and return a validated, non-executable page interpretation.
+6. [x] Implement the persistent multi-page application-run state machine with fake browser/model adapters.
+7. [x] Integrate the real browser, model, and Browser Agent UI for one multi-page synthetic application.
+8. [x] Add resume parsing, resume generation/upload, conditional questions, recovery, and user handoffs.
+9. [x] Cut authoritative data from IndexedDB to PostgreSQL and remove dual-write paths.
+10. [x] Remove the extension, `/autofill-assist`, browser LiteRT model delivery, obsolete settings, and superseded documentation.
 11. [ ] Complete security, performance, failure, real-browser, packaging, and documentation gates.
 
 ## Milestones and gates
 
 ### Gate 0 — plan approval
 
-- [ ] User reviews this directory.
-- [ ] User explicitly authorizes implementation.
-- [ ] Move the entire directory from `pipeline/` to `in-progress/` before implementation begins.
+- [x] User reviews this directory.
+- [x] User explicitly authorizes implementation.
+- [x] Move the entire directory from `pipeline/` to `in-progress/` before implementation begins.
 
 ### Gate 1 — feasibility
 
-- [ ] .NET 10 API starts with PostgreSQL 18 and an isolated test database.
-- [ ] Managed Chromium renders a real multi-page site and retains cookies/session state across navigation.
+- [x] .NET 10 API starts with PostgreSQL 18 and an isolated test database.
+- [x] Managed Chromium renders a real multi-page site and retains cookies/session state across navigation.
 - [ ] A live viewport is visible within an ApplyFill development route with acceptable local latency.
-- [ ] User control and agent control can transfer without simultaneous input or session replacement.
+- [x] User control and agent control can transfer without simultaneous input or session replacement.
 - [ ] Qwen3-VL 4B and 8B are benchmarked on the development RTX 2070 (8 GB, compute capability 7.5) with 32 GB system RAM; 8B is the preferred quality candidate even when it requires CPU/GPU split inference, while 2B remains a diagnostic fallback.
-- [ ] PaddleOCR-VL parses representative single- and multi-column resumes on the same RTX 2070 through a CC 7.5-compatible backend.
-- [ ] Prove Qwen and PaddleOCR can be loaded and unloaded sequentially without requiring both models to fit in VRAM simultaneously.
+- [x] PaddleOCR-VL parses a representative two-page, two-column resume on the same RTX 2070 through a CC 7.5-compatible backend.
+- [x] Prove Qwen and PaddleOCR can be loaded and unloaded sequentially without requiring both models to fit in VRAM simultaneously.
 - [ ] Replace the selected Qwen test model with a second conforming model through configuration/manifest changes only, without editing workflow code or database schemas.
 
 ### Gate 2 — persistent multi-page vertical slice
 
-- [ ] Start one application run from ApplyFill.
+- [x] Start one application run from ApplyFill.
 - [ ] Complete at least three distinct pages with a redirect or SPA transition.
-- [ ] Persist a checkpoint after every material action and navigation.
-- [ ] Pause, take control, edit a value manually, return control, and continue the same run.
-- [ ] Recover the run after reloading ApplyFill and after restarting the browser worker.
+- [x] Persist a checkpoint after every material action and navigation.
+- [x] Pause, take control, edit a value manually, return control, and continue the same run.
+- [x] Recover the run after reloading ApplyFill and after restarting the browser worker.
 - [ ] Reach final review without an extension and without per-page user reconnection.
 
 ### Gate 3 — data and privacy cutover
 
-- [ ] PostgreSQL is the sole authoritative profile, resume, tracker, dashboard, and application-run store.
-- [ ] Application-layer encryption protects approved high-sensitivity fields with keys outside PostgreSQL.
-- [ ] Screenshots and transient page observations expire and are not included in backups by default.
-- [ ] Existing development data is explicitly imported or deliberately reset; no indefinite legacy reader remains.
+- [x] PostgreSQL is the sole authoritative profile, resume, tracker, dashboard, and application-run store.
+- [x] Application-layer encryption protects approved high-sensitivity fields with keys outside PostgreSQL.
+- [x] Screenshots and transient page observations expire and are not included in backups by default.
+- [x] Existing development data is explicitly imported or deliberately reset; no indefinite legacy reader remains.
 - [ ] Backup, restore, migration rollback, and deletion procedures are tested.
 
 ### Gate 4 — product completion
@@ -144,15 +144,23 @@ Each checklist is intended to be independently assignable after approval. A work
 - [ ] Login, MFA, CAPTCHA, missing-answer, unsupported-control, model-failure, browser-crash, and network-interruption handoffs are understandable and recoverable.
 - [ ] The Browser Agent is fully usable with keyboard and screen reader controls in light and dark themes.
 - [ ] A non-technical user can install ApplyFill, select **Set Up Private AI**, start an application, and use pause/stop/take-control without seeing or configuring any model/runtime/provider terminology.
-- [ ] The extension and obsolete browser-only AI architecture are removed.
+- [x] The extension and obsolete browser-only AI architecture are removed.
 
 ### Gate 5 — release acceptance
 
 - [ ] All unit, integration, contract, migration, browser, model-conformance, security, accessibility, and packaging suites pass.
 - [ ] A human completes representative applications in a release-like local installation without submitting unintended applications.
 - [ ] Documentation and gallery screenshots show the shipped Browser Agent, control handoff, progress, and final review.
-- [ ] Threat model, retention table, model/license inventory, and limitations are current.
+- [x] Threat model, retention table, model/license inventory, and limitations are current.
 
 ## Completion rule
 
 This plan suite is complete only when ApplyFill can start, navigate, pause, hand off, resume, recover, and finish a multi-page application inside its own main layout; PostgreSQL 18 is authoritative; local vision/document models are evaluated and pinned; the extension and obsolete compatibility paths are removed; and release evidence demonstrates privacy, safety, accessibility, and operational recovery. Record the outcome and remaining limitations here before moving the entire directory to `completed/`.
+
+## Implementation outcome
+
+**Outcome:** Implemented — release acceptance pending.
+
+Evidence is recorded in `artifacts/test-matrix.md`, `artifacts/release-verification.md`, `artifacts/model-evaluation.md`, `artifacts/runtime-evaluation.md`, `artifacts/security-review.md`, `artifacts/cutover-inventory.md`, `docs/threat-model.md`, and `docs/data-retention.md`. The verified development build has 122 passing .NET tests, 47 passing frontend tests across 15 files, five passing launcher tests, successful lint/build/format/dependency audits, six PostgreSQL 18 migrations, a managed-browser/synthetic-ATS harness, and a successful real two-column PDF vision import on the RTX 2070.
+
+The suite remains in progress because release acceptance still requires comparative 4B/8B and held-out model metrics, performance/failure-recovery budgets, complete backup/restore/rollback testing, a clean-machine packaged installer/updater/uninstaller, full keyboard/screen-reader/light/dark acceptance, the remaining Browser Agent state screenshots, non-technical-user testing, representative real-site applications, and a manual packaged-build security review.

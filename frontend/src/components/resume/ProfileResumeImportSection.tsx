@@ -3,20 +3,21 @@ import { Sparkles, StopCircle, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Button from '../ui/Button';
 import Checkbox from '../ui/Checkbox';
-import type { LocalAiRuntime } from '../../features/local-ai/runtime/types';
-import { runProfileImportWorkflow } from '../../features/local-ai/workflows/profileImport';
+import { importResumeWithPrivateAi } from '../../features/private-ai/privateAiClient';
 import {
   createModelSafeResumeImportText,
   createProfileImportProposal,
   extractResumeContact,
   extractResumeText,
+  mergeExtractedResumeContacts,
+  renderResumePageImages,
   RESUME_IMPORT_ACCEPT
 } from '../../features/profile/resumeImport';
 import type { ProfileImportProposal, ProfileImportSelection } from '../../features/profile/resumeImport';
+import type { RenderedResumePage } from '../../features/profile/resumeImport';
 
 type ProfileResumeImportSectionProps = {
   onApply: (proposal: ProfileImportProposal, selection: ProfileImportSelection) => void;
-  runtime: LocalAiRuntime;
 };
 
 type ContactKey = ProfileImportSelection['contact'] extends Set<infer Key> ? Key : never;
@@ -42,13 +43,15 @@ const createSelection = (proposal: ProfileImportProposal): ProfileImportSelectio
   };
 };
 
-export default function ProfileResumeImportSection({ onApply, runtime }: ProfileResumeImportSectionProps) {
+export default function ProfileResumeImportSection({ onApply }: ProfileResumeImportSectionProps) {
   const [fileName, setFileName] = useState('');
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [modelText, setModelText] = useState('');
+  const [pageImages, setPageImages] = useState<RenderedResumePage[]>([]);
   const [contact, setContact] = useState<ProfileImportProposal['contact'] | null>(null);
   const [proposal, setProposal] = useState<ProfileImportProposal | null>(null);
   const [selection, setSelection] = useState<ProfileImportSelection | null>(null);
-  const [status, setStatus] = useState('Choose a resume to begin. The file is read in this browser and is not uploaded.');
+  const [status, setStatus] = useState('Choose a resume to begin. ApplyFill processes it only on this computer.');
   const [isExtracting, setIsExtracting] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [isApplied, setIsApplied] = useState(false);
@@ -59,26 +62,39 @@ export default function ProfileResumeImportSection({ onApply, runtime }: Profile
   const chooseFile = async (file: File | undefined) => {
     controllerRef.current?.abort();
     setFileName(file?.name ?? '');
+    setSourceFile(file ?? null);
     setModelText('');
+    setPageImages([]);
     setContact(null);
     setProposal(null);
     setSelection(null);
     setIsApplied(false);
     if (!file) {
-      setStatus('Choose a resume to begin. The file is read in this browser and is not uploaded.');
+      setStatus('Choose a resume to begin. ApplyFill processes it only on this computer.');
       return;
     }
     setIsExtracting(true);
     setStatus(`Reading ${file.name} locally…`);
     try {
-      const text = await extractResumeText(file);
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      let text = '';
+      try {
+        text = await extractResumeText(file);
+      } catch (error) {
+        if (!isPdf) throw error;
+        // A scanned PDF may contain no selectable text. Its rendered pages still go
+        // through the local vision/OCR path below.
+      }
+      const renderedPages = await renderResumePageImages(file, text);
+      if (!renderedPages.length) throw new Error('This resume did not contain a page Private AI could read.');
       const extractedContact = extractResumeContact(text);
       const safeText = createModelSafeResumeImportText(text, extractedContact);
       setContact(extractedContact);
       setModelText(safeText);
-      setStatus(runtime.snapshot.state === 'ready'
-        ? 'Your resume is ready. Choose Read Resume with Private AI to continue.'
-        : 'Your resume is ready. Set up Private AI once, then return and choose this file again.');
+      setPageImages(renderedPages);
+      setStatus(renderedPages.length
+        ? `${renderedPages.length} resume page${renderedPages.length === 1 ? '' : 's'} ready for Private AI. Choose Read Resume to continue.`
+        : 'Your resume is ready for Private AI. Choose Read Resume to continue.');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'The resume could not be read.');
     } finally {
@@ -87,11 +103,7 @@ export default function ProfileResumeImportSection({ onApply, runtime }: Profile
   };
 
   const parseResume = async () => {
-    if (!contact || !modelText || isRunning) return;
-    if (runtime.snapshot.state !== 'ready') {
-      setStatus('Set up Private AI in Settings before reading this resume.');
-      return;
-    }
+    if (!contact || !sourceFile || isRunning) return;
     const controller = new AbortController();
     controllerRef.current = controller;
     setIsRunning(true);
@@ -99,18 +111,18 @@ export default function ProfileResumeImportSection({ onApply, runtime }: Profile
     setSelection(null);
     setStatus('Preparing your resume privately on this computer…');
     try {
-      const output = await runProfileImportWorkflow(runtime, modelText, {
-        signal: controller.signal,
-        onProgress: (progress) => setStatus(progress.message)
-      });
-      const nextProposal = createProfileImportProposal(output, contact);
+      setStatus('Private AI is reading the professional sections…');
+      const result = await importResumeWithPrivateAi(sourceFile, modelText, pageImages, controller.signal);
+      const detectedContact = extractResumeContact(result.detectedText);
+      const reviewedContact = mergeExtractedResumeContacts(contact, detectedContact);
+      const nextProposal = createProfileImportProposal(result.proposal, reviewedContact);
       setProposal(nextProposal);
       setSelection(createSelection(nextProposal));
       const count = nextProposal.education.length + nextProposal.experience.length + nextProposal.projects.length + nextProposal.skills.length;
       setStatus(`${count} professional item${count === 1 ? '' : 's'} plus detected contact fields are ready for review. Nothing has been saved yet.`);
     } catch (error) {
       setStatus(error instanceof DOMException && error.name === 'AbortError'
-        ? 'Local resume parsing cancelled. Your profile was not changed.'
+        ? 'Resume parsing cancelled. Your profile was not changed.'
         : error instanceof Error ? error.message : 'The resume could not be parsed. Your profile was not changed.');
     } finally {
       controllerRef.current = null;
@@ -138,7 +150,7 @@ export default function ProfileResumeImportSection({ onApply, runtime }: Profile
       </header>
 
       <div className="local-ai-privacy-note">
-        <strong>Your resume stays private:</strong> it is read only in this tab and is never stored or uploaded. ApplyFill removes contact and sensitive details before Private AI reads the work and education sections.
+        <strong>Your resume stays on this computer:</strong> ApplyFill renders its pages in this browser and sends those temporary page images only to its local service. Private AI uses vision/OCR to preserve columns and layout. The file and page images are not retained after the reviewed import.
       </div>
 
       <div className="profile-resume-import-picker">
@@ -157,19 +169,19 @@ export default function ProfileResumeImportSection({ onApply, runtime }: Profile
           </label>
           <span className={`profile-resume-file-display${fileName ? ' has-file' : ''}`}>{fileName || 'No resume selected'}</span>
         </div>
-        <p className="field-hint">PDF, Word (.docx), or text file, up to 10 MB. Image-only scans are not supported yet.</p>
+        <p className="field-hint">PDF, Word (.docx), or text file, up to 10 MB. Scanned and multi-column resumes are supported through local vision/OCR.</p>
       </div>
 
       <div className="resume-builder-actions">
-        <Button disabled={!modelText || isExtracting || isRunning || runtime.snapshot.state !== 'ready'} onClick={() => void parseResume()} variant="primary">
+        <Button disabled={!sourceFile || isExtracting || isRunning} onClick={() => void parseResume()} variant="primary">
           <Sparkles aria-hidden="true" size={17} /> {isRunning ? 'Reading Resume…' : 'Read Resume with Private AI'}
         </Button>
         {isRunning ? <Button onClick={() => controllerRef.current?.abort()}><StopCircle aria-hidden="true" size={17} /> Cancel</Button> : null}
-        {runtime.snapshot.state !== 'ready' && !isRunning ? <Link className="btn btn-secondary" to="/settings">Set Up Private AI</Link> : null}
+        {!isRunning ? <Link className="btn btn-secondary" to="/settings">Private AI Settings</Link> : null}
       </div>
 
       <p className="field-hint local-ai-status" role="status" aria-live="polite">{status}</p>
-      {runtime.snapshot.state !== 'ready' && !isRunning ? <p className="field-hint">Private AI must be set up once before it can read a resume. The selected file is not retained when you leave this page.</p> : null}
+      {!isRunning ? <p className="field-hint">Private AI is installed and managed by ApplyFill. The selected file is not retained when you leave this page.</p> : null}
 
       {proposal && selection ? (
         <section className="profile-import-review" aria-labelledby="profile-import-review-title">
@@ -187,7 +199,7 @@ export default function ProfileResumeImportSection({ onApply, runtime }: Profile
 
           {contactRows.length ? (
             <div className="profile-import-group">
-              <h5>Contact fields detected without AI</h5>
+              <h5>Contact fields detected from the resume</h5>
               {contactRows.map((row) => <Checkbox checked={selection.contact.has(row.key)} key={row.key} label={`${row.label}: ${row.value}`} onChange={(event) => setSelection((current) => current ? { ...current, contact: toggleSet(current.contact, row.key, event.target.checked) } : current)} />)}
             </div>
           ) : null}

@@ -113,14 +113,14 @@ export const createAiSafeResumeSnapshot = (
   };
 
   if (JSON.stringify(snapshot).length > AI_TEXT_LIMITS.totalContext) {
-    throw new Error('The selected resume content is too large for a local AI request. Select fewer sections.');
+    throw new Error('The selected resume content is too large for Private AI. Select fewer sections.');
   }
   return snapshot;
 };
 
 export const createAiJobPosting = (value: string): AiJobPosting => {
   const content = normalizeUntrustedJobText(value);
-  if (!content) throw new Error('Paste the job posting text before starting local AI.');
+  if (!content) throw new Error('Paste the job posting text before starting Private AI.');
   return { content, format: 'applyfill.untrusted-job-posting', schemaVersion: AI_INPUT_SCHEMA_VERSION };
 };
 

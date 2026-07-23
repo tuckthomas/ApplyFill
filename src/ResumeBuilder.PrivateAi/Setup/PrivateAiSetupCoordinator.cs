@@ -6,6 +6,7 @@ namespace ResumeBuilder.PrivateAi.Setup;
 
 public enum PrivateAiSetupState
 {
+    NotConfigured,
     CheckingComputer,
     Downloading,
     Verifying,
@@ -75,6 +76,7 @@ public sealed class PrivateAiSetupCoordinator(
             .Concat(documentModel.Artifacts.Select(artifact => (Id: documentModel.Id, Version: documentModel.Revision, Artifact: artifact)))
             .ToList();
         var totalBytes = components.Sum(component => component.Artifact.Bytes);
+        EnsureTotalCapacity(totalBytes);
         var completedBeforeCurrent = 0L;
         var paths = new Dictionary<string, string>(StringComparer.Ordinal);
 
@@ -135,6 +137,22 @@ public sealed class PrivateAiSetupCoordinator(
             null,
             model.Id));
         return installation;
+    }
+
+    private void EnsureTotalCapacity(long totalBytes)
+    {
+        Directory.CreateDirectory(_installationRoot);
+        File.WriteAllText(Path.Combine(_installationRoot, ".applyfill-private-ai"), "ApplyFill Private AI storage v1");
+        var driveRoot = Path.GetPathRoot(_installationRoot) ?? throw new IOException("ApplyFill could not determine the Private AI storage drive.");
+        var installedBytes = Directory.EnumerateFiles(_installationRoot, "*", SearchOption.AllDirectories)
+            .Sum(path => new FileInfo(path).Length);
+        var remainingBytes = Math.Max(0, totalBytes - installedBytes);
+        var safetyMargin = Math.Max(totalBytes / 10, 1024L * 1024 * 1024);
+        if (new DriveInfo(driveRoot).AvailableFreeSpace < remainingBytes + safetyMargin)
+        {
+            var requiredGiB = Math.Ceiling((remainingBytes + safetyMargin) / (1024d * 1024 * 1024));
+            throw new IOException($"Private AI needs about {requiredGiB:0} GB of free space. Choose a storage location with more room and try again.");
+        }
     }
 
     private string GetContainedRuntimeDirectory(string runtimeId, string version)

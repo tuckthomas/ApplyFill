@@ -9,6 +9,8 @@ import type { ProfileBuilderData } from './profileBuilder';
 
 export const RESUME_IMPORT_MAX_BYTES = 10 * 1024 * 1024;
 export const RESUME_IMPORT_MAX_TEXT = 30_000;
+export const RESUME_IMPORT_MAX_PAGES = 15;
+export const RESUME_IMPORT_MAX_RENDERED_BYTES = 14 * 1024 * 1024;
 export const RESUME_IMPORT_ACCEPT = '.pdf,.docx,.txt,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 export type ExtractedResumeContact = {
@@ -113,7 +115,7 @@ export const parseProfileImportModelOutput = (value: unknown): ProfileImportMode
     || !Array.isArray(value.experience) || value.experience.length > 30
     || !Array.isArray(value.projects) || value.projects.length > 20
     || !Array.isArray(value.skills) || value.skills.length > 100) {
-    throw new Error('Local AI returned an invalid resume-import structure. Nothing was changed.');
+    throw new Error('Private AI returned an invalid resume-import structure. Nothing was changed.');
   }
 
   const educationValid = value.education.every((item) => isRecord(item) && exactKeys(item, educationKeys)
@@ -135,7 +137,7 @@ export const parseProfileImportModelOutput = (value: unknown): ProfileImportMode
     && boundedString(item.name, 120) && boundedString(item.level, 20) && skillLevels.has(item.level as string));
 
   if (!educationValid || !experienceValid || !projectsValid || !skillsValid) {
-    throw new Error('Local AI returned unsupported resume-import values. Nothing was changed.');
+    throw new Error('Private AI returned unsupported resume-import values. Nothing was changed.');
   }
   return value as ProfileImportModelOutput;
 };
@@ -198,6 +200,27 @@ export const extractResumeContact = (text: string, baseId = Date.now()): Extract
   };
 };
 
+export const mergeExtractedResumeContacts = (
+  primary: ExtractedResumeContact,
+  secondary: ExtractedResumeContact,
+): ExtractedResumeContact => {
+  const seenLinks = new Set<string>();
+  const webLinks = [...primary.webLinks, ...secondary.webLinks].filter((link) => {
+    const normalized = link.url.trim().toLowerCase().replace(/\/$/, '');
+    if (!normalized || seenLinks.has(normalized)) return false;
+    seenLinks.add(normalized);
+    return true;
+  });
+  return {
+    email: primary.email || secondary.email,
+    firstName: primary.firstName || secondary.firstName,
+    lastName: primary.lastName || secondary.lastName,
+    middleName: primary.middleName || secondary.middleName,
+    phone: primary.phone || secondary.phone,
+    webLinks,
+  };
+};
+
 export const createModelSafeResumeImportText = (text: string, contact = extractResumeContact(text)) => {
   let redacted = cleanText(text);
   const exactValues = [
@@ -226,6 +249,11 @@ export type PositionedPdfTextItem = {
   transform: number[];
   width?: number;
   height?: number;
+};
+
+export type RenderedResumePage = {
+  blob: Blob;
+  pageNumber: number;
 };
 
 type PositionedText = { text: string; x: number; y: number; width: number; height: number };
@@ -324,8 +352,105 @@ export const extractResumeText = async (file: File): Promise<string> => {
     throw new Error('Choose a PDF, DOCX, or plain-text resume.');
   }
   const cleaned = cleanText(text);
-  if (cleaned.length < 40) throw new Error('This file did not contain enough selectable text to import. Scanned-image PDFs are not currently supported.');
+  const isPdf = extension === 'pdf' || file.type === 'application/pdf';
+  if (cleaned.length < 40 && !isPdf) throw new Error('This file did not contain enough readable text to import.');
   return cleaned.slice(0, RESUME_IMPORT_MAX_TEXT);
+};
+
+const canvasBlob = (canvas: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) => {
+  canvas.toBlob((blob) => {
+    if (blob) resolve(blob);
+    else reject(new Error('A resume page could not be prepared for Private AI.'));
+  }, 'image/jpeg', 0.86);
+});
+
+const renderPlainTextPages = async (text: string): Promise<RenderedResumePage[]> => {
+  const width = 1_200;
+  const height = 1_600;
+  const margin = 90;
+  const lineHeight = 38;
+  const canvas = globalThis.document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d', { alpha: false });
+  if (!context) throw new Error('This browser could not prepare resume pages for Private AI.');
+  context.font = '28px Arial, sans-serif';
+  const maximumLineWidth = width - margin * 2;
+  const wrappedLines: string[] = [];
+  for (const sourceLine of text.split('\n')) {
+    const words = sourceLine.trim().split(/\s+/).filter(Boolean);
+    if (!words.length) {
+      wrappedLines.push('');
+      continue;
+    }
+    let line = '';
+    for (const word of words) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (line && context.measureText(candidate).width > maximumLineWidth) {
+        wrappedLines.push(line);
+        line = word;
+      } else {
+        line = candidate;
+      }
+    }
+    if (line) wrappedLines.push(line);
+  }
+
+  const linesPerPage = Math.floor((height - margin * 2) / lineHeight);
+  const rendered: RenderedResumePage[] = [];
+  for (let offset = 0; offset < wrappedLines.length && rendered.length < RESUME_IMPORT_MAX_PAGES; offset += linesPerPage) {
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, width, height);
+    context.fillStyle = '#111827';
+    context.font = '28px Arial, sans-serif';
+    context.textBaseline = 'top';
+    wrappedLines.slice(offset, offset + linesPerPage).forEach((line, index) => {
+      context.fillText(line, margin, margin + index * lineHeight, maximumLineWidth);
+    });
+    rendered.push({ blob: await canvasBlob(canvas), pageNumber: rendered.length + 1 });
+  }
+  canvas.width = 1;
+  canvas.height = 1;
+  return rendered;
+};
+
+export const renderResumePageImages = async (
+  file: File,
+  extractedText?: string,
+): Promise<RenderedResumePage[]> => {
+  const extension = file.name.toLowerCase().split('.').pop();
+  if (extension !== 'pdf' && file.type !== 'application/pdf') {
+    const text = extractedText ?? await extractResumeText(file);
+    return renderPlainTextPages(text);
+  }
+  const [{ getDocument, GlobalWorkerOptions }, worker] = await Promise.all([
+    import('pdfjs-dist'),
+    import('pdfjs-dist/build/pdf.worker.min.mjs?url')
+  ]);
+  GlobalWorkerOptions.workerSrc = worker.default;
+  const loadingTask = getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
+  const pdfDocument = await loadingTask.promise;
+  const rendered: RenderedResumePage[] = [];
+  try {
+    for (let pageNumber = 1; pageNumber <= Math.min(pdfDocument.numPages, RESUME_IMPORT_MAX_PAGES); pageNumber += 1) {
+      const page = await pdfDocument.getPage(pageNumber);
+      const unscaled = page.getViewport({ scale: 1 });
+      const scale = Math.min(2, 1_600 / Math.max(unscaled.width, unscaled.height));
+      const viewport = page.getViewport({ scale });
+      const canvas = globalThis.document.createElement('canvas');
+      canvas.width = Math.max(1, Math.ceil(viewport.width));
+      canvas.height = Math.max(1, Math.ceil(viewport.height));
+      const context = canvas.getContext('2d', { alpha: false });
+      if (!context) throw new Error('This browser could not prepare resume pages for Private AI.');
+      await page.render({ canvas, canvasContext: context, viewport }).promise;
+      rendered.push({ blob: await canvasBlob(canvas), pageNumber });
+      canvas.width = 1;
+      canvas.height = 1;
+    }
+  } finally {
+    await loadingTask.destroy();
+  }
+  return rendered;
 };
 
 const estimatedDate = (value: string) => value ? `${value.slice(5, 7)}/${value.slice(0, 4)}` : '';

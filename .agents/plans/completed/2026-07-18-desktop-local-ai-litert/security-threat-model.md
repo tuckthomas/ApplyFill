@@ -1,5 +1,7 @@
 # Local AI Security Threat Model
 
+> **ARCHIVED AND SUPERSEDED — 2026-07-22:** This threat model covers the retired browser LiteRT and extension architecture. Use the current [Managed Browser Agent threat model](../../../../docs/threat-model.md) and [Data retention and deletion](../../../../docs/data-retention.md). The content below is retained only as historical security evidence.
+
 **Scope:** ApplyFill desktop browser local inference, model distribution, resume-tailoring inputs, structured outputs, and deterministic patch application.
 
 ## Assets and trust boundaries

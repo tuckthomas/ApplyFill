@@ -57,6 +57,65 @@ public sealed class VisionProviderTests
             TestContext.Current.CancellationToken));
     }
 
+    [Theory]
+    [InlineData("```json\n{\"pageType\":\"application\"}\n```")]
+    [InlineData("Here is the requested result:\n{\"pageType\":\"application\"}\nEnd of result.")]
+    public async Task ProviderAcceptsOneValidatedJsonValueWrappedByModelFormatting(string content)
+    {
+        var response = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            choices = new[] { new { message = new { content } } },
+        });
+        using var client = new HttpClient(new StaticResponseHandler(response));
+        var provider = new LlamaCppVisionProvider(
+            client,
+            new Uri("http://127.0.0.1:43210/"),
+            "model",
+            "revision",
+            "secret");
+
+        var result = await provider.InferAsync(
+            new VisionInferenceRequest(
+                "page-understanding",
+                "1",
+                "1",
+                "Classify this page.",
+                [new ImageInput(new byte[] { 1 }, "image/png")],
+                null,
+                256),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("{\"pageType\":\"application\"}", result.OutputJson);
+    }
+
+    [Fact]
+    public async Task DocumentReaderSafelyWrapsPlainOcrText()
+    {
+        const string response = "{\"choices\":[{\"message\":{\"content\":\"WORK EXPERIENCE\\nSenior Analyst\"}}]}";
+        using var client = new HttpClient(new StaticResponseHandler(response));
+        var provider = new LlamaCppVisionProvider(
+            client,
+            new Uri("http://127.0.0.1:43210/"),
+            "model",
+            "revision",
+            "secret");
+
+        var result = await provider.InferAsync(
+            new VisionInferenceRequest(
+                "document-page-parsing",
+                "1",
+                "1",
+                "Read the document.",
+                [new ImageInput(new byte[] { 1 }, "image/jpeg")],
+                null,
+                256),
+            TestContext.Current.CancellationToken);
+
+        using var output = System.Text.Json.JsonDocument.Parse(result.OutputJson);
+        Assert.Contains("Senior Analyst", output.RootElement.GetProperty("text").GetString(), StringComparison.Ordinal);
+        Assert.Equal(0, output.RootElement.GetProperty("blocks").GetArrayLength());
+    }
+
     [Fact]
     public void ProviderRefusesNonLoopbackEndpoint()
     {
@@ -75,8 +134,8 @@ public sealed class VisionProviderTests
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(response, Encoding.UTF8, "application/json"),
-        });
+            {
+                Content = new StringContent(response, Encoding.UTF8, "application/json"),
+            });
     }
 }

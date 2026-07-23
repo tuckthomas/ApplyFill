@@ -7,7 +7,7 @@ import DataTable from '../components/ui/DataTable';
 import type { DataTableColumn } from '../components/ui/DataTable';
 import { deleteResumeDraft, loadResumeCollection } from '../features/resume/resumeDocument';
 import type { LocalResumeDraft } from '../features/resume/resumeDocument';
-import { LOCAL_DATA_KEYS, subscribeToLocalDocument } from '../features/storage/localDatabase';
+import { subscribeToDataChanged } from '../features/api/dataEvents';
 
 const formatUpdatedAt = (value: string) => {
   const date = new Date(value);
@@ -18,24 +18,32 @@ export default function Resumes() {
   const navigate = useNavigate();
   const [resumes, setResumes] = useState<LocalResumeDraft[]>([]);
   const [message, setMessage] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let isCurrent = true;
+    setIsLoading(true);
+    setLoadError('');
     const load = () => loadResumeCollection()
       .then((collection) => { if (isCurrent) setResumes(collection.resumes); })
-      .catch(() => { if (isCurrent) setMessage('Local resume drafts could not be loaded.'); });
+      .catch((error) => { if (isCurrent) setLoadError(error instanceof Error
+        ? error.message
+        : 'Resume drafts could not be loaded from ApplyFill. Keep ApplyFill open, then try again.'); })
+      .finally(() => { if (isCurrent) setIsLoading(false); });
     void load();
-    const unsubscribe = subscribeToLocalDocument(LOCAL_DATA_KEYS.resumes, () => { void load(); });
+    const unsubscribe = subscribeToDataChanged('resumes', () => { void load(); });
     return () => { isCurrent = false; unsubscribe(); };
-  }, []);
+  }, [reloadKey]);
 
   const removeResume = async (resume: LocalResumeDraft) => {
-    if (!window.confirm(`Delete “${resume.title}” from this browser? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete “${resume.title}” from ApplyFill? This cannot be undone.`)) return;
     try {
       await deleteResumeDraft(resume.id);
-      setMessage('Local resume draft deleted.');
+      setMessage('Resume draft deleted.');
     } catch {
-      setMessage('The local resume draft could not be deleted.');
+      setMessage('The resume draft could not be deleted.');
     }
   };
 
@@ -68,16 +76,23 @@ export default function Resumes() {
       <header className="page-header">
         <div>
           <h2 className="page-title">Resume Builder</h2>
-          <p className="page-copy">Manage targeted resumes and generate private, browser-local exports.</p>
+          <p className="page-copy">Manage targeted resumes and generate private exports on this computer.</p>
         </div>
         <AddButton onClick={() => navigate('/resumes/builder')}>New Resume</AddButton>
       </header>
       {message ? <p className="profile-data-message" role="status">{message}</p> : null}
+      {loadError ? (
+        <div className="page-stack" role="alert">
+          <p className="field-error">{loadError}</p>
+          <Button onClick={() => setReloadKey((value) => value + 1)} variant="secondary">Try Again</Button>
+        </div>
+      ) : null}
       <section className="surface-panel tracker-list-panel">
+        {isLoading ? <p className="section-copy" role="status">Loading resume drafts...</p> : null}
         <DataTable
-          caption="Local resume drafts"
+          caption="Saved resume drafts"
           columns={columns}
-          description="Draft definitions are stored in IndexedDB. Generated PDF and DOCX files are created only when you download them."
+          description="Draft definitions are stored in ApplyFill's local database. Generated PDF and DOCX files are created only when you download them."
           emptyContent={(
             <div className="empty-state data-table-empty-state">
               <FileText size={52} strokeWidth={1.4} aria-hidden="true" />
@@ -88,9 +103,9 @@ export default function Resumes() {
           )}
           getRowId={(resume) => resume.id}
           initialSort={{ columnId: 'updated', direction: 'desc' }}
-          rows={resumes}
+          rows={isLoading ? [] : resumes}
           searchPlaceholder="Search resumes"
-          title="Local Resume Drafts"
+          title="Resume Drafts"
         />
       </section>
     </div>

@@ -48,9 +48,9 @@ export default function JobApplicationEditor() {
         setApplications(loadedApplications);
         setExistingApplication(existing);
         setFormState(existing ?? createEmptyApplicationForm(profile.data.profile.country));
-        if (applicationId && !existing) setFormError('That locally stored application could not be found.');
+        if (applicationId && !existing) setFormError('That saved application could not be found.');
       })
-      .catch(() => { if (isCurrent) setFormError('Local data could not be loaded in this browser.'); })
+      .catch(() => { if (isCurrent) setFormError('ApplyFill could not load the saved application data.'); })
       .finally(() => { if (isCurrent) setIsLoading(false); });
     return () => { isCurrent = false; };
   }, [applicationId]);
@@ -66,27 +66,32 @@ export default function JobApplicationEditor() {
       return;
     }
 
-    if (formState.targetJobUrl.trim()) {
-      try {
-        const url = new URL(formState.targetJobUrl);
-        if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Unsupported protocol');
-      } catch {
-        setFormError('Enter a valid HTTP or HTTPS job posting URL.');
-        return;
-      }
+    if (!formState.targetJobUrl.trim()) {
+      setFormError('A job posting or application URL is required.');
+      return;
+    }
+    try {
+      const url = new URL(formState.targetJobUrl);
+      if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Unsupported protocol');
+    } catch {
+      setFormError('Enter a valid HTTP or HTTPS job posting URL.');
+      return;
     }
 
-    const application = createApplication(formState, existingApplication?.id ?? `${Date.now()}-${Math.floor(Math.random() * 1000)}`);
+    const application = createApplication(formState, existingApplication?.id ?? crypto.randomUUID());
     const next = existingApplication
       ? applications.map((currentApplication) => currentApplication.id === existingApplication.id ? application : currentApplication)
       : [...applications, application];
     try {
-      await saveApplications(next);
-      setApplications(next);
-      setExistingApplication(application);
-      navigate(`/job-tracker/${application.id}/edit`, { replace: true });
-    } catch {
-      setFormError('This application could not be saved in local browser storage.');
+      const persisted = await saveApplications(next);
+      const saved = existingApplication
+        ? persisted.find((item) => item.id === existingApplication.id) ?? application
+        : persisted.at(-1) ?? application;
+      setApplications(persisted);
+      setExistingApplication(saved);
+      navigate(`/job-tracker/${saved.id}/edit`, { replace: true });
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'This application could not be saved.');
     }
   };
 
@@ -118,7 +123,7 @@ export default function JobApplicationEditor() {
   };
 
   if (isLoading) {
-    return <p className="section-copy" role="status">Loading local application data...</p>;
+    return <p className="section-copy" role="status">Loading application data...</p>;
   }
 
   return (

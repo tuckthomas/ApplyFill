@@ -1,9 +1,11 @@
 # Client-Side Resume Generation
 
+> **ARCHIVED AND SUPERSEDED — 2026-07-22:** This completed plan records the former IndexedDB/browser-only resume architecture. ApplyFill now stores resume records authoritatively in PostgreSQL through the .NET 10 API and uses backend provider boundaries for document/AI workflows. See [current architecture](../../../docs/architecture.md) and [data retention](../../../docs/data-retention.md). The checklist remains historical evidence, not current implementation guidance.
+
 **Approved:** 2026-07-18  
 **Status:** Complete — 2026-07-18
 
-> **Current architecture note:** ApplyFill now ships as a static application with no backend. The historical server-suite verification item below records the transition point; current verification is pnpm-only and includes local AI, static deployment, and the Chromium extension.
+> **Historical architecture note from 2026-07-18:** At completion, ApplyFill shipped as a static application with no backend. The historical server-suite verification item below records that transition point; verification at that time was pnpm-only and included local AI, static deployment, and the Chromium extension.
 
 ## Outcome
 

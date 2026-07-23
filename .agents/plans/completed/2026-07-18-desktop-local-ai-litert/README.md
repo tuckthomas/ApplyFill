@@ -1,6 +1,8 @@
 # Desktop Local AI with LiteRT
 
-> **Current UI note (2026-07-22):** The hardware selector described in the original checklist was removed. Private AI setup now checks model/browser compatibility before downloading and selects WebGPU automatically; WebNN/NPU remains developer-only for this release.
+> **ARCHIVED AND SUPERSEDED — 2026-07-22:** This suite records a completed historical browser-local implementation. It is not the current architecture or implementation guidance. Browser LiteRT/WebGPU inference, IndexedDB authority, static-only deployment, and the Chromium extension were retired. ApplyFill now uses the React UI, .NET 10 API, PostgreSQL 18, a managed-Chromium Browser Agent, and native local Private AI services. See [current architecture](../../../../docs/architecture.md), [threat model](../../../../docs/threat-model.md), and [data retention](../../../../docs/data-retention.md). The checked items below remain historical evidence and must not be read as current product behavior.
+
+> **Historical implementation note from 2026-07-22:** The hardware selector described in the original checklist was removed. At that transition point, Private AI setup checked browser model compatibility and selected WebGPU automatically; WebNN/NPU remained developer-only.
 
 **Proposed:** 2026-07-18  
 **Approved:** 2026-07-18  

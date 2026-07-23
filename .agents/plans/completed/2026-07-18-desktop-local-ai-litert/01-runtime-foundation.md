@@ -1,5 +1,7 @@
 # Workstream A — LiteRT Runtime Foundation
 
+> **ARCHIVED AND SUPERSEDED — 2026-07-22:** This workstream documents the retired browser LiteRT/WebGPU runtime. It is historical evidence, not current implementation guidance. ApplyFill now uses native local Private AI services behind provider-neutral backend contracts. See [current architecture](../../../../docs/architecture.md).
+
 **Status:** Implemented; dedicated-worker and NPU-lab follow-ups recorded  
 **Depends on:** No implementation dependency; coordinate interface names with Workstream B  
 **Unblocks:** Model evaluation, workflow integration, diagnostics, model caching

@@ -1,5 +1,7 @@
 # Workstream C — Model Selection and Evaluation
 
+> **ARCHIVED AND SUPERSEDED — 2026-07-22:** This workstream records historical LiteRT/WebGPU model evaluation. The browser runtime and model are no longer supported product paths. Current models run through native local Private AI services and must pass the current provider-neutral evaluation contract. See [current architecture](../../../../docs/architecture.md).
+
 **Status:** Implemented; NPU/lower-spec hardware matrix remains a lab follow-up  
 **Depends on:** Minimal runtime runner from Workstream A; schemas and adversarial fixtures from Workstream B  
 **Produces:** Reproducible evaluation report and approved model manifest entry

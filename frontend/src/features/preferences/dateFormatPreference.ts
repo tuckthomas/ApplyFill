@@ -4,6 +4,9 @@ export type DateFormatPreference = 'MM/DD/YYYY' | 'DD/MM/YYYY';
 
 export type DateFormatPreferenceContextValue = {
   dateFormat: DateFormatPreference;
+  error: string;
+  isLoading: boolean;
+  retry: () => void;
   setDateFormat: (format: DateFormatPreference) => void;
 };
 

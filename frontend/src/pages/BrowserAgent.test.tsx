@@ -28,6 +28,9 @@ const baseRun = (overrides: Partial<BrowserRunSnapshot> = {}): BrowserRunSnapsho
   currentDomain: 'jobs.example.com',
   currentUrl: 'https://jobs.example.com/apply/123',
   frameHeight: 720,
+  frameSequence: 12,
+  framePageGeneration: 3,
+  frameDeviceScaleFactor: 1,
   frameUpdatedAt: new Date().toISOString(),
   frameUrl: '/api/browser-agent/runs/run-1/frame/latest',
   frameWidth: 1280,
@@ -48,19 +51,38 @@ class FakeBrowserAgentClient implements BrowserAgentClient {
   commandCalls: BrowserRunCommand[] = [];
   inputCalls: BrowserInput[] = [];
   answerCalls: BrowserAgentQuestionAnswer[] = [];
+  callOrder: string[] = [];
+  decisionCalls: Array<{ approvalId: string; approved: boolean; concurrencyToken: string }> = [];
+  getRunError: Error | null = null;
+  statusError: Error | null = null;
+  decisionError: Error | null = null;
+  recoverCalls = 0;
+  connectCalls = 0;
+  connectState: 'connected' | 'disconnected' = 'connected';
 
   constructor(run = baseRun(), privateAi = readyPrivateAi) {
     this.run = run;
     this.privateAi = privateAi;
   }
 
-  async getPrivateAiStatus() { return this.privateAi; }
+  async getPrivateAiStatus() {
+    if (this.statusError) throw this.statusError;
+    return this.privateAi;
+  }
   async setupPrivateAi() {
     this.privateAi = { message: 'Downloading.', progress: 14, stage: 'Downloading', state: 'downloading' };
     return this.privateAi;
   }
   async listRuns() { return []; }
-  async getRun() { return this.run; }
+  async getRun() {
+    if (this.getRunError) throw this.getRunError;
+    return this.run;
+  }
+  async recoverRun() {
+    this.recoverCalls += 1;
+    this.callOrder.push('recover');
+    return this.run;
+  }
   async startRun(_request: StartBrowserRunRequest) { return this.run; }
   async command(_runId: string, command: BrowserRunCommand) {
     this.commandCalls.push(command);
@@ -71,14 +93,21 @@ class FakeBrowserAgentClient implements BrowserAgentClient {
     return this.run;
   }
   async answerQuestion(_runId: string, _questionId: string, answer: BrowserAgentQuestionAnswer) {
+    this.callOrder.push(`answer:${answer.optionId}`);
     this.answerCalls.push(answer);
     this.run = baseRun({ revision: this.run.revision + 1 });
     return this.run;
   }
+  async decideSensitiveApproval(_runId: string, approvalId: string, approved: boolean, concurrencyToken: string) {
+    this.callOrder.push(`decision:${approved ? 'approve' : 'deny'}`);
+    this.decisionCalls.push({ approvalId, approved, concurrencyToken });
+    if (this.decisionError) throw this.decisionError;
+  }
   async sendInput(_runId: string, input: BrowserInput) { this.inputCalls.push(input); }
   async deleteRun() { return undefined; }
   async connect(_runId: string, listener: (event: BrowserAgentStreamEvent) => void) {
-    listener({ state: 'connected', type: 'connection' });
+    this.connectCalls += 1;
+    listener({ state: this.connectState, type: 'connection' });
     return async () => undefined;
   }
 }
@@ -98,8 +127,8 @@ const mountPage = async (client: BrowserAgentClient, path = '/agent/run-1') => {
     root.render(
       <MemoryRouter initialEntries={[path]}>
         <Routes>
-          <Route element={<BrowserAgentPage client={client} />} path="/agent" />
-          <Route element={<BrowserAgentPage client={client} />} path="/agent/:runId" />
+          <Route element={<BrowserAgentPage client={client} loadStartResources={async () => ({ applications: [], profileId: '0bca6cee-38ef-4b4c-b02d-dd540c2fb5e4', resumes: [] })} />} path="/agent" />
+          <Route element={<BrowserAgentPage client={client} loadStartResources={async () => ({ applications: [], profileId: '0bca6cee-38ef-4b4c-b02d-dd540c2fb5e4', resumes: [] })} />} path="/agent/:runId" />
         </Routes>
       </MemoryRouter>,
     );
@@ -174,6 +203,77 @@ describe('BrowserAgentPage', () => {
     expect(client.answerCalls).toEqual([{ optionId: 'no', saveToProfile: true, value: undefined }]);
   });
 
+  it.each([
+    ['approve', true],
+    ['deny', false],
+  ] as const)('records a sensitive %s decision before telling the worker to continue', async (optionId, approved) => {
+    const client = new FakeBrowserAgentClient(baseRun({
+      controlOwner: 'none',
+      pendingQuestion: {
+        approvalConcurrencyToken: 'approval-version-1',
+        approvalId: 'approval-1',
+        allowFreeText: false,
+        canSaveToProfile: false,
+        category: 'sensitive-approval',
+        context: 'This saved value is only used after you approve it.',
+        id: 'approval-1',
+        maskedValue: '•••6789',
+        options: [
+          { id: 'approve', label: 'Use saved answer', description: 'Use •••6789 for this application only.' },
+          { id: 'deny', label: 'Do not use it' },
+        ],
+        prompt: 'Use your saved Social Security number?',
+      },
+      state: 'waiting-for-user',
+    }));
+    const container = await mountPage(client);
+    const option = container.querySelector<HTMLInputElement>(`input[value="${optionId}"]`);
+    await act(async () => option?.click());
+    await act(async () => buttonWithText(container, 'Use This Answer')?.click());
+
+    expect(client.callOrder).toEqual([`decision:${optionId}`, `answer:${optionId}`]);
+    expect(client.decisionCalls).toEqual([{ approvalId: 'approval-1', approved, concurrencyToken: 'approval-version-1' }]);
+    expect(client.answerCalls).toEqual([{ optionId, saveToProfile: false, value: undefined }]);
+  });
+
+  it('does not tell the worker to use a sensitive answer when approval changed', async () => {
+    const client = new FakeBrowserAgentClient(baseRun({
+      controlOwner: 'none',
+      pendingQuestion: {
+        approvalConcurrencyToken: 'stale-version',
+        approvalId: 'approval-1',
+        category: 'sensitive-approval',
+        context: 'Approve this masked saved value.',
+        id: 'approval-1',
+        maskedValue: '•••6789',
+        options: [{ id: 'approve', label: 'Use saved answer' }, { id: 'deny', label: 'Do not use it' }],
+        prompt: 'Use this saved answer?',
+      },
+      state: 'waiting-for-user',
+    }));
+    client.decisionError = Object.assign(new Error('This approval changed. Reload it before continuing.'), { status: 412 });
+    const container = await mountPage(client);
+    await act(async () => container.querySelector<HTMLInputElement>('input[value="approve"]')?.click());
+    await act(async () => buttonWithText(container, 'Use This Answer')?.click());
+
+    expect(client.callOrder).toEqual(['decision:approve']);
+    expect(client.answerCalls).toEqual([]);
+    expect(container.textContent).toContain('This approval changed. Reload it before continuing.');
+  });
+
+  it('offers recovery explicitly when a saved run is not live', async () => {
+    const client = new FakeBrowserAgentClient(baseRun({ canResume: true, controlOwner: 'none', state: 'paused' }));
+    client.getRunError = Object.assign(new Error('Not found.'), { status: 404 });
+    const container = await mountPage(client);
+
+    expect(client.recoverCalls).toBe(0);
+    expect(container.textContent).toContain('Resume this application?');
+    expect(container.textContent).toContain('Nothing will be submitted.');
+    await act(async () => buttonWithText(container, 'Resume This Application')?.click());
+    expect(client.recoverCalls).toBe(1);
+    expect(container.textContent).toContain('Credit Analyst');
+  });
+
   it('blocks final submission while review warnings remain', async () => {
     const client = new FakeBrowserAgentClient(baseRun({
       controlOwner: 'none',
@@ -192,5 +292,28 @@ describe('BrowserAgentPage', () => {
     expect(container.textContent).toContain('Nothing has been submitted yet');
     expect(container.textContent).toContain('Confirm the requested salary.');
     expect(buttonWithText(container, 'Approve and Submit Application')?.disabled).toBe(true);
+  });
+
+  it('retries the saved application connection without restarting the run', async () => {
+    const client = new FakeBrowserAgentClient();
+    client.connectState = 'disconnected';
+    const container = await mountPage(client);
+
+    expect(container.textContent).toContain('Your application is still saved.');
+    expect(client.connectCalls).toBe(1);
+    await act(async () => buttonWithText(container, 'Try Again')?.click());
+    expect(client.connectCalls).toBe(2);
+    expect(client.recoverCalls).toBe(0);
+  });
+
+  it('offers a plain retry when landing data cannot be reached', async () => {
+    const client = new FakeBrowserAgentClient();
+    client.statusError = new Error('ApplyFill could not reach its local service. Keep ApplyFill open, then try again.');
+    const container = await mountPage(client, '/agent');
+
+    expect(container.textContent).toContain('ApplyFill is still starting. Try again in a moment.');
+    client.statusError = null;
+    await act(async () => buttonWithText(container, 'Try Again')?.click());
+    expect(container.textContent).toContain('Private AI is ready.');
   });
 });

@@ -65,7 +65,7 @@ export default function ProfileIntroductionSection({
       <section className="profile-introduction-section" aria-labelledby="profile-local-storage">
         <div>
           <h4 className="section-title" id="profile-local-storage">Stored on This Device</h4>
-          <p className="section-copy">{PROFILE_AUTOMATION_DISCLOSURES.localStorage}</p>
+          <p className="section-copy">{PROFILE_AUTOMATION_DISCLOSURES.localData}</p>
         </div>
       </section>
 

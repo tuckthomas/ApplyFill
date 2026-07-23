@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - codex/**
+
+permissions:
+  contents: read
+
+jobs:
+  dotnet:
+    name: .NET, PostgreSQL, browser, and policy tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: |
+          dotnet tool restore
+          dotnet restore ApplyFill.slnx
+
+      - name: Build
+        run: dotnet build ApplyFill.slnx --configuration Release --no-restore --nologo
+
+      - name: Install managed Chromium
+        shell: pwsh
+        run: ./src/ResumeBuilder.BrowserWorker/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
+      - name: Test
+        run: dotnet test ApplyFill.slnx --configuration Release --no-build --nologo
+
+      - name: Verify formatting
+        run: dotnet format ApplyFill.slnx --verify-no-changes --no-restore
+
+      - name: Audit NuGet dependencies
+        run: dotnet list ApplyFill.slnx package --vulnerable --include-transitive
+
+  frontend:
+    name: Frontend lint, tests, build, and audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable project pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.7.0 --activate
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Audit dependencies
+        run: pnpm audit --audit-level high

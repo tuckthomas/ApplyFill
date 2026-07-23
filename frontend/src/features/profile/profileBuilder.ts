@@ -13,7 +13,8 @@ import type { ProjectEntry } from '../../components/resume/ProjectsSection';
 import type { SkillEntry } from '../../components/resume/SkillsSection';
 import { EMPTY_PROFILE_AUTOMATION_CONSENT } from './profileConsent';
 import type { ProfileAutomationConsent } from './profileConsent';
-import { LOCAL_DATA_KEYS, readLocalDocument, writeLocalDocument } from '../storage/localDatabase';
+import { apiRequest, ApiClientError } from '../api/localApiClient';
+import { notifyDataChanged } from '../api/dataEvents';
 import { isStoredPhoneNumber } from './phoneNumber';
 export const PROFILE_BUILDER_SCHEMA_VERSION = 2;
 export const PROFILE_DOCUMENT_FORMAT = 'applyfill.profile';
@@ -53,6 +54,25 @@ export type LocalProfileDocument = {
   schemaVersion: typeof PROFILE_BUILDER_SCHEMA_VERSION;
   updatedAtUtc: string;
 };
+
+export type CurrentProfileResource = {
+  document: LocalProfileDocument;
+  id: string;
+};
+
+type ProfileResponse = {
+  concurrencyToken: string;
+  content: unknown;
+  hasSensitiveApplicationData: boolean;
+  id: string;
+  schemaVersion: number;
+  updatedAt: string;
+};
+
+type SensitiveApplicationDataResponse = { content: unknown };
+
+let currentProfileId: string | null = null;
+let currentProfileToken: string | null = null;
 
 export const DEFAULT_PROFILE_SECTION_DATA: ProfileSectionData = {
   firstName: '', middleName: '', lastName: '', email: '', phone: '', alternativeNames: [],
@@ -236,29 +256,52 @@ export const toProfileBuilderState = (document: LocalProfileDocument): ProfileBu
   schemaVersion: document.schemaVersion
 });
 
-export const loadProfileDocument = async (): Promise<LocalProfileDocument | null> => {
-  const value = await readLocalDocument<unknown>(LOCAL_DATA_KEYS.profile);
-  if (value === null) return null;
-  if (!isLocalProfileDocument(value)) throw new Error('The locally stored profile has an unsupported format.');
-  return value;
+export const loadCurrentProfileResource = async (): Promise<CurrentProfileResource | null> => {
+  let response;
+  try {
+    response = await apiRequest<ProfileResponse>('/api/v1/profiles/current');
+  } catch (error) {
+    if (error instanceof ApiClientError && error.status === 404) {
+      currentProfileId = null;
+      currentProfileToken = null;
+      return null;
+    }
+    throw error;
+  }
+  const value = response.value.content;
+  if (!isLocalProfileDocument(value)) throw new Error('The saved profile has an unsupported format.');
+  let document = { ...value, updatedAtUtc: response.value.updatedAt };
+  if (response.value.hasSensitiveApplicationData) {
+    const sensitive = await apiRequest<SensitiveApplicationDataResponse>(
+      '/api/v1/profiles/current/reveal-sensitive',
+      { method: 'POST' },
+      { sensitiveAction: 'reveal' },
+    );
+    if (typeof sensitive.value.content === 'object' && sensitive.value.content !== null) {
+      document = {
+        ...document,
+        data: { ...document.data, applicationQuestions: sensitive.value.content as ApplicationQuestionsData },
+      };
+    }
+  }
+  if (!isLocalProfileDocument(document)) throw new Error('The saved profile has an unsupported format.');
+  currentProfileId = response.value.id;
+  currentProfileToken = response.value.concurrencyToken || response.etag;
+  return { document, id: response.value.id };
 };
+
+export const loadProfileDocument = async (): Promise<LocalProfileDocument | null> => (
+  (await loadCurrentProfileResource())?.document ?? null
+);
 
 export const loadProfileBuilderState = async (): Promise<ProfileBuilderState> => {
   const document = await loadProfileDocument();
   return document ? toProfileBuilderState(document) : createDefaultProfileBuilderState();
 };
 
-const syncPairedExtension = (document: LocalProfileDocument) => {
-  void import('../autofill/extensionHandoff')
-    .then(({ syncPairedAutofillProfile }) => syncPairedAutofillProfile(document))
-    .catch(() => undefined);
-};
-
 export const saveProfileBuilderState = async (state: ProfileBuilderState): Promise<LocalProfileDocument> => {
   const document = createLocalProfileDocument(state);
-  await writeLocalDocument(LOCAL_DATA_KEYS.profile, document);
-  syncPairedExtension(document);
-  return document;
+  return saveProfileDocument(document);
 };
 
 export const parseProfileDocument = (json: string): LocalProfileDocument => {
@@ -279,7 +322,24 @@ export const saveProfileDocument = async (document: LocalProfileDocument): Promi
     ...document,
     updatedAtUtc: new Date().toISOString()
   };
-  await writeLocalDocument(LOCAL_DATA_KEYS.profile, savedDocument);
-  syncPairedExtension(savedDocument);
-  return savedDocument;
+  if (currentProfileId === null && currentProfileToken === null) await loadCurrentProfileResource();
+  const publicDocument: LocalProfileDocument = {
+    ...savedDocument,
+    data: {
+      ...savedDocument.data,
+      applicationQuestions: structuredClone(EMPTY_APPLICATION_QUESTIONS),
+    },
+  };
+  const response = await apiRequest<ProfileResponse>('/api/v1/profiles/current', {
+    body: JSON.stringify({
+      content: publicDocument,
+      schemaVersion: PROFILE_BUILDER_SCHEMA_VERSION,
+      sensitiveApplicationData: savedDocument.data.applicationQuestions,
+    }),
+    method: 'PUT',
+  }, currentProfileToken ? { concurrencyToken: currentProfileToken } : {});
+  currentProfileId = response.value.id;
+  currentProfileToken = response.value.concurrencyToken || response.etag;
+  notifyDataChanged('profile');
+  return { ...savedDocument, updatedAtUtc: response.value.updatedAt };
 };

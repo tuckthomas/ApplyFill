@@ -69,34 +69,38 @@ Prefer these components rather than rebuilding their behavior:
 - `RichTextEditor.tsx`: all rich-text fields and toolbar behavior. It persists a restricted Tiptap JSON document; raw HTML is not supported, rendered, or migrated. Plain-text imports and AI output must be converted through `features/rich-text/`.
 - `ProfileIntroductionSection.tsx`: profile opening section used by the Job Profile wizard.
 - `ProfileResumeImportSection.tsx`: pre-personal-info PDF/DOCX/TXT import, plain-language Private AI status, and selectable proposal review. It uses a custom accessible file control instead of exposing the inconsistent native file-picker layout and never retains the source file.
-- `ProfileDataPanel.tsx`: formatted, read-only view of the exact local profile document with copy, download, and validated import controls.
+- `ProfileDataPanel.tsx`: formatted, read-only view of the exact profile document with copy, download, and validated import controls.
 - `ResumePdfDocument.tsx`: canonical browser-side PDF document used by both live preview and PDF Blob download. It accepts only the resume-safe view model.
-- `LocalAiTailoringPanel.tsx`: local job analysis and suggestion review with accept/reject/edit/cancel/stale/undo behavior.
+- `LocalAiTailoringPanel.tsx`: Private AI job analysis and suggestion review with accept/reject/edit/cancel/stale/undo behavior. It calls the local backend and never loads a model in the browser.
+- `ManagedBrowserViewport.tsx`: managed-browser frame surface with bounded user input while the user owns control.
+- `BrowserAgent.tsx`: multi-page run status, activity, questions, pause/stop, user handoff, recovery, and final-review surface inside the shared layout.
 - Dashboard components under `components/dashboard/`: widget grid, widget chrome, library, and widget implementations.
 
 ## Application Shell And Routes
 
 - `MainLayout.tsx` owns the responsive sidebar, grouped navigation, and persisted light/dark theme. Do not create a page-level substitute for these behaviors.
-- Implemented routes are dashboard (`/`), Job Profile review (`/job-profile`), Job Profile builder (`/job-profile/builder`), Job Tracker (`/job-tracker`), Resume Builder (`/resumes` and `/resumes/builder`), and Settings (`/settings`).
+- Implemented routes are dashboard (`/`), Job Profile review (`/job-profile`), Job Profile builder (`/job-profile/builder`), Job Tracker (`/job-tracker`), Resume Builder (`/resumes` and `/resumes/builder`), Browser Agent (`/agent` and `/agent/:runId`), and Settings (`/settings`).
 - The dashboard uses the shared dashboard grid and widget frame. Preserve its edit-mode distinction: layout changes, widget resizing, and widget removal are editing actions.
 - The Job Profile screen uses `TabbedForm`: My Profile is the readable review surface and Structured Data exposes the exact versioned local document. Section-level Edit actions navigate to the matching wizard section rather than duplicating forms.
-- Settings uses shared controls. It must accurately explain IndexedDB durability, the lack of automatic recovery or sync, and the destructive local-data deletion command.
+- Settings uses shared controls. It shows ordinary-language Private AI status/setup and accurately explains the local PostgreSQL privacy boundary without exposing service topology.
 
-## Local-First Data UX
+## Local Application Data UX
 
-- Profiles, resume drafts, job applications, and dashboard records use IndexedDB. Never call this storage a cache or imply that ApplyFill can recover it.
+- Profiles, resume drafts, job applications, dashboard records, and Browser Agent history use the local backend and PostgreSQL. Frontend state is an editable/view cache, never an independent source of truth.
 - Backup messaging must state that downloaded JSON contains sensitive, unencrypted personal data.
 - Government identifiers are application-only. Mask them in cards and profile summaries, reveal them only through an explicit control while editing, and warn before users expose them in structured JSON, clipboard copies, or downloads. Never include them in resumes or AI writing requests.
 - Work authorization uses the neutral application questions "currently authorized to work" and "now or in the future require sponsorship" per country. Do not collect citizenship, specific immigration status, or date of birth.
 - Education GPA is an optional pair of numeric fields: earned GPA and grading scale. Normalize saved values to two decimal places, support scales through 100.00, and reject incomplete pairs or a GPA greater than its scale.
 - Phone controls display `+1 (555) 123-4567` while editing and reviewing, but persist only `+15551234567`. Partial phone input stays in component state and must never enter the profile document.
 - Import controls must accept only a recognized ApplyFill format and supported schema version before replacing local data.
-- Resume import is distinct from ApplyFill JSON replacement: it accepts a bounded PDF/DOCX/TXT source, extracts text locally, redacts contact/private header content before Private AI, and merges only user-selected proposals without overwriting existing values. Selectable-text PDFs must preserve visual rows and columns through positioned extraction. Long professional text must be processed in bounded sections, with smaller-section retry for invalid output and deduplication only after every accepted section passes the closed schema. Reject image-only scans clearly until local OCR exists; never OCR a PDF that already contains accurate selectable text merely because its layout has multiple columns.
+- Resume import is distinct from ApplyFill JSON replacement: it accepts a PDF/DOCX/TXT source up to 10 MiB and renders no more than 15 JPEG pages in the browser (14 MiB rendered-set limit). PDF pages are capped at a 1,600-pixel longest edge and 2× scale; DOCX/TXT pages use a 1,200×1,600 canvas. Local vision/OCR preserves columns, headings, and visual order. Up to 30,000 characters of selectable text may accompany page images only as corroborating evidence after deterministic contact/header redaction; the original upload is not transmitted. Merge only user-selected proposals without overwriting existing values, and require the closed output schema even when OCR confidence is low.
 - Resume drafts are source-profile derivatives. The live preview and all file renderers consume the explicit resume-safe allowlist, never the complete profile document. Generated PDF and DOCX Blobs remain ephemeral until downloaded.
-- Local AI actions run inside the compatible desktop browser. Explain the exact allowlisted data boundary, explicit multi-gigabyte model download, actual accelerator/fallback, and the fact that local inference does not encrypt browser data.
-- Local AI suggestions are proposals: show progress and cancellation, render before/after review, allow edit/select/reject, block stale results, and provide undo after acceptance.
-- Settings owns automatic compatibility selection, model download/removal, persistence request, content-free diagnostic export, and extension pairing/unpairing. Ordinary users get one Private AI setup action and never choose hardware. Show download percentages instead of raw bytes, check compatibility before downloading, clear progress when setup fails, and keep benchmarks, runtime controls, and technical reports inside a collapsed Advanced section. Status updates use live regions and must distinguish app-ready, model-ready, unsupported, failed, and offline states.
-- Extension setup is a persistent pair-once workflow: Extension ID, clear paired state, automatic profile refresh, explicit sensitive-data storage opt-in, and fail-closed unpair deletion. Never ask for per-application connection codes or imply that pairing authorizes filling or submission. Every application still requires active-tab inspection and review. Explain that the toolbar action grants temporary access to the current page; it is not reconnection. Ambiguous non-sensitive fields may use the already-installed Local AI model automatically, but must never trigger an implicit model download.
+- Private AI runs through local native services. Explain the allowlisted data boundary in plain language; never expose models, providers, runtimes, ports, accelerators, GPU layers, or quantization in the ordinary UI.
+- Private AI suggestions are proposals: show progress and cancellation, render before/after review, allow edit/select/reject, block stale results, and provide undo after acceptance.
+- Settings owns one **Set Up Private AI** action and clear ready/setup/failure status. Show progress as a percentage when known and provide a plain retry path.
+- Browser Agent automation stays inside ApplyFill's main layout. The same run persists across pages without pairing, connection codes, active-tab inspection, or extension installation.
+- Pause, Stop, Take Control, Return Control, pending-question, recovery, and final-review states must always remain visible. User and agent input are mutually exclusive.
+- Final submission is a separate explicit approval; never present reaching the last page as permission to submit.
 - Destructive deletion requires explicit confirmation and must name all substantive local records affected.
 
 Update this list whenever a reusable component is added, renamed, or retired.

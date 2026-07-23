@@ -84,6 +84,49 @@
   outline: none;
 }
 
+.browser-agent-message .browser-agent-message-retry {
+  border: 1px solid currentColor;
+  font: inherit;
+  font-weight: 700;
+  min-width: max-content;
+  padding: 0 12px;
+  width: auto;
+}
+
+.browser-agent-recovery {
+  align-items: center;
+  display: flex;
+  gap: 1.25rem;
+  justify-content: space-between;
+  padding: 1.25rem;
+}
+
+.browser-agent-recovery > div {
+  align-items: flex-start;
+  display: flex;
+  gap: 0.85rem;
+}
+
+.browser-agent-recovery > div > svg {
+  color: var(--primary-color);
+  flex: 0 0 auto;
+}
+
+.browser-agent-recovery h2,
+.browser-agent-recovery p {
+  margin: 0;
+}
+
+.browser-agent-recovery h2 {
+  color: var(--text-main);
+  font-size: 1.05rem;
+}
+
+.browser-agent-recovery p {
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+}
+
 .browser-agent-landing-grid {
   align-items: start;
   display: grid;
@@ -618,6 +661,28 @@
   max-width: 480px;
 }
 
+.browser-viewport-retry {
+  align-items: center;
+  background: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  border-radius: var(--border-radius-sm);
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-weight: 700;
+  gap: 7px;
+  margin-top: 8px;
+  min-height: 40px;
+  padding: 8px 14px;
+}
+
+.browser-viewport-retry:hover,
+.browser-viewport-retry:focus-visible {
+  box-shadow: 0 0 0 3px var(--primary-glow);
+  outline: none;
+}
+
 .browser-viewport-control-shield {
   background: rgba(8, 13, 24, 0.28);
   inset: auto 16px 16px auto;
@@ -946,6 +1011,15 @@
 }
 
 @media (max-width: 760px) {
+  .browser-agent-recovery {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .browser-agent-recovery .btn {
+    width: 100%;
+  }
+
   .browser-agent-page-header,
   .browser-run-summary {
     align-items: stretch;

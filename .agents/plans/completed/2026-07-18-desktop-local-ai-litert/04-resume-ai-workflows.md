@@ -1,5 +1,7 @@
 # Workstream D — Local Resume AI Workflows
 
+> **ARCHIVED AND SUPERSEDED — 2026-07-22:** This workstream records historical browser LiteRT workflows. Current resume AI uses backend provider interfaces and PostgreSQL-backed records; this file is not current implementation guidance. See [current architecture](../../../../docs/architecture.md).
+
 > **Superseded UI note (2026-07-22):** Accelerator selection was removed from user-facing Settings. The approved model supports WebGPU only, so ApplyFill now checks compatibility before downloading and selects the working backend automatically. Experimental WebNN/NPU remains developer-facing.
 
 **Status:** Implemented behind the approved-model gate; live candidate quality/hardware acceptance pending Workstream C  

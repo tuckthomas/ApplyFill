@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Expand, Focus, Minimize2, MonitorOff, MousePointer2 } from 'lucide-react';
+import { Expand, Focus, Minimize2, MonitorOff, MousePointer2, RefreshCw } from 'lucide-react';
 import type { BrowserConnectionState, BrowserInput, BrowserRunSnapshot } from '../../features/browser-agent';
+import { mapClientPointToFrame } from './frameCoordinates';
 
 type ManagedBrowserViewportProps = {
   connectionState: BrowserConnectionState;
   run: BrowserRunSnapshot;
   onInput: (input: BrowserInput) => void;
+  onRetryConnection?: () => void;
 };
 
 type BrowserInputWithoutSequence =
-  | Omit<Extract<BrowserInput, { kind: 'pointer' }>, 'sequence'>
-  | Omit<Extract<BrowserInput, { kind: 'wheel' }>, 'sequence'>
-  | Omit<Extract<BrowserInput, { kind: 'key' }>, 'sequence'>;
+  | Omit<Extract<BrowserInput, { kind: 'pointer' }>, 'frameSequence' | 'pageGeneration'>
+  | Omit<Extract<BrowserInput, { kind: 'wheel' }>, 'frameSequence' | 'pageGeneration'>
+  | Omit<Extract<BrowserInput, { kind: 'key' }>, 'frameSequence' | 'pageGeneration'>;
 
 const sameOriginFrameUrl = (value: string | undefined) => {
   if (!value) return '';
@@ -23,34 +25,30 @@ const sameOriginFrameUrl = (value: string | undefined) => {
   }
 };
 
-const normalizedPoint = (event: React.PointerEvent<HTMLElement> | React.WheelEvent<HTMLElement>) => {
-  const bounds = event.currentTarget.getBoundingClientRect();
-  return {
-    x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / Math.max(1, bounds.width))),
-    y: Math.max(0, Math.min(1, (event.clientY - bounds.top) / Math.max(1, bounds.height))),
-  };
-};
-
-export default function ManagedBrowserViewport({ connectionState, run, onInput }: ManagedBrowserViewportProps) {
+export default function ManagedBrowserViewport({ connectionState, run, onInput, onRetryConnection }: ManagedBrowserViewportProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const sequence = useRef(0);
   const queuedMove = useRef<BrowserInput | null>(null);
   const moveFrame = useRef<number | null>(null);
   const [focusMode, setFocusMode] = useState(false);
   const [viewportFocused, setViewportFocused] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const frameUrl = sameOriginFrameUrl(run.frameUrl);
+  const hasFrameIdentity = Number.isSafeInteger(run.frameSequence)
+    && Number.isSafeInteger(run.framePageGeneration)
+    && (run.frameSequence ?? 0) > 0
+    && (run.framePageGeneration ?? 0) > 0;
   const isUserControlled = run.controlOwner === 'user' && run.state === 'user-control';
   const frameAge = run.frameUpdatedAt ? now - Date.parse(run.frameUpdatedAt) : Number.POSITIVE_INFINITY;
   const frameIsStale = frameAge > 8_000;
   const unavailableReason = useMemo(() => {
     if (connectionState === 'connecting') return 'Connecting to the application…';
     if (connectionState === 'reconnecting') return 'Connection interrupted. Reconnecting…';
-    if (connectionState === 'disconnected') return 'The live view is disconnected. ApplyFill is trying to recover it.';
+    if (connectionState === 'disconnected') return 'The live view is disconnected. Your application is still saved.';
     if (!frameUrl) return 'Waiting for the application page…';
+    if (!hasFrameIdentity) return 'Waiting for a verified application page…';
     if (frameIsStale) return 'The page view is out of date. Input is paused while ApplyFill reconnects.';
     return '';
-  }, [connectionState, frameIsStale, frameUrl]);
+  }, [connectionState, frameIsStale, frameUrl, hasFrameIdentity]);
   const acceptsInput = isUserControlled && !unavailableReason;
 
   useEffect(() => () => {
@@ -62,14 +60,60 @@ export default function ManagedBrowserViewport({ connectionState, run, onInput }
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!acceptsInput || !wrapper || !hasFrameIdentity || typeof ResizeObserver === 'undefined') return;
+    let resizeFrame: number | null = null;
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return;
+      if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null;
+        const viewportWidth = Math.max(320, Math.min(3840, Math.round(entry.contentRect.width)));
+        const viewportHeight = Math.max(240, Math.min(2160, Math.round(entry.contentRect.height)));
+        if (viewportWidth === run.frameWidth && viewportHeight === run.frameHeight) return;
+        onInput({
+          frameSequence: run.frameSequence!,
+          kind: 'resize',
+          pageGeneration: run.framePageGeneration!,
+          viewportHeight,
+          viewportWidth,
+        });
+      });
+    });
+    observer.observe(wrapper);
+    return () => {
+      observer.disconnect();
+      if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+    };
+  }, [acceptsInput, hasFrameIdentity, onInput, run.frameHeight, run.framePageGeneration, run.frameSequence, run.frameWidth]);
+
   const emit = (input: BrowserInputWithoutSequence) => {
-    onInput({ ...input, sequence: ++sequence.current } as BrowserInput);
+    if (!hasFrameIdentity) return;
+    onInput({
+      ...input,
+      frameSequence: run.frameSequence!,
+      pageGeneration: run.framePageGeneration!,
+    } as BrowserInput);
   };
 
   const queuePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!acceptsInput) return;
-    const point = normalizedPoint(event);
-    queuedMove.current = { kind: 'pointer', event: 'move', ...point, sequence: ++sequence.current };
+    const point = mapClientPointToFrame(
+      event.clientX,
+      event.clientY,
+      event.currentTarget.getBoundingClientRect(),
+      run.frameWidth ?? 0,
+      run.frameHeight ?? 0,
+    );
+    if (!point || !hasFrameIdentity) return;
+    queuedMove.current = {
+      event: 'move',
+      frameSequence: run.frameSequence!,
+      kind: 'pointer',
+      pageGeneration: run.framePageGeneration!,
+      ...point,
+    };
     if (moveFrame.current !== null) return;
     moveFrame.current = requestAnimationFrame(() => {
       if (queuedMove.current) onInput(queuedMove.current);
@@ -125,19 +169,24 @@ export default function ManagedBrowserViewport({ connectionState, run, onInput }
         }}
         onPointerDown={(event) => {
           if (!acceptsInput) return;
+          const point = mapClientPointToFrame(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect(), run.frameWidth ?? 0, run.frameHeight ?? 0);
+          if (!point) return;
           event.currentTarget.setPointerCapture(event.pointerId);
           event.currentTarget.focus();
-          emit({ kind: 'pointer', event: 'down', ...normalizedPoint(event), button: event.button });
+          emit({ kind: 'pointer', event: 'down', ...point, button: event.button });
         }}
         onPointerMove={queuePointerMove}
         onPointerUp={(event) => {
           if (!acceptsInput) return;
-          emit({ kind: 'pointer', event: 'up', ...normalizedPoint(event), button: event.button });
+          const point = mapClientPointToFrame(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect(), run.frameWidth ?? 0, run.frameHeight ?? 0);
+          if (point) emit({ kind: 'pointer', event: 'up', ...point, button: event.button });
         }}
         onWheel={(event) => {
           if (!acceptsInput) return;
+          const point = mapClientPointToFrame(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect(), run.frameWidth ?? 0, run.frameHeight ?? 0);
+          if (!point) return;
           event.preventDefault();
-          emit({ kind: 'wheel', ...normalizedPoint(event), deltaX: event.deltaX, deltaY: event.deltaY });
+          emit({ kind: 'wheel', ...point, deltaX: event.deltaX, deltaY: event.deltaY });
         }}
         ref={wrapperRef}
         role="application"
@@ -150,6 +199,11 @@ export default function ManagedBrowserViewport({ connectionState, run, onInput }
             <MonitorOff aria-hidden="true" size={30} />
             <strong>Live view unavailable</strong>
             <span>{unavailableReason}</span>
+            {connectionState === 'disconnected' && onRetryConnection ? (
+              <button className="browser-viewport-retry" onClick={onRetryConnection} type="button">
+                <RefreshCw aria-hidden="true" size={17} /> Try Again
+              </button>
+            ) : null}
           </div>
         ) : !isUserControlled ? (
           <div className="browser-viewport-control-shield" aria-hidden="true">

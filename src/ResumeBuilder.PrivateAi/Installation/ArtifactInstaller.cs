@@ -12,12 +12,22 @@ public sealed record ArtifactProgress(
     long TotalBytes,
     bool IsVerifying);
 
-public sealed class ArtifactInstaller(HttpClient httpClient, string installationRoot)
+public sealed class ArtifactInstaller(
+    HttpClient httpClient,
+    string installationRoot,
+    long parallelThresholdBytes = 512L * 1024 * 1024,
+    int maximumParallelSegments = 8)
 {
     private readonly string _installationRoot = Path.GetFullPath(
         string.IsNullOrWhiteSpace(installationRoot)
             ? throw new ArgumentException("Installation root is required.", nameof(installationRoot))
             : installationRoot);
+    private readonly long _parallelThresholdBytes = parallelThresholdBytes > 0
+        ? parallelThresholdBytes
+        : throw new ArgumentOutOfRangeException(nameof(parallelThresholdBytes));
+    private readonly int _maximumParallelSegments = maximumParallelSegments is >= 2 and <= 16
+        ? maximumParallelSegments
+        : throw new ArgumentOutOfRangeException(nameof(maximumParallelSegments));
 
     public async Task<string> InstallAsync(
         string componentId,
@@ -53,6 +63,43 @@ public sealed class ArtifactInstaller(HttpClient httpClient, string installation
             existingBytes = 0;
         }
 
+        if (artifact.Bytes >= _parallelThresholdBytes && existingBytes < artifact.Bytes)
+        {
+            try
+            {
+                await DownloadRemainingInParallelAsync(partial, existingBytes, artifact, progress, cancellationToken);
+                existingBytes = artifact.Bytes;
+            }
+            catch (RangeDownloadNotSupportedException)
+            {
+                DeleteSegmentFiles(partial);
+            }
+        }
+
+        if (existingBytes < artifact.Bytes)
+        {
+            await DownloadSequentiallyAsync(partial, existingBytes, artifact, progress, cancellationToken);
+        }
+
+        if (!await VerifyAsync(partial, artifact, progress, cancellationToken))
+        {
+            File.Delete(partial);
+            DeleteSegmentFiles(partial);
+            throw new InvalidDataException($"Private AI artifact verification failed: {artifact.FileName}");
+        }
+
+        DeleteSegmentFiles(partial);
+        File.Move(partial, destination, true);
+        return destination;
+    }
+
+    private async Task DownloadSequentiallyAsync(
+        string partial,
+        long existingBytes,
+        PrivateAiArtifact artifact,
+        IProgress<ArtifactProgress>? progress,
+        CancellationToken cancellationToken)
+    {
         using var request = new HttpRequestMessage(HttpMethod.Get, artifact.Url);
         if (existingBytes > 0)
         {
@@ -109,15 +156,160 @@ public sealed class ArtifactInstaller(HttpClient httpClient, string installation
             }
         }
 
-        if (!await VerifyAsync(partial, artifact, progress, cancellationToken))
+        if (new FileInfo(partial).Length != artifact.Bytes)
         {
-            File.Delete(partial);
-            throw new InvalidDataException($"Private AI artifact verification failed: {artifact.FileName}");
+            throw new InvalidDataException("Private AI download did not match the declared artifact size.");
+        }
+    }
+
+    private async Task DownloadRemainingInParallelAsync(
+        string partial,
+        long existingBytes,
+        PrivateAiArtifact artifact,
+        IProgress<ArtifactProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var remaining = artifact.Bytes - existingBytes;
+        var segmentCount = (int)Math.Min(_maximumParallelSegments, Math.Max(2, remaining / (128L * 1024 * 1024)));
+        var segmentSize = (long)Math.Ceiling((double)remaining / segmentCount);
+        var segments = Enumerable.Range(0, segmentCount)
+            .Select(index =>
+            {
+                var start = existingBytes + index * segmentSize;
+                var end = Math.Min(artifact.Bytes - 1, start + segmentSize - 1);
+                return new DownloadSegment(start, end, $"{partial}.{start:D20}-{end:D20}.segment");
+            })
+            .Where(segment => segment.Start <= segment.End)
+            .ToArray();
+
+        var completedBeforeStart = segments.Sum(segment =>
+            File.Exists(segment.Path) ? Math.Min(new FileInfo(segment.Path).Length, segment.Length) : 0);
+        var downloadedThisRun = 0L;
+        var tasks = segments.Select(segment => DownloadSegmentAsync(
+            segment,
+            artifact,
+            bytes =>
+            {
+                var current = Interlocked.Add(ref downloadedThisRun, bytes);
+                progress?.Report(new ArtifactProgress(
+                    artifact.FileName,
+                    Math.Min(artifact.Bytes, existingBytes + completedBeforeStart + current),
+                    artifact.Bytes,
+                    false));
+            },
+            cancellationToken));
+        await Task.WhenAll(tasks);
+
+        await using var target = new FileStream(
+            partial,
+            FileMode.Append,
+            FileAccess.Write,
+            FileShare.None,
+            1024 * 1024,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        foreach (var segment in segments.OrderBy(segment => segment.Start))
+        {
+            var file = new FileInfo(segment.Path);
+            if (!file.Exists || file.Length != segment.Length)
+            {
+                throw new InvalidDataException("A Private AI download segment was incomplete.");
+            }
+
+            await using (var source = new FileStream(
+                segment.Path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                1024 * 1024,
+                FileOptions.Asynchronous | FileOptions.SequentialScan))
+            {
+                await source.CopyToAsync(target, 1024 * 1024, cancellationToken);
+            }
+            await target.FlushAsync(cancellationToken);
+            File.Delete(segment.Path);
         }
 
-        File.Move(partial, destination, true);
-        return destination;
+        if (target.Length != artifact.Bytes)
+        {
+            throw new InvalidDataException("Private AI parallel download did not match the declared artifact size.");
+        }
     }
+
+    private async Task DownloadSegmentAsync(
+        DownloadSegment segment,
+        PrivateAiArtifact artifact,
+        Action<int> reportBytes,
+        CancellationToken cancellationToken)
+    {
+        var existing = File.Exists(segment.Path) ? new FileInfo(segment.Path).Length : 0;
+        if (existing > segment.Length)
+        {
+            File.Delete(segment.Path);
+            existing = 0;
+        }
+        if (existing == segment.Length)
+        {
+            return;
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, artifact.Url);
+        request.Headers.Range = new RangeHeaderValue(segment.Start + existing, segment.End);
+        using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (response.StatusCode != HttpStatusCode.PartialContent)
+        {
+            throw new RangeDownloadNotSupportedException();
+        }
+
+        await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
+        await using var target = new FileStream(
+            segment.Path,
+            existing == 0 ? FileMode.Create : FileMode.Append,
+            FileAccess.Write,
+            FileShare.None,
+            1024 * 1024,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        var buffer = ArrayPool<byte>.Shared.Rent(1024 * 1024);
+        try
+        {
+            int count;
+            while ((count = await source.ReadAsync(buffer, cancellationToken)) > 0)
+            {
+                if (target.Length + count > segment.Length)
+                {
+                    throw new InvalidDataException("A Private AI download segment exceeded its declared size.");
+                }
+                await target.WriteAsync(buffer.AsMemory(0, count), cancellationToken);
+                reportBytes(count);
+            }
+            await target.FlushAsync(cancellationToken);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+
+        if (target.Length != segment.Length)
+        {
+            throw new InvalidDataException("A Private AI download segment was incomplete.");
+        }
+    }
+
+    private static void DeleteSegmentFiles(string partial)
+    {
+        var directory = Path.GetDirectoryName(partial)!;
+        var prefix = Path.GetFileName(partial) + ".";
+        foreach (var path in Directory.EnumerateFiles(directory, $"{prefix}*.segment", SearchOption.TopDirectoryOnly))
+        {
+            File.Delete(path);
+        }
+    }
+
+    private sealed record DownloadSegment(long Start, long End, string Path)
+    {
+        public long Length => End - Start + 1;
+    }
+
+    private sealed class RangeDownloadNotSupportedException : Exception;
 
     public static async Task<bool> VerifyAsync(
         string path,

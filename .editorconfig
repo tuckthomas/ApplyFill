@@ -1,0 +1,15 @@
+root = true
+
+[*.{cs,csproj,props,targets}]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+
+[*.cs]
+indent_style = space
+indent_size = 4
+dotnet_sort_system_directives_first = true
+
+[**/Persistence/Migrations/*.cs]
+# EF generates short-lived array arguments for index columns; these files are tool-owned.
+dotnet_diagnostic.CA1861.severity = none

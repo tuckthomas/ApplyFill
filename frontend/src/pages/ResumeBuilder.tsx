@@ -19,8 +19,8 @@ import {
 } from '../features/resume/resumeDocument';
 import type { LocalResumeDraft, ResumeSelections } from '../features/resume/resumeDocument';
 import { createResumeDocxBlob, downloadBlob, resumeFileName } from '../features/resume/resumeDownloads';
+import { saveResumeArtifact } from '../features/resume/resumeArtifacts';
 import { createResumeSafeViewModel } from '../features/resume/resumeExport';
-import { localAiRuntime } from '../features/local-ai/runtime';
 
 const EMPTY_MODEL = {
   contact: { email: '', links: [], location: '', name: '', phone: '' },
@@ -47,11 +47,11 @@ export default function ResumeBuilder() {
         if (!loadedProfile) return;
         const existing = resumeId ? collection.resumes.find((item) => item.id === resumeId) : undefined;
         if (resumeId && !existing) {
-          setMessage('That locally stored resume could not be found. A new draft has been opened instead.');
+          setMessage('That saved resume could not be found. A new draft has been opened instead.');
         }
         setResume(existing ?? createResumeDraft(loadedProfile));
       })
-      .catch(() => { if (isCurrent) setMessage('Local resume data could not be loaded in this browser.'); })
+      .catch(() => { if (isCurrent) setMessage('Resume data could not be loaded from ApplyFill.'); })
       .finally(() => { if (isCurrent) setIsLoading(false); });
     return () => { isCurrent = false; };
   }, [resumeId]);
@@ -117,9 +117,9 @@ export default function ResumeBuilder() {
       });
       setResume(saved);
       navigate(`/resumes/builder/${saved.id}`, { replace: true });
-      setMessage('Resume draft saved in this browser.');
+      setMessage('Resume draft saved in ApplyFill.');
     } catch {
-      setMessage('The resume draft could not be saved in local browser storage.');
+      setMessage('The resume draft could not be saved.');
     }
   };
 
@@ -161,6 +161,17 @@ export default function ResumeBuilder() {
     setMessage('PDF downloaded directly from this browser.');
   };
 
+  const saveForApplications = async () => {
+    if (!resume || !pdfInstance.blob) return;
+    try {
+      setMessage('Saving this reviewed PDF for the Browser Agent...');
+      await saveResumeArtifact(resume.id, pdfInstance.blob, resumeFileName(resume.title, 'pdf'));
+      setMessage('This PDF is ready for the Browser Agent to upload when an application asks for your resume.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'The PDF could not be saved for applications. Save the resume draft and try again.');
+    }
+  };
+
   const downloadDocx = async () => {
     if (!resume) return;
     try {
@@ -187,7 +198,7 @@ export default function ResumeBuilder() {
         <section className="surface-panel empty-state" aria-labelledby="missing-profile-title">
           <FileText size={52} strokeWidth={1.4} aria-hidden="true" />
           <h3 className="section-title" id="missing-profile-title">A local profile is required</h3>
-          <p className="section-copy">Resume exports use only the resume-safe fields you select from your browser-local profile.</p>
+          <p className="section-copy">Resume exports use only the resume-safe fields you select from your saved Job Profile.</p>
           <Button onClick={() => navigate('/job-profile/builder')} variant="primary">Build Job Profile</Button>
         </section>
       </div>
@@ -208,7 +219,7 @@ export default function ResumeBuilder() {
           <h2 className="page-title">Resume Builder</h2>
           <p className="page-copy">Tailor a local resume and generate PDF, DOCX, or JSON without uploading it.</p>
         </div>
-        <span className="status-pill">Stored in this browser</span>
+        <span className="status-pill">Stored on this computer</span>
       </header>
 
       {message ? <p className="profile-data-message" role="status">{message}</p> : null}
@@ -222,12 +233,11 @@ export default function ResumeBuilder() {
           onResumeChange={setResume}
           profile={profile}
           resume={resume}
-          runtime={localAiRuntime}
         />
       ) : (
         <div className="resume-local-ai-entry">
-          <Button onClick={() => setShowLocalAi(true)} variant="primary"><BrainCircuit aria-hidden="true" size={18} /> Tailor with Local AI</Button>
-          <p className="field-hint">Local AI runs only when you start it and receives only the professional sections you selected below.</p>
+          <Button onClick={() => setShowLocalAi(true)} variant="primary"><BrainCircuit aria-hidden="true" size={18} /> Tailor with Private AI</Button>
+          <p className="field-hint">Private AI runs locally only when you start it and receives only the professional sections you selected below.</p>
         </div>
       )}
 
@@ -289,6 +299,7 @@ export default function ResumeBuilder() {
 
           <div className="resume-builder-actions" aria-label="Resume controls">
             <Button onClick={() => void saveDraft()} variant="primary"><Save size={17} aria-hidden="true" /> Save Draft</Button>
+            <Button disabled={!pdfInstance.blob || pdfInstance.loading} onClick={() => void saveForApplications()}><Upload size={17} aria-hidden="true" /> Save for Applications</Button>
             <Button disabled={!pdfInstance.blob || pdfInstance.loading} onClick={downloadPdf}><Download size={17} aria-hidden="true" /> PDF</Button>
             <Button onClick={() => void downloadDocx()}><FileText size={17} aria-hidden="true" /> DOCX</Button>
             <Button onClick={downloadJson}><FileJson size={17} aria-hidden="true" /> JSON</Button>

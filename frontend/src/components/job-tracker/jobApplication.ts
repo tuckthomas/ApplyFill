@@ -1,7 +1,8 @@
 import { formatExactDateValue, normalizeExactDateValue } from '../ui/datePickerUtils';
 import type { LocationOption } from '../../constants/location';
 import { EMPTY_RICH_TEXT_VALUE, normalizeRichText } from '../../features/rich-text/richText';
-import { LOCAL_DATA_KEYS, readLocalDocument, writeLocalDocument } from '../../features/storage/localDatabase';
+import { apiRequest } from '../../features/api/localApiClient';
+import { notifyDataChanged } from '../../features/api/dataEvents';
 
 export type JobApplicationStatus = 'Saved' | 'Applied' | 'Interviewing' | 'Offer Received' | 'Rejected' | 'Withdrawn';
 export type JobApplicationWorkplaceType = 'On-site' | 'Hybrid' | 'Remote';
@@ -25,6 +26,38 @@ export type JobApplication = JobApplicationFormState & { id: string };
 
 export type StatusOption = { value: JobApplicationStatus; label: string };
 export type WorkplaceTypeOption = { value: JobApplicationWorkplaceType; label: string };
+
+type JobApplicationResponse = {
+  company: string;
+  concurrencyToken: string;
+  createdAt: string;
+  details: unknown;
+  id: string;
+  jobTitle: string;
+  status: number | string;
+  targetUrl: string;
+  updatedAt: string;
+};
+
+const applicationTokens = new Map<string, string>();
+
+const backendStatus = (status: JobApplicationStatus) => ({
+  Applied: 2,
+  Interviewing: 3,
+  'Offer Received': 4,
+  Rejected: 6,
+  Saved: 0,
+  Withdrawn: 7,
+}[status]);
+
+const frontendStatus = (status: number | string): JobApplicationStatus => {
+  if (status === 2 || status === 'Applied') return 'Applied';
+  if (status === 3 || status === 'Interviewing') return 'Interviewing';
+  if ([4, 5, 'Offered', 'Accepted'].includes(status)) return 'Offer Received';
+  if (status === 6 || status === 'Rejected') return 'Rejected';
+  if ([7, 8, 'Withdrawn', 'Archived'].includes(status)) return 'Withdrawn';
+  return 'Saved';
+};
 
 export const STATUS_OPTIONS: StatusOption[] = [
   { value: 'Saved', label: 'Saved' },
@@ -77,25 +110,69 @@ export const createEmptyApplicationForm = (defaultCountry: LocationOption | null
 });
 
 export const loadApplications = async (): Promise<JobApplication[]> => {
-  const storedValue = await readLocalDocument<unknown>(LOCAL_DATA_KEYS.jobApplications);
-  return Array.isArray(storedValue)
-    ? storedValue.map((application) => {
-      const value = application as Partial<JobApplication>;
-      return ({
-        ...application,
-        appliedDate: normalizeExactDateValue(value.appliedDate ?? ''),
-        jobDescription: normalizeRichText(value.jobDescription ?? EMPTY_RICH_TEXT_VALUE),
-        notes: normalizeRichText(value.notes ?? EMPTY_RICH_TEXT_VALUE),
-        workplaceType: value.workplaceType ?? null,
-        location: value.location ?? '',
-        city: value.city ?? '',
-        state: value.state ?? null,
-        country: value.country ?? null
-      } as JobApplication);
-    })
-    : [];
+  const response = await apiRequest<JobApplicationResponse[]>('/api/v1/job-applications?skip=0&take=100');
+  return response.value.map((item) => {
+    const value = typeof item.details === 'object' && item.details !== null
+      ? item.details as Partial<JobApplication>
+      : {};
+    applicationTokens.set(item.id, item.concurrencyToken);
+    return {
+      ...createEmptyApplicationForm(),
+      ...value,
+      appliedDate: normalizeExactDateValue(value.appliedDate ?? ''),
+      city: value.city ?? '',
+      companyName: item.company,
+      country: value.country ?? null,
+      id: item.id,
+      jobDescription: normalizeRichText(value.jobDescription ?? EMPTY_RICH_TEXT_VALUE),
+      jobTitle: item.jobTitle,
+      location: value.location ?? '',
+      notes: normalizeRichText(value.notes ?? EMPTY_RICH_TEXT_VALUE),
+      state: value.state ?? null,
+      status: frontendStatus(item.status),
+      targetJobUrl: item.targetUrl,
+      workplaceType: value.workplaceType ?? null,
+    };
+  });
 };
 
-export const saveApplications = (applications: JobApplication[]) => (
-  writeLocalDocument(LOCAL_DATA_KEYS.jobApplications, applications)
-);
+const saveOneApplication = async (application: JobApplication): Promise<JobApplication> => {
+  if (!application.targetJobUrl.trim()) throw new Error('A job posting or application URL is required.');
+  const token = applicationTokens.get(application.id);
+  const response = await apiRequest<JobApplicationResponse>(token
+    ? `/api/v1/job-applications/${encodeURIComponent(application.id)}`
+    : '/api/v1/job-applications', {
+    body: JSON.stringify({
+      company: application.companyName,
+      details: application,
+      jobTitle: application.jobTitle,
+      status: backendStatus(application.status),
+      targetUrl: application.targetJobUrl,
+    }),
+    method: token ? 'PUT' : 'POST',
+  }, token ? { concurrencyToken: token } : {});
+  applicationTokens.set(response.value.id, response.value.concurrencyToken || response.etag || '');
+  return { ...application, id: response.value.id };
+};
+
+export const saveApplications = async (applications: JobApplication[]): Promise<JobApplication[]> => {
+  const existing = await loadApplications();
+  const desiredIds = new Set(applications.map((application) => application.id));
+  for (const removed of existing.filter((application) => !desiredIds.has(application.id))) {
+    const token = applicationTokens.get(removed.id);
+    if (token) {
+      await apiRequest<void>(`/api/v1/job-applications/${encodeURIComponent(removed.id)}`, { method: 'DELETE' }, { concurrencyToken: token });
+      applicationTokens.delete(removed.id);
+    }
+  }
+
+  const persisted: JobApplication[] = [];
+  for (const application of applications) {
+    const stored = existing.find((item) => item.id === application.id);
+    persisted.push(stored && JSON.stringify(stored) === JSON.stringify(application)
+      ? stored
+      : await saveOneApplication(application));
+  }
+  notifyDataChanged('applications');
+  return persisted;
+};

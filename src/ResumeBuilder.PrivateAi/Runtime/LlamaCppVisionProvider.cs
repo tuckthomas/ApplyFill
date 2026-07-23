@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Net;
-using System.Net.Http.Json;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ResumeBuilder.Application.Models;
@@ -118,14 +118,96 @@ public sealed class LlamaCppVisionProvider : IVisionInferenceProvider
             throw new InvalidDataException("Private AI returned no structured result.");
         }
 
-        using var parsed = JsonDocument.Parse(output, new JsonDocumentOptions { MaxDepth = 32 });
+        var structuredOutput = NormalizeStructuredOutput(request.TaskDefinitionId, output);
+        using var parsed = JsonDocument.Parse(structuredOutput, new JsonDocumentOptions { MaxDepth = 32 });
         if (parsed.RootElement.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array))
         {
             throw new InvalidDataException("Private AI returned an invalid structured result.");
         }
 
         stopwatch.Stop();
-        return new VisionInferenceResult(output, _modelId, _modelRevision, ProviderId, stopwatch.Elapsed);
+        return new VisionInferenceResult(structuredOutput, _modelId, _modelRevision, ProviderId, stopwatch.Elapsed);
+    }
+
+    private static string NormalizeStructuredOutput(string taskDefinitionId, string output)
+    {
+        var normalized = RemoveMarkdownFence(output);
+        try
+        {
+            using var parsed = JsonDocument.Parse(normalized, new JsonDocumentOptions { MaxDepth = 32 });
+            return parsed.RootElement.ValueKind is JsonValueKind.Object or JsonValueKind.Array
+                ? normalized
+                : throw new InvalidDataException("Private AI returned an invalid structured result.");
+        }
+        catch (JsonException) when (taskDefinitionId == "document-page-parsing")
+        {
+            var text = normalized;
+            if (string.IsNullOrWhiteSpace(text) || text.Length > 64_000)
+            {
+                throw new InvalidDataException("Private AI document reading returned invalid text.");
+            }
+
+            return JsonSerializer.Serialize(new
+            {
+                text,
+                blocks = Array.Empty<object>(),
+                confidence = 0.5,
+            }, JsonOptions);
+        }
+        catch (JsonException) when (TryExtractJsonValue(normalized, out var extracted))
+        {
+            return extracted;
+        }
+    }
+
+    private static string RemoveMarkdownFence(string output)
+    {
+        var value = output.Trim();
+        if (!value.StartsWith("```", StringComparison.Ordinal) ||
+            !value.EndsWith("```", StringComparison.Ordinal))
+        {
+            return value;
+        }
+
+        var firstLine = value.IndexOf('\n');
+        return firstLine >= 0 ? value[(firstLine + 1)..^3].Trim() : value;
+    }
+
+    private static bool TryExtractJsonValue(string output, out string extracted)
+    {
+        for (var start = 0; start < output.Length; start++)
+        {
+            if (output[start] is not ('{' or '['))
+            {
+                continue;
+            }
+
+            for (var end = output.Length - 1; end > start; end--)
+            {
+                if (output[end] is not ('}' or ']'))
+                {
+                    continue;
+                }
+
+                var candidate = output[start..(end + 1)];
+                try
+                {
+                    using var parsed = JsonDocument.Parse(candidate, new JsonDocumentOptions { MaxDepth = 32 });
+                    if (parsed.RootElement.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+                    {
+                        extracted = candidate;
+                        return true;
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Try the next bounded candidate. Workflow schema validation still decides acceptance.
+                }
+            }
+        }
+
+        extracted = string.Empty;
+        return false;
     }
 
     private static void Validate(VisionInferenceRequest request)
@@ -137,7 +219,7 @@ public sealed class LlamaCppVisionProvider : IVisionInferenceProvider
             throw new ArgumentException("Private AI task metadata and instruction are required.", nameof(request));
         }
 
-        if (request.Images.Count is < 1 or > 4 || request.MaximumOutputTokens is < 64 or > 4096)
+        if (request.Images.Count > 4 || request.MaximumOutputTokens is < 64 or > 4096)
         {
             throw new ArgumentOutOfRangeException(nameof(request), "Private AI request exceeds approved bounds.");
         }

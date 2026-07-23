@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arrangePdfTextItems, createModelSafeResumeImportText, createProfileImportProposal, extractResumeContact, mergeProfileImportProposal, parseProfileImportModelOutput } from './resumeImport';
+import { arrangePdfTextItems, createModelSafeResumeImportText, createProfileImportProposal, extractResumeContact, mergeExtractedResumeContacts, mergeProfileImportProposal, parseProfileImportModelOutput } from './resumeImport';
 import type { ProfileImportModelOutput } from './resumeImport';
 import { DEFAULT_PROFILE_BUILDER_DATA } from './profileBuilder';
 
@@ -23,6 +23,19 @@ describe('local resume import boundary', () => {
     expect(safe).not.toContain('Main Street');
     expect(safe).not.toContain('QQ 12 34 56 C');
     expect(safe).toContain('Engineer at Example Corp');
+  });
+
+  it('adds contact values detected after OCR without replacing stronger embedded-text values', () => {
+    const embedded = extractResumeContact('Jordan Lee\njordan@example.test\nhttps://github.com/jordan', 10);
+    const ocr = extractResumeContact('Jordan L. Lee\n+1 (317) 555-0123\nhttps://linkedin.com/in/jordan', 20);
+    const merged = mergeExtractedResumeContacts(embedded, ocr);
+    expect(merged).toMatchObject({
+      email: 'jordan@example.test',
+      firstName: 'Jordan',
+      lastName: 'Lee',
+      phone: '+13175550123',
+    });
+    expect(merged.webLinks.map((link) => link.name)).toEqual(['GitHub', 'LinkedIn']);
   });
 
   it('validates model output and creates restricted saved entries', () => {

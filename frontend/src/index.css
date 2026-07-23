@@ -2421,46 +2421,18 @@ textarea.form-input {
   margin-bottom: 0;
 }
 
+.settings-preference-error {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
 .local-ai-settings-panel {
   display: grid;
   gap: 20px;
   padding: 24px;
-}
-
-.autofill-extension-panel {
-  display: grid;
-  gap: 16px;
-  padding: 24px;
-}
-
-.autofill-extension-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.autofill-extension-id-field {
-  margin-bottom: 0;
-  max-width: 640px;
-}
-
-.autofill-assist-page {
-  display: grid;
-  min-height: 100vh;
-  padding: 24px;
-  place-items: center;
-}
-
-.autofill-assist-page > .surface-panel {
-  max-width: 640px;
-  padding: 24px;
-  width: 100%;
-}
-
-@media (max-width: 720px) {
-  .autofill-extension-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .local-ai-settings-panel > .settings-preferences-heading {
@@ -2900,13 +2872,11 @@ textarea.form-input {
     flex-wrap: wrap;
   }
 
-  .local-ai-settings-panel > .settings-preferences-heading,
-  .autofill-extension-panel > .settings-preferences-heading {
+  .local-ai-settings-panel > .settings-preferences-heading {
     align-items: flex-start;
   }
 
-  .local-ai-settings-panel > .settings-preferences-heading > div,
-  .autofill-extension-panel > .settings-preferences-heading > div {
+  .local-ai-settings-panel > .settings-preferences-heading > div {
     flex: 0 0 calc(100% - 40px);
     min-width: 0;
   }

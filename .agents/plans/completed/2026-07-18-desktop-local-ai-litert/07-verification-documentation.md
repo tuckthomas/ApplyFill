@@ -1,5 +1,7 @@
 # Workstream G — Verification, Documentation, and Release Evidence
 
+> **ARCHIVED AND SUPERSEDED — 2026-07-22:** This verification record applies to the retired static/LiteRT/extension architecture. It is not release evidence for the current .NET 10, PostgreSQL 18, managed-browser, and native-Private-AI product. See [current architecture](../../../../docs/architecture.md).
+
 **Status:** Complete; hardware-unavailable cases are dispositioned below rather than reported as passes  
 **Depends on:** Can establish harnesses immediately; final acceptance follows all other workstreams  
 **Owns:** Cross-cutting evidence, final documentation consistency, and gallery refresh

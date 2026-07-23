@@ -135,7 +135,7 @@ export default function ApplicationQuestionsSection({ data, onChange }: Applicat
       <aside className="application-questions-notice" aria-label="How application questions are used">
         <Info size={20} aria-hidden="true" />
         <p>
-          These questions are optional and are never included in generated resumes. ApplyFill stores them only in this browser for application workflows you choose to use. It does not collect your date of birth, citizenship, or specific immigration status.
+          These questions are optional and are never included in generated resumes. ApplyFill protects them separately in its database on this computer for application workflows you choose to use. It does not collect your date of birth, citizenship, or specific immigration status.
         </p>
       </aside>
 

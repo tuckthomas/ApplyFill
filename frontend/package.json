@@ -6,18 +6,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && node scripts/generate-service-worker.mjs && node scripts/verify-static-build.mjs",
-    "deploy": "pnpm build && wrangler deploy",
+    "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "model:prepare": "node scripts/prepare-litert-model.mjs",
     "preview": "vite preview",
-    "test": "vitest run",
-    "verify:static": "node scripts/verify-static-build.mjs"
+    "test": "vitest run"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
-    "@litert-lm/core": "0.14.0",
-    "@litertjs/core": "2.5.3",
     "@microsoft/signalr": "10.0.0",
     "@react-pdf/renderer": "^4.5.1",
     "@tiptap/core": "^3.27.4",
@@ -40,12 +35,10 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
-    "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.1.1",
     "oxlint": "^1.69.0",
     "typescript": "~6.0.2",
     "vite": "^8.1.0",
-    "vitest": "^4.1.10",
-    "wrangler": "4.113.0"
+    "vitest": "^4.1.10"
   }
 }

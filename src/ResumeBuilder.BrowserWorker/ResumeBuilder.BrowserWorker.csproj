@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Playwright" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../ResumeBuilder.Application/ResumeBuilder.Application.csproj" />
+    <ProjectReference Include="../ResumeBuilder.PrivateAi/ResumeBuilder.PrivateAi.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="../../private-ai/catalog/*.json" Link="private-ai/catalog/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

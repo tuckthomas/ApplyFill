@@ -24,7 +24,6 @@ import {
   PROFILE_AUTOMATION_CONSENT_VERSION
 } from '../features/profile/profileConsent';
 import { mergeProfileImportProposal } from '../features/profile/resumeImport';
-import { localAiRuntime } from '../features/local-ai/runtime';
 
 const resolveSetStateAction = <Value,>(
   action: SetStateAction<Value>,
@@ -72,8 +71,10 @@ export default function ProfileEditor() {
       try {
         const loaded = await loadProfileBuilderState();
         if (isCurrent) setProfileBuilderState((current) => ({ ...loaded, activeStep: current.activeStep }));
-      } catch {
-        if (isCurrent) setProfileError('Your profile could not be loaded from this browser. Check that site storage is allowed, then retry.');
+      } catch (error) {
+        if (isCurrent) setProfileError(error instanceof Error
+          ? error.message
+          : 'Your profile could not be loaded from ApplyFill. Keep ApplyFill open, then try again.');
       } finally {
         if (isCurrent) {
           setIsProfileLoaded(true);
@@ -171,7 +172,7 @@ export default function ProfileEditor() {
       setProfileBuilderState(nextState);
       return true;
     } catch (error) {
-      setProfileError(error instanceof Error ? error.message : 'Your profile could not be saved in this browser.');
+      setProfileError(error instanceof Error ? error.message : 'Your profile could not be saved by ApplyFill.');
       return false;
     } finally {
       setIsSavingProfile(false);
@@ -209,7 +210,7 @@ export default function ProfileEditor() {
       setIsConsentStatusLoaded(true);
       setHasAcknowledgedConsent(false);
     } catch {
-      setConsentError('Your acknowledgment could not be saved in this browser. Check that site storage is allowed and try again.');
+      setConsentError('Your acknowledgment could not be saved by ApplyFill. Check that the local service is running and try again.');
     } finally {
       setIsSavingConsent(false);
     }
@@ -237,7 +238,7 @@ export default function ProfileEditor() {
           }}
         />
       );
-      case 1: return <ProfileResumeImportSection runtime={localAiRuntime} onApply={(proposal, selection) => setProfileBuilderState((current) => ({ ...current, data: mergeProfileImportProposal(current.data, proposal, selection) }))} />;
+      case 1: return <ProfileResumeImportSection onApply={(proposal, selection) => setProfileBuilderState((current) => ({ ...current, data: mergeProfileImportProposal(current.data, proposal, selection) }))} />;
       case 2: return <ProfileSection data={data.profile} onChange={updateProfile} />;
       case 3: return <EducationSection defaultCountry={data.profile.country} educations={data.education} onChange={updateEducation} />;
       case 4: return <ExperienceSection defaultCountry={data.profile.country} experiences={data.experience} onChange={updateExperience} />;
@@ -253,7 +254,7 @@ export default function ProfileEditor() {
       <header className="page-header">
         <div>
           <h2 className="page-title">Job Profile Builder</h2>
-              <p className="page-copy">Create a reusable source profile stored only in this browser.</p>
+              <p className="page-copy">Create a reusable source profile stored by ApplyFill on this computer.</p>
         </div>
       </header>
 
@@ -290,7 +291,7 @@ export default function ProfileEditor() {
             <div className="page-stack" role="alert">
               <p className="field-error">{profileError}</p>
               <button className="btn btn-secondary" onClick={() => setProfileReloadKey((value) => value + 1)} type="button">
-                Retry local profile
+                Try Again
               </button>
             </div>
           )}

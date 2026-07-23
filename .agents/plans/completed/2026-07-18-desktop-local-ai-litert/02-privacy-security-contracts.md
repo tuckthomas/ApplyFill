@@ -1,5 +1,7 @@
 # Workstream B — Privacy, Security, and AI Contracts
 
+> **ARCHIVED AND SUPERSEDED — 2026-07-22:** This workstream documents the retired static/browser-local architecture. Its historical privacy decisions do not replace the current [managed-browser threat model](../../../../docs/threat-model.md) or [data-retention contract](../../../../docs/data-retention.md).
+
 **Status:** Implemented; candidate-model adversarial evaluation pending Workstream C  
 **Depends on:** Existing profile/resume schemas and local-first privacy boundary  
 **Unblocks:** Product workflows and production model evaluation

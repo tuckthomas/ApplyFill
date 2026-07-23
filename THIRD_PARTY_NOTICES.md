@@ -1,24 +1,31 @@
 # Third-Party Notices
 
-This project depends on open-source packages whose exact resolved versions are recorded in `frontend/pnpm-lock.yaml` and `extension/pnpm-lock.yaml`. Their upstream license files remain authoritative.
+ApplyFill depends on open-source software. Exact resolved package versions are recorded in `Directory.Packages.props`, `frontend/pnpm-lock.yaml`, the PostgreSQL image digest in `compose.yaml`, and the manifests under `private-ai/catalog/`. Upstream license files and notices remain authoritative.
 
-## Local AI runtime
+## Application runtime
 
-- LiteRT.js (`@litertjs/core` 2.5.3) — Apache License 2.0.
-- LiteRT-LM.js (`@litert-lm/core` 0.14.0) — Apache License 2.0.
+- .NET / ASP.NET Core 10 — MIT License.
+- Entity Framework Core 10 — MIT License.
+- Npgsql Entity Framework Core provider 10 — PostgreSQL License.
+- Microsoft Playwright 1.61 and its managed browser distribution — Apache License 2.0 and the browser vendors' applicable notices.
+- PostgreSQL 18.4 — PostgreSQL License.
 
-## Local resume text extraction
+## Frontend
 
-- PDF.js (`pdfjs-dist` 6.1.200) — Apache License 2.0.
-- Mammoth.js (`mammoth` 1.12.0) — BSD 2-Clause License. ApplyFill uses raw-text extraction only and never renders Mammoth-generated HTML.
+- React and React DOM 19 — MIT License.
+- Vite 8 — MIT License.
+- Microsoft SignalR JavaScript client 10 — MIT License.
+- Tiptap 3 — MIT License.
+- PDF.js (`pdfjs-dist`) — Apache License 2.0.
+- Mammoth.js — BSD 2-Clause License. ApplyFill extracts raw text and does not render Mammoth-generated HTML.
+- React PDF, PDF-Lib, and docx — see their upstream package notices and the exact versions in `frontend/pnpm-lock.yaml`.
 
-## Selected model
+## Private AI runtimes and models
 
-- Gemma 4 E2B Instruct LiteRT-LM web artifact, revision `9262660a1676eed6d0c477ab1a86344430854664`.
-- Source: `litert-community/gemma-4-E2B-it-litert-lm`.
-- Artifact: `gemma-4-E2B-it-web.litertlm`.
-- SHA-256: `3a08e8d94e23b814ae5414469c370c503813949acb8ceaa17e4ebf8a35af35b5`.
-- License reported by the revision-pinned model repository: Apache License 2.0.
-- Attribution: Gemma 4 E2B Instruct LiteRT-LM web artifact by Google / LiteRT Community.
+Model weights and native runtimes are not checked into this repository. ApplyFill's setup flow downloads revision-pinned artifacts only after user approval and verifies the sizes and SHA-256 values recorded in `private-ai/catalog/`.
 
-ApplyFill redistributes only a hash-verified, revision-pinned artifact prepared by `frontend/scripts/prepare-litert-model.mjs`. Review upstream notices again before changing the selected model or revision.
+- llama.cpp runtime manifests identify MIT-licensed upstream builds.
+- Qwen3-VL model manifests identify Apache-2.0 upstream artifacts.
+- PaddleOCR-VL model manifests identify Apache-2.0 upstream artifacts.
+
+Review the upstream revision's model card, acceptable-use terms, training-data notice, and bundled license files before redistributing any runtime or model artifact. Updating a URL, revision, checksum, runtime, quantization, or license requires a catalog review and a new evaluation record.

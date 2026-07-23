@@ -28,20 +28,27 @@ export default function JobTracker() {
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [storageError, setStorageError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let isCurrent = true;
+    setIsLoading(true);
+    setStorageError('');
     loadApplications()
       .then((loaded) => { if (isCurrent) setApplications(loaded); })
-      .catch(() => { if (isCurrent) setStorageError('Tracked applications could not be loaded from this browser.'); })
+      .catch((error) => { if (isCurrent) setStorageError(error instanceof Error
+        ? error.message
+        : 'Tracked applications could not be loaded from ApplyFill. Keep ApplyFill open, then try again.'); })
       .finally(() => { if (isCurrent) setIsLoading(false); });
     return () => { isCurrent = false; };
-  }, []);
+  }, [reloadKey]);
 
   const removeApplication = (id: string) => {
     setApplications((current) => {
       const next = current.filter((application) => application.id !== id);
-      void saveApplications(next).catch(() => setStorageError('The application could not be removed from local storage.'));
+      void saveApplications(next)
+        .then(setApplications)
+        .catch(() => setStorageError('The application could not be removed.'));
       return next;
     });
   };
@@ -157,8 +164,13 @@ export default function JobTracker() {
       </header>
 
       <section className="surface-panel tracker-list-panel">
-        {storageError ? <p className="field-error" role="alert">{storageError}</p> : null}
-        {isLoading ? <p className="section-copy" role="status">Loading applications from this browser...</p> : null}
+        {storageError ? (
+          <div className="page-stack" role="alert">
+            <p className="field-error">{storageError}</p>
+            <button className="btn btn-secondary" onClick={() => setReloadKey((value) => value + 1)} type="button">Try Again</button>
+          </div>
+        ) : null}
+        {isLoading ? <p className="section-copy" role="status">Loading applications...</p> : null}
         <DataTable
           caption="Tracked job applications"
           columns={columns}

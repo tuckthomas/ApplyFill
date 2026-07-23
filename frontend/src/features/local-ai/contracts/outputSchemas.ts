@@ -80,7 +80,7 @@ export const parseJobAnalysisOutput = (value: unknown): JobAnalysisOutput => {
     || !boundedString(value.employer, 300) || !boundedString(value.role, 300)
     || !stringArray(value.keywords) || !stringArray(value.preferredSkills)
     || !stringArray(value.requiredSkills) || !stringArray(value.responsibilities)) {
-    throw new Error('Local AI returned an invalid job analysis. Nothing was changed.');
+    throw new Error('Private AI returned an invalid job analysis. Nothing was changed.');
   }
   return value as JobAnalysisOutput;
 };
@@ -92,7 +92,7 @@ export const parseRelevanceOutput = (value: unknown, allowedIds: Set<string>): R
     || !value.items.every((item) => record(item) && exactKeys(item, ['opaqueId', 'reason', 'score'])
       && boundedString(item.opaqueId, 100) && allowedIds.has(item.opaqueId as string)
       && boundedString(item.reason, 500) && typeof item.score === 'number' && item.score >= 0 && item.score <= 1)) {
-    throw new Error('Local AI returned invalid relevance scores. Nothing was changed.');
+    throw new Error('Private AI returned invalid relevance scores. Nothing was changed.');
   }
   return value as RelevanceOutput;
 };
@@ -102,7 +102,7 @@ export const parseContentSelectionOutput = (value: unknown, allowedIds: Set<stri
     || value.format !== 'applyfill.ai.content-selection' || value.schemaVersion !== AI_OUTPUT_SCHEMA_VERSION
     || !Array.isArray(value.selectedOpaqueIds) || value.selectedOpaqueIds.length > 100
     || !value.selectedOpaqueIds.every((id) => typeof id === 'string' && allowedIds.has(id))) {
-    throw new Error('Local AI returned an invalid content selection. Nothing was changed.');
+    throw new Error('Private AI returned an invalid content selection. Nothing was changed.');
   }
   return value as ContentSelectionOutput;
 };
@@ -122,7 +122,7 @@ export const parseApplicationAnswerSuggestionsOutput = (
       && (item.uncertainty === null || boundedString(item.uncertainty, 500))
       && Array.isArray(item.evidence) && item.evidence.length <= 20
       && item.evidence.every((entry) => evidence(entry, allowedEvidenceIds)))) {
-    throw new Error('Local AI returned invalid application-answer suggestions. Nothing was changed.');
+    throw new Error('Private AI returned invalid application-answer suggestions. Nothing was changed.');
   }
   return value as ApplicationAnswerSuggestionsOutput;
 };
@@ -139,7 +139,7 @@ export const parseSummarySuggestionsOutput = (value: unknown, allowedIds: Set<st
     || value.format !== 'applyfill.ai.summary-suggestions' || value.schemaVersion !== AI_OUTPUT_SCHEMA_VERSION
     || !Array.isArray(value.suggestions) || value.suggestions.length > 5
     || !value.suggestions.every((item) => textSuggestion(item, allowedIds))) {
-    throw new Error('Local AI returned invalid summary suggestions. Nothing was changed.');
+    throw new Error('Private AI returned invalid summary suggestions. Nothing was changed.');
   }
   return value as SummarySuggestionsOutput;
 };
@@ -155,7 +155,7 @@ export const parseBulletSuggestionsOutput = (value: unknown, allowedIds: Set<str
     const shape = record(value)
       ? `keys: ${Object.keys(value).sort().join(', ') || 'none'}; suggestions: ${Array.isArray(value.suggestions) ? value.suggestions.length : typeof value.suggestions}; first suggestion keys: ${Array.isArray(value.suggestions) && record(value.suggestions[0]) ? Object.keys(value.suggestions[0]).sort().join(', ') : 'none'}`
       : `value type: ${Array.isArray(value) ? 'array' : typeof value}`;
-    throw new Error(`Local AI returned invalid bullet suggestions (${shape}). Nothing was changed.`);
+    throw new Error(`Private AI returned invalid bullet suggestions (${shape}). Nothing was changed.`);
   }
   return value as BulletSuggestionsOutput;
 };
@@ -166,7 +166,7 @@ export const parseResumeTailoringOutput = (value: unknown, allowedIds: Set<strin
     const shape = record(value)
       ? `keys: ${Object.keys(value).sort().join(', ') || 'none'}; format: ${String(value.format)}; schemaVersion: ${String(value.schemaVersion)}`
       : `value type: ${Array.isArray(value) ? 'array' : typeof value}`;
-    throw new Error(`Local AI returned an invalid tailoring proposal (${shape}). Nothing was changed.`);
+    throw new Error(`Private AI returned an invalid tailoring proposal (${shape}). Nothing was changed.`);
   }
   return {
     analysis: parseJobAnalysisOutput(value.analysis),
@@ -179,10 +179,10 @@ export const parseResumeTailoringOutput = (value: unknown, allowedIds: Set<strin
 };
 
 export const parseJsonOutput = (value: string): unknown => {
-  if (value.length > 100_000) throw new Error('Local AI returned too much data. Nothing was changed.');
+  if (value.length > 100_000) throw new Error('Private AI returned too much data. Nothing was changed.');
   try {
     return JSON.parse(value) as unknown;
   } catch {
-    throw new Error('Local AI returned invalid JSON. Nothing was changed.');
+    throw new Error('Private AI returned invalid JSON. Nothing was changed.');
   }
 };

@@ -14,12 +14,8 @@ dist/
 dist-ssr/
 frontend/dist/
 frontend/dist-ssr/
-frontend/.wrangler/
-frontend/.cache/local-ai/
-frontend/public/models/**/*.part
-frontend/public/models/**/*.litertlm
 
-# Generated build artifacts (including ignored remnants from the retired backend)
+# Generated build artifacts
 bin/
 obj/
 TestResults/
@@ -34,6 +30,9 @@ TestResults/
 !.env.example
 appsettings.Development.json
 secrets.json
+keys/
+/artifacts/
+backups/
 
 # IDE and OS files
 .vs/
@@ -49,6 +48,8 @@ Thumbs.db
 
 # Temporary files
 tmp/models/
+private-ai/downloads/
+private-ai/installed/
 *.tmp
 *.temp
 *.swp

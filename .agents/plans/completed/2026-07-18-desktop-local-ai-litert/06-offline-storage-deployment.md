@@ -1,5 +1,7 @@
 # Workstream F — Model Storage, Static Deployment, and Backend Retirement
 
+> **ARCHIVED AND SUPERSEDED — 2026-07-22:** Static-only deployment, IndexedDB authority, browser model caching, and backend retirement were later reversed. PostgreSQL 18 is now authoritative, the .NET 10 backend is required, and native local services own Private AI and managed-browser automation. See [current architecture](../../../../docs/architecture.md) and [data retention](../../../../docs/data-retention.md).
+
 **Status:** In progress  
 **Depends on:** Runtime asset requirements from Workstream A, selected model manifest from Workstream C, and extension build requirements from Workstream E  
 **Final retirement gate depends on:** Product and verification acceptance

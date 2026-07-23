@@ -1,6 +1,6 @@
 # Workstream E — Desktop Browser Extension and Autofill
 
-> **Superseded on 2026-07-22:** The completed one-time nonce handoff described below was replaced by persistent, approved-origin and secret-bound local pairing. The extension now stores a bounded derived profile copy in `chrome.storage.local`, ApplyFill refreshes it after profile saves, and explicit unpair deletes it. Page inspection/review remains temporary and review-before-fill; submission remains prohibited. See `extension/README.md` and `extension/docs/SECURITY.md` for the current contract.
+> **ARCHIVED AND SUPERSEDED — 2026-07-22:** The Chromium extension and every pairing, active-tab, popup, and extension-storage workflow described below were retired completely. ApplyFill now uses an in-product managed-Chromium Browser Agent that retains one application run across navigation and supports pause, stop, take control, return control, recovery, and explicit final approval. No extension is required or supported. See [Browser Agent documentation](../../../../docs/browser-agent.md) and the [current threat model](../../../../docs/threat-model.md). The checked items below are historical evidence only.
 
 **Status:** Completed  
 **Depends on:** Workstream B message/data contracts; local mapping may use Workstream A after its interface stabilizes  

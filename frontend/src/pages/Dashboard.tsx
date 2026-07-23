@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ResponsiveLayouts } from 'react-grid-layout';
 import { Check, LayoutGrid, Pencil, RotateCcw } from 'lucide-react';
 import DashboardGrid from '../components/dashboard/DashboardGrid';
@@ -34,17 +34,16 @@ import type {
 import AddButton from '../components/ui/AddButton';
 import './Dashboard.css';
 import { createRichTextFromPlainText, normalizeRichText } from '../features/rich-text/richText';
-import {
-  LOCAL_DATA_KEYS,
-  readLocalDocument,
-  subscribeToLocalDocument,
-  writeLocalDocument
-} from '../features/storage/localDatabase';
+import { subscribeToDataChanged } from '../features/api/dataEvents';
+import { ApiClientError } from '../features/api/localApiClient';
+import { loadSetting, saveSetting } from '../features/preferences/settingsRepository';
 
-type LocalDashboardDocument = {
+type DashboardDocument = {
   layouts: ResponsiveLayouts<DashboardBreakpoint>;
   widgets: DashboardWidgetInstance[];
 };
+
+type RetryKind = 'load' | 'save';
 
 const copyDefaultWidgets = () => DEFAULT_WIDGET_INSTANCES.map((widget) => ({ ...widget }));
 
@@ -70,49 +69,87 @@ const createWidget = (type: DashboardWidgetType): DashboardWidgetInstance => ({
   content: type === 'text' ? createRichTextFromPlainText('Enter text') : undefined
 });
 
+const serializeDashboard = (document: DashboardDocument) => JSON.stringify(document);
+
+const errorMessage = (error: unknown, fallback: string) => (
+  error instanceof Error ? error.message : fallback
+);
+
 export default function Dashboard() {
   const [widgets, setWidgets] = useState<DashboardWidgetInstance[]>(copyDefaultWidgets);
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isWidgetLibraryOpen, setIsWidgetLibraryOpen] = useState(false);
-  const [isLocalDataLoaded, setIsLocalDataLoaded] = useState(false);
+  const [isDashboardLoaded, setIsDashboardLoaded] = useState(false);
   const [storageError, setStorageError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
+  const [retryKind, setRetryKind] = useState<RetryKind>('load');
+  const [saveAttempt, setSaveAttempt] = useState(0);
+  const lastSavedDashboard = useRef('');
   const [layouts, setLayouts] = useState<ResponsiveLayouts<DashboardBreakpoint>>(
     () => createDefaultDashboardLayouts(widgets)
   );
 
   useEffect(() => {
     let isCurrent = true;
+    setIsDashboardLoaded(false);
+    setStorageError('');
     Promise.all([
-      readLocalDocument<LocalDashboardDocument>(LOCAL_DATA_KEYS.dashboard),
+      loadSetting<DashboardDocument>('dashboard'),
       loadApplications()
-    ]).then(([dashboard, loadedApplications]) => {
+    ]).then(([setting, loadedApplications]) => {
       if (!isCurrent) return;
-      const loadedWidgets = normalizeWidgets(dashboard?.widgets);
+      const loadedWidgets = normalizeWidgets(setting?.content.widgets);
+      const loadedLayouts = normalizeLayouts(setting?.content.layouts, loadedWidgets);
+      lastSavedDashboard.current = serializeDashboard({ layouts: loadedLayouts, widgets: loadedWidgets });
       setWidgets(loadedWidgets);
-      setLayouts(normalizeLayouts(dashboard?.layouts, loadedWidgets));
+      setLayouts(loadedLayouts);
       setApplications(loadedApplications);
-    }).catch(() => {
-      if (isCurrent) setStorageError('Dashboard data could not be loaded from this browser.');
-    }).finally(() => {
-      if (isCurrent) setIsLocalDataLoaded(true);
+      setIsDashboardLoaded(true);
+    }).catch((error) => {
+      if (!isCurrent) return;
+      setRetryKind('load');
+      setStorageError(errorMessage(
+        error,
+        'Dashboard data could not be loaded from ApplyFill. Keep ApplyFill open, then try again.',
+      ));
     });
     return () => { isCurrent = false; };
-  }, []);
+  }, [reloadKey]);
 
   useEffect(() => {
-    if (!isLocalDataLoaded) return;
-    void writeLocalDocument(LOCAL_DATA_KEYS.dashboard, { layouts, widgets } satisfies LocalDashboardDocument)
-      .catch(() => setStorageError('Dashboard changes could not be saved in local browser storage.'));
-  }, [isLocalDataLoaded, layouts, widgets]);
+    if (!isDashboardLoaded) return;
+    const document = { layouts, widgets } satisfies DashboardDocument;
+    const serialized = serializeDashboard(document);
+    if (serialized === lastSavedDashboard.current) return;
+
+    const timer = window.setTimeout(() => {
+      void saveSetting('dashboard', 1, document)
+        .then(() => {
+          lastSavedDashboard.current = serialized;
+          setStorageError('');
+        })
+        .catch((error) => {
+          setRetryKind(error instanceof ApiClientError && [409, 412].includes(error.status) ? 'load' : 'save');
+          setStorageError(errorMessage(
+            error,
+            'Dashboard changes could not be saved. Keep ApplyFill open, then try again.',
+          ));
+        });
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [isDashboardLoaded, layouts, saveAttempt, widgets]);
 
   useEffect(() => {
     const syncApplications = () => {
       void loadApplications()
         .then(setApplications)
-        .catch(() => setStorageError('Application data could not be refreshed from local storage.'));
+        .catch((error) => {
+          setRetryKind('load');
+          setStorageError(errorMessage(error, 'Application data could not be refreshed.'));
+        });
     };
-    return subscribeToLocalDocument(LOCAL_DATA_KEYS.jobApplications, syncApplications);
+    return subscribeToDataChanged('applications', syncApplications);
   }, []);
 
   const updateApplicationStatus = useCallback((id: string, status: JobApplicationStatus) => {
@@ -120,7 +157,12 @@ export default function Dashboard() {
       const next = current.map((application) => (
         application.id === id ? { ...application, status } : application
       ));
-      void saveApplications(next).catch(() => setStorageError('The application status could not be saved locally.'));
+      void saveApplications(next)
+        .then(setApplications)
+        .catch((error) => {
+          setRetryKind('load');
+          setStorageError(errorMessage(error, 'The application status could not be saved.'));
+        });
       return next;
     });
   }, []);
@@ -131,7 +173,12 @@ export default function Dashboard() {
       const next = exists
         ? current.map((currentApplication) => currentApplication.id === application.id ? application : currentApplication)
         : [...current, application];
-      void saveApplications(next).catch(() => setStorageError('The application could not be saved locally.'));
+      void saveApplications(next)
+        .then(setApplications)
+        .catch((error) => {
+          setRetryKind('load');
+          setStorageError(errorMessage(error, 'The application could not be saved.'));
+        });
       return next;
     });
   }, []);
@@ -261,7 +308,21 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {storageError ? <p className="field-error" role="alert">{storageError}</p> : null}
+      {storageError ? (
+        <div className="page-stack" role="alert">
+          <p className="field-error">{storageError}</p>
+          <button
+            className="btn btn-secondary"
+            onClick={() => {
+              if (retryKind === 'load') setReloadKey((value) => value + 1);
+              else setSaveAttempt((value) => value + 1);
+            }}
+            type="button"
+          >
+            Try Again
+          </button>
+        </div>
+      ) : null}
 
       {gridItems.length ? (
         <DashboardGrid
