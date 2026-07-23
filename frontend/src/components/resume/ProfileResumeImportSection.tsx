@@ -57,7 +57,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
   const [fileName, setFileName] = useState('');
   const [proposal, setProposal] = useState<ProfileImportProposal | null>(null);
   const [selection, setSelection] = useState<ProfileImportSelection | null>(null);
-  const [status, setStatus] = useState('Choose a resume to begin. ApplyFill processes it only on this computer.');
+  const [status, setStatus] = useState('Choose a resume to begin.');
   const [progress, setProgress] = useState<ResumeImportProgress | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
@@ -125,7 +125,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
     setSelection(null);
     setProgress(null);
     if (!file) {
-      setStatus('Choose a resume to begin. ApplyFill processes it only on this computer.');
+      setStatus('Choose a resume to begin.');
       return;
     }
     setIsExtracting(true);
@@ -176,7 +176,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
       </header>
 
       <div className="local-ai-privacy-note">
-        <strong>Your resume stays on this computer:</strong> ApplyFill renders its pages in this browser and sends those temporary page images only to its local service. Private AI uses vision/OCR to preserve columns and layout. The file and page images are not retained after the reviewed import.
+        Private AI reads columns, formatting, and scanned text. Review the results before adding them to your profile.
       </div>
 
       <div className="profile-resume-import-picker">

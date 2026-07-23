@@ -177,7 +177,7 @@ export default function Settings() {
           </div>
           <span className="status-pill">Local</span>
         </div>
-        <p className="field-hint">ApplyFill does not send this information to an ApplyFill cloud account. Files you download or copy are outside ApplyFill and should be stored securely.</p>
+        <p className="field-hint">Store downloaded or copied files securely.</p>
       </section>
 
       <section className="surface-panel settings-preferences-panel" aria-labelledby="privacy-boundary-title">
