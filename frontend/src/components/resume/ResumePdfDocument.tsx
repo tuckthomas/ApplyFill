@@ -6,6 +6,7 @@ import {
   Text,
   View
 } from '@react-pdf/renderer';
+import { groupResumeExperience } from '../../features/resume/resumeExport';
 import type { ResumeSafeViewModel } from '../../features/resume/resumeExport';
 
 const styles = StyleSheet.create({
@@ -53,6 +54,7 @@ const Details = ({ lines }: { lines: string[] }) => lines.map((line, index) => (
 
 export default function ResumePdfDocument({ model }: { model: ResumeSafeViewModel }) {
   const contactItems = [model.contact.email, model.contact.phone, model.contact.location].filter(Boolean);
+  const experienceGroups = groupResumeExperience(model.experience);
   return (
     <Document title={`${model.contact.name || 'ApplyFill'} Resume`}>
       <Page size="LETTER" style={styles.page}>
@@ -77,14 +79,19 @@ export default function ResumePdfDocument({ model }: { model: ResumeSafeViewMode
         {model.experience.length ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Experience</Text>
-            {model.experience.map((item, index) => (
-              <View key={`${item.company}-${item.jobTitle}-${index}`} style={styles.item} wrap={false}>
-                <View style={styles.itemHeader}>
-                  <Text style={styles.itemTitle}>{item.jobTitle}</Text>
-                  <Text style={styles.itemDate}>{item.dateRange}</Text>
-                </View>
-                <Text style={styles.itemMeta}>{[item.company, item.location].filter(Boolean).join(' · ')}</Text>
-                <Details lines={item.details} />
+            {experienceGroups.map((roles) => (
+              <View key={roles[0].employmentGroupId} style={styles.item}>
+                <Text style={styles.itemTitle}>{roles[0].company}</Text>
+                <Text style={styles.itemMeta}>{roles[0].location}</Text>
+                {roles.map((item) => (
+                  <View key={`${item.employmentGroupId}-${item.jobTitle}-${item.dateRange}`} wrap={false}>
+                    <View style={styles.itemHeader}>
+                      <Text style={styles.itemTitle}>{item.jobTitle}</Text>
+                      <Text style={styles.itemDate}>{item.dateRange}</Text>
+                    </View>
+                    <Details lines={item.details} />
+                  </View>
+                ))}
               </View>
             ))}
           </View>

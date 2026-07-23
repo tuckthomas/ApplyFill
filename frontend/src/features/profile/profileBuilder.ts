@@ -27,7 +27,7 @@ export const PROFILE_BUILDER_STEPS = [
   { id: 'profile', label: 'Personal Info' },
   { id: 'education', label: 'Education' },
   { id: 'experience', label: 'Work Experience' },
-  { id: 'credentials', label: 'Certifications & Licenses' },
+  { id: 'credentials', label: 'Credentials' },
   { id: 'projects', label: 'Projects' },
   { id: 'skills', label: 'Skills' },
   { id: 'application-questions', label: 'Application Questions' }
@@ -154,7 +154,7 @@ const isExperience = (value: unknown) => hasFields(
     'description', 'reasonForLeaving', 'rewriteMessage', 'validationMessage'
   ],
   ['isCurrentJob', 'mayContactSupervisor', 'isEditing', 'isSaved'],
-  ['id']
+  ['id', 'employmentGroupId']
 ) && isOption(value.state) && isOption(value.country) && isStoredPhoneNumber(value.companyPhone as string);
 
 const isCredential = (value: unknown) => hasFields(
@@ -259,21 +259,32 @@ const toCredentialMonth = (value: unknown) => {
   return match ? `${match[2]}-${match[1]}` : '';
 };
 
-const migrateProfileCredentials = (value: unknown): unknown => {
+const migrateProfileDocument = (value: unknown): unknown => {
   if (!isRecord(value) || value.format !== PROFILE_DOCUMENT_FORMAT
     || value.schemaVersion !== PROFILE_BUILDER_SCHEMA_VERSION || !isRecord(value.data)) return value;
   const data = value.data;
   if ('credentials' in data && !Array.isArray(data.credentials)) return value;
   const education = Array.isArray(data.education) ? data.education : [];
+  const existingExperience = Array.isArray(data.experience) ? data.experience : null;
+  const experienceNeedsMigration = existingExperience?.some(
+    (entry) => isRecord(entry) && !('employmentGroupId' in entry)
+  ) ?? false;
+  const experience = experienceNeedsMigration
+    ? existingExperience?.map((entry) => isRecord(entry) && !('employmentGroupId' in entry)
+      ? { ...entry, employmentGroupId: entry.id }
+      : entry)
+    : data.experience;
   const certificateEntries = education.filter((entry) => isRecord(entry) && isRecord(entry.level)
     && (entry.level.value === 'Certificate' || entry.level.label === 'Certificate'));
   const credentials = Array.isArray(data.credentials) ? data.credentials : [];
-  if (certificateEntries.length === 0 && Array.isArray(data.credentials)) return value;
+  const migratedExperience = experienceNeedsMigration;
+  if (certificateEntries.length === 0 && Array.isArray(data.credentials) && !migratedExperience) return value;
   const existingIds = new Set(credentials.filter(isRecord).map((entry) => entry.id));
   return {
     ...value,
     data: {
       ...data,
+      experience,
       credentials: [
         ...credentials,
         ...certificateEntries.filter((entry) => !existingIds.has(entry.id)).map((entry) => ({
@@ -326,7 +337,7 @@ export const loadCurrentProfileResource = async (): Promise<CurrentProfileResour
     }
     throw error;
   }
-  const value = migrateProfileCredentials(response.value.content);
+  const value = migrateProfileDocument(response.value.content);
   if (!isLocalProfileDocument(value)) throw new Error('The saved profile has an unsupported format.');
   let document = { ...value, updatedAtUtc: response.value.updatedAt };
   if (response.value.hasSensitiveApplicationData) {
@@ -369,7 +380,7 @@ export const parseProfileDocument = (json: string): LocalProfileDocument => {
   } catch {
     throw new Error('Choose a valid JSON file.');
   }
-  value = migrateProfileCredentials(value);
+  value = migrateProfileDocument(value);
   if (!isLocalProfileDocument(value)) {
     throw new Error(`This is not an ApplyFill profile schema version ${PROFILE_BUILDER_SCHEMA_VERSION} document.`);
   }

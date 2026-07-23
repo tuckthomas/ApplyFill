@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import Select from '../ui/AppSelect';
-import { ChevronDown, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 
 import { selectStyles } from '../../constants/location';
 import DatePicker from '../ui/DatePicker';
@@ -427,12 +427,11 @@ export default function EducationSection({ defaultCountry, educations, onChange 
                       className="icon-button"
                       type="button"
                       onClick={() => expandEducation(education.id)}
-                      aria-expanded="false"
                       aria-controls={`${prefix}-details-panel`}
-                      aria-label={`Expand ${educationTitle}`}
-                      data-tooltip={`Expand ${educationTitle}`}
+                      aria-label={`Edit ${educationTitle}`}
+                      data-tooltip={`Edit ${educationTitle}`}
                     >
-                      <ChevronDown size={20} />
+                      <Pencil aria-hidden="true" size={18} />
                     </button>
                     <button
                       className="icon-button icon-button-danger"

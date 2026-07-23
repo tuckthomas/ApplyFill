@@ -512,10 +512,16 @@ export const createProfileImportProposal = (
     doesNotExpire: item.doesNotExpire,
     details: item.details.join('\n'),
   })),
-  experience: output.experience.filter((item) => item.company.trim() || item.jobTitle.trim()).map((item, index) => {
+  experience: output.experience.filter((item) => item.company.trim() || item.jobTitle.trim()).map((item, index, items) => {
     const isCurrent = item.current && !item.endDate;
+    let groupStart = index;
+    while (groupStart > 0 && normalize(items[groupStart - 1].company) === normalize(item.company)) {
+      groupStart -= 1;
+    }
+    const employmentGroupId = baseId + 2_000 + groupStart;
     return {
       id: baseId + 2_000 + index,
+      employmentGroupId,
       jobTitle: item.jobTitle.trim(), company: item.company.trim(), startDate: estimatedDate(item.startDate), startDatePrecision: 'Estimated',
       endDate: isCurrent ? '' : estimatedDate(item.endDate), endDatePrecision: 'Estimated', isCurrentJob: isCurrent,
       address1: '', address2: '', city: '', state: null, postalCode: '', country: null, companyPhone: '', supervisorName: '',

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { ChevronDown, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import Select from '../ui/AppSelect';
 
 import { selectStyles } from '../../constants/location';
@@ -34,6 +34,7 @@ type EmploymentDateField = 'startDate' | 'endDate';
 
 export type ExperienceEntry = {
   id: number;
+  employmentGroupId: number;
   jobTitle: string;
   company: string;
   startDate: string;
@@ -65,6 +66,7 @@ type ValidationDialogState = {
 
 const createExperience = (id: number, defaultCountry: SelectOption | null): ExperienceEntry => ({
   id,
+  employmentGroupId: id,
   jobTitle: '',
   company: '',
   startDate: '',
@@ -106,15 +108,48 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
   const [sortOrder, setSortOrder] = useState<EntrySortOrder>(() => readEntrySortOrder('applyfill.experience-sort'));
   const [companyPhoneDrafts, setCompanyPhoneDrafts] = useState<Record<number, string>>({});
   const setExperiences = onChange;
+  const employerFields = new Set<keyof ExperienceEntry>([
+    'company', 'address1', 'address2', 'city', 'state', 'postalCode', 'country',
+    'companyPhone', 'supervisorName', 'mayContactSupervisor', 'reasonForLeaving'
+  ]);
 
   const updateExperience = <Key extends keyof ExperienceEntry>(
     id: number,
     key: Key,
     value: ExperienceEntry[Key]
   ) => {
-    setExperiences((current) => current.map((experience) => (
-      experience.id === id ? { ...experience, [key]: value } : experience
-    )));
+    setExperiences((current) => {
+      const target = current.find((experience) => experience.id === id);
+      if (!target) return current;
+      return current.map((experience) => {
+        if (
+          experience.id === id
+          || (employerFields.has(key) && experience.employmentGroupId === target.employmentGroupId)
+        ) {
+          return { ...experience, [key]: value };
+        }
+
+        const isFollowingRole = experience.employmentGroupId === target.employmentGroupId
+          && experience.startDate === target.endDate
+          && experience.startDatePrecision === target.endDatePrecision;
+        if (key === 'endDate' && isFollowingRole) {
+          return { ...experience, startDate: value as string };
+        }
+        if (key === 'endDatePrecision' && isFollowingRole) {
+          return { ...experience, startDatePrecision: value as EmploymentDatePrecision };
+        }
+        const isPreviousRole = experience.employmentGroupId === target.employmentGroupId
+          && experience.endDate === target.startDate
+          && experience.endDatePrecision === target.startDatePrecision;
+        if (key === 'startDate' && isPreviousRole) {
+          return { ...experience, endDate: value as string };
+        }
+        if (key === 'startDatePrecision' && isPreviousRole) {
+          return { ...experience, endDatePrecision: value as EmploymentDatePrecision };
+        }
+        return experience;
+      });
+    });
   };
 
   const addExperience = () => {
@@ -181,6 +216,31 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
       messages.push('End Date cannot be before Start Date.');
     }
 
+    const roles = experiences
+      .filter((entry) => entry.employmentGroupId === experience.employmentGroupId)
+      .sort((left, right) => (
+        (parseEmploymentDateValue(left.startDate, left.startDatePrecision, true).time ?? 0)
+        - (parseEmploymentDateValue(right.startDate, right.startDatePrecision, true).time ?? 0)
+      ));
+    const roleIndex = roles.findIndex((entry) => entry.id === experience.id);
+    const previousRole = roles[roleIndex - 1];
+    const nextRole = roles[roleIndex + 1];
+    if (previousRole && (
+      experience.startDate !== previousRole.endDate
+      || experience.startDatePrecision !== previousRole.endDatePrecision
+    )) {
+      messages.push('This role’s Start Date must match the previous role’s End Date.');
+    }
+    if (nextRole && (
+      experience.endDate !== nextRole.startDate
+      || experience.endDatePrecision !== nextRole.startDatePrecision
+    )) {
+      messages.push('This role’s End Date must match the next role’s Start Date.');
+    }
+    if (experience.isCurrentJob && nextRole) {
+      messages.push('Only the most recent role at an employer can be current.');
+    }
+
     return messages;
   };
 
@@ -203,7 +263,63 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
   };
 
   const removeExperience = (id: number) => {
-    setExperiences((current) => current.filter((experience) => experience.id !== id));
+    setExperiences((current) => {
+      const removed = current.find((experience) => experience.id === id);
+      if (!removed) return current;
+      const roles = current
+        .filter((experience) => experience.employmentGroupId === removed.employmentGroupId)
+        .sort((left, right) => (
+          (parseEmploymentDateValue(left.startDate, left.startDatePrecision, true).time ?? 0)
+          - (parseEmploymentDateValue(right.startDate, right.startDatePrecision, true).time ?? 0)
+        ));
+      const removedIndex = roles.findIndex((experience) => experience.id === id);
+      const previous = roles[removedIndex - 1];
+      const next = roles[removedIndex + 1];
+      return current
+        .filter((experience) => experience.id !== id)
+        .map((experience) => experience.id === next?.id && previous
+          ? {
+              ...experience,
+              startDate: previous.endDate,
+              startDatePrecision: previous.endDatePrecision,
+            }
+          : experience);
+    });
+  };
+
+  const removeEmployer = (employmentGroupId: number) => {
+    setExperiences((current) => current.filter((experience) => experience.employmentGroupId !== employmentGroupId));
+  };
+
+  const addRole = (employmentGroupId: number) => {
+    const group = experiences.filter((experience) => experience.employmentGroupId === employmentGroupId);
+    const previous = [...group].sort((left, right) => {
+      const leftTime = parseEmploymentDateValue(left.endDate || left.startDate, left.endDatePrecision, false).time ?? 0;
+      const rightTime = parseEmploymentDateValue(right.endDate || right.startDate, right.endDatePrecision, false).time ?? 0;
+      return rightTime - leftTime;
+    })[0];
+    if (!previous?.endDate || previous.isCurrentJob) return;
+    const next = {
+      ...createExperience(Date.now(), defaultCountry),
+      employmentGroupId,
+      company: previous.company,
+      address1: previous.address1,
+      address2: previous.address2,
+      city: previous.city,
+      state: previous.state,
+      postalCode: previous.postalCode,
+      country: previous.country,
+      companyPhone: previous.companyPhone,
+      supervisorName: previous.supervisorName,
+      mayContactSupervisor: previous.mayContactSupervisor,
+      reasonForLeaving: previous.reasonForLeaving,
+      startDate: previous.endDate,
+      startDatePrecision: previous.endDatePrecision,
+    };
+    setExperiences((current) => [
+      ...current.map((experience) => ({ ...experience, isEditing: false })),
+      next,
+    ]);
   };
 
   const closeExperienceForm = (experience: ExperienceEntry) => {
@@ -369,8 +485,7 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
       ) : null}
 
       <RepeatableSectionHeader
-        actionLabel="Add Job"
-        description="Add each role from your work history, starting with the most recent."
+        actionLabel="Add Employer"
         onAdd={addExperience}
         title="Work Experience"
       />
@@ -390,61 +505,76 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
         <RepeatableEmptyState title="No Work Experience Added" />
       ) : null}
 
-      {sortedExperiences.map((experience, index) => {
+      {sortedExperiences.map((experience) => {
         const prefix = `experience-${experience.id}`;
         const toolbarId = `${prefix}-toolbar`;
         const reasonToolbarId = `${prefix}-reason-toolbar`;
         const isSaved = experience.isSaved;
         const experienceTitle = experience.jobTitle.trim() || 'Untitled role';
         const companyLabel = experience.company.trim() || 'Company not set';
-        const removeLabel = experience.jobTitle.trim()
-          ? `Remove ${experience.jobTitle}`
-          : `Remove job ${index + 1}`;
+        const groupRoles = experiences
+          .filter((entry) => entry.employmentGroupId === experience.employmentGroupId)
+          .sort((left, right) => (
+            (parseEmploymentDateValue(left.startDate, left.startDatePrecision, true).time ?? 0)
+            - (parseEmploymentDateValue(right.startDate, right.startDatePrecision, true).time ?? 0)
+          ));
+        const isGroupCard = groupRoles[0]?.id === experience.id;
+        const latestRole = groupRoles.at(-1);
+        const canAddRole = Boolean(latestRole?.endDate) && !latestRole?.isCurrentJob;
 
         if (isSaved && !experience.isEditing) {
+          if (!isGroupCard) return null;
           return (
             <section className="field-card job-transition-card" key={experience.id} aria-labelledby={`${prefix}-summary-title`}>
               <div className="job-summary">
                 <div className="job-summary-header">
                   <div className="job-summary-identity">
-                    <h4 className="job-summary-title" id={`${prefix}-summary-title`}>{experienceTitle}</h4>
-                    <p className="job-summary-company">{companyLabel}</p>
+                    <h4 className="job-summary-title" id={`${prefix}-summary-title`}>{companyLabel}</h4>
+                    <p className="job-summary-company">{groupRoles.length} {groupRoles.length === 1 ? 'role' : 'roles'}</p>
                   </div>
                   <div className="job-summary-actions">
                     <button
-                      className="icon-button"
+                      className="btn btn-secondary"
+                      disabled={!canAddRole}
                       type="button"
-                      onClick={() => expandExperience(experience.id)}
-                      aria-expanded="false"
-                      aria-controls={`${prefix}-details-panel`}
-                      aria-label={`Expand ${experienceTitle}`}
-                      data-tooltip={`Expand ${experienceTitle}`}
+                      onClick={() => addRole(experience.employmentGroupId)}
+                      title={canAddRole ? undefined : 'Set the current role’s end date before adding the next role.'}
                     >
-                      <ChevronDown size={20} />
+                      <Plus aria-hidden="true" size={17} /> Add Role
                     </button>
                     <button
                       className="icon-button icon-button-danger"
                       type="button"
-                      onClick={() => removeExperience(experience.id)}
-                      aria-label={removeLabel}
+                      onClick={() => removeEmployer(experience.employmentGroupId)}
+                      aria-label={`Remove ${companyLabel} and all of its roles`}
                     >
                       <Trash2 size={18} />
                     </button>
                   </div>
                 </div>
+                <div className="page-stack" aria-label={`Roles at ${companyLabel}`}>
+                  {groupRoles.map((role) => (
+                    <div className="toolbar-row" key={role.id}>
+                      <div>
+                        <strong>{role.jobTitle || 'Untitled role'}</strong>
+                        <p className="field-hint">{formatDateRange(role)}</p>
+                      </div>
+                      <div className="job-summary-actions">
+                        <button className="icon-button" onClick={() => expandExperience(role.id)} aria-label={`Edit ${role.jobTitle || 'role'} at ${companyLabel}`} data-tooltip="Edit role" type="button">
+                          <Pencil aria-hidden="true" size={18} />
+                        </button>
+                        {groupRoles.length > 1 ? (
+                          <button className="icon-button icon-button-danger" onClick={() => removeExperience(role.id)} aria-label={`Remove ${role.jobTitle || 'role'} from ${companyLabel}`} type="button">
+                            <Trash2 aria-hidden="true" size={18} />
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
                 <dl className="summary-list">
-                  <div>
-                    <dt>Dates</dt>
-                    <dd>{formatDateRange(experience)}</dd>
-                  </div>
-                  <div>
-                    <dt>Location</dt>
-                    <dd>{formatLocation(experience)}</dd>
-                  </div>
-                  <div>
-                    <dt>Supervisor</dt>
-                    <dd>{experience.supervisorName || 'Not set'}</dd>
-                  </div>
+                  <div><dt>Location</dt><dd>{formatLocation(experience)}</dd></div>
+                  <div><dt>Supervisor</dt><dd>{experience.supervisorName || 'Not set'}</dd></div>
                 </dl>
               </div>
             </section>
@@ -461,7 +591,7 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
             isOpen={!validationDialog}
             key={experience.id}
             onClose={() => closeExperienceForm(experience)}
-            title={isSaved ? `Edit ${experienceTitle}` : 'Add job'}
+            title={isSaved ? `Edit ${experienceTitle}` : groupRoles.length > 1 ? 'Add Role' : 'Add Employer'}
           >
             <form
               autoComplete="on"
@@ -670,7 +800,9 @@ export default function ExperienceSection({ defaultCountry, experiences, onChang
                 <button className="btn btn-secondary" data-modal-close type="button" onClick={() => closeExperienceForm(experience)}>
                   Cancel
                 </button>
-                <button className="btn btn-primary" type="submit">Save Job</button>
+                <button className="btn btn-primary" type="submit">
+                  {groupRoles.length > 1 ? 'Save Role' : 'Save Employer'}
+                </button>
               </div>
                 </div>
             </form>

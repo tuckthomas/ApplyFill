@@ -7,6 +7,7 @@ export type ResumeSafeExperience = {
   company: string;
   dateRange: string;
   details: string[];
+  employmentGroupId: number;
   jobTitle: string;
   location: string;
 };
@@ -57,6 +58,15 @@ export type ResumeSafeViewModel = {
   summary: string;
   title: string;
 };
+
+export const groupResumeExperience = (entries: ResumeSafeExperience[]) => (
+  entries.reduce<ResumeSafeExperience[][]>((groups, entry) => {
+    const group = groups.find((roles) => roles[0]?.employmentGroupId === entry.employmentGroupId);
+    if (group) group.push(entry);
+    else groups.push([entry]);
+    return groups;
+  }, [])
+);
 
 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -135,6 +145,7 @@ export const createResumeSafeViewModel = (
       company: entry.company.trim(),
       dateRange: formatDateRange(entry.startDate, entry.endDate, entry.isCurrentJob),
       details: resume.contentOverrides?.experienceDetails[String(entry.id)] ?? toDetailLines(entry.description),
+      employmentGroupId: entry.employmentGroupId,
       jobTitle: entry.jobTitle.trim(),
       location: formatLocation(entry.city, entry.state?.label, entry.country?.label)
     })),

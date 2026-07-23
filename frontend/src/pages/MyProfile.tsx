@@ -83,6 +83,12 @@ export default function MyProfile() {
   const editSection = (section: typeof PROFILE_BUILDER_STEPS[number]['id']) => navigate(`/job-profile/builder?section=${section}`);
   const fullName = [data.profile.firstName, data.profile.middleName, data.profile.lastName].filter(Boolean).join(' ');
   const address = [data.profile.address1, data.profile.address2, data.profile.city, data.profile.state?.label, data.profile.postalCode, data.profile.country?.label].filter(Boolean).join(', ');
+  const experienceGroups = data.experience.reduce<Array<typeof data.experience>>((groups, entry) => {
+    const group = groups.find((roles) => roles[0]?.employmentGroupId === entry.employmentGroupId);
+    if (group) group.push(entry);
+    else groups.push([entry]);
+    return groups;
+  }, []);
 
   if (isLoading) {
     return <p className="section-copy" role="status">Loading your saved profile...</p>;
@@ -167,7 +173,17 @@ export default function MyProfile() {
 
       <ProfileOverviewSection title="Work Experience" description="Employment history and responsibilities." onEdit={() => editSection('experience')}>
         <div className="profile-overview-list">
-          {data.experience.length ? data.experience.map((experience) => <div key={experience.id}><strong>{experience.jobTitle || 'Role not provided'}</strong><span>{experience.company || 'Company not provided'}</span>{plainText(experience.description) && <small>{plainText(experience.description)}</small>}</div>) : <p className="section-copy">No work experience entries added.</p>}
+          {experienceGroups.length ? experienceGroups.map((roles) => (
+            <div key={roles[0].employmentGroupId}>
+              <strong>{roles[0].company || 'Company not provided'}</strong>
+              {roles.map((role) => (
+                <span key={role.id}>
+                  {role.jobTitle || 'Role not provided'}
+                  {plainText(role.description) ? <small>{plainText(role.description)}</small> : null}
+                </span>
+              ))}
+            </div>
+          )) : <p className="section-copy">No work experience entries added.</p>}
         </div>
       </ProfileOverviewSection>
 

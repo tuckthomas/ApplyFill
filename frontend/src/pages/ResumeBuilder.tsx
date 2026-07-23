@@ -206,6 +206,12 @@ export default function ResumeBuilder() {
   }
 
   const savedExperience = profile.data.experience.filter((entry) => entry.isSaved);
+  const savedExperienceGroups = savedExperience.reduce<Array<typeof savedExperience>>((groups, entry) => {
+    const group = groups.find((roles) => roles[0]?.employmentGroupId === entry.employmentGroupId);
+    if (group) group.push(entry);
+    else groups.push([entry]);
+    return groups;
+  }, []);
   const savedEducation = profile.data.education.filter((entry) => entry.isSaved);
   const savedCredentials = profile.data.credentials;
   const savedProjects = profile.data.projects.filter((entry) => entry.isSaved);
@@ -274,8 +280,13 @@ export default function ResumeBuilder() {
 
             <fieldset className="resume-selection-group">
               <legend>Experience</legend>
-              {savedExperience.length ? savedExperience.map((entry) => (
-                <Checkbox key={entry.id} checked={resume.selections.experienceIds.includes(entry.id)} onChange={(event) => toggleSelection('experienceIds', entry.id, event.target.checked)} label={<span><strong>{entry.jobTitle || 'Untitled role'}</strong><small>{entry.company}</small></span>} />
+              {savedExperienceGroups.length ? savedExperienceGroups.map((roles) => (
+                <div className="resume-employer-selection" key={roles[0].employmentGroupId}>
+                  <strong>{roles[0].company || 'Company not provided'}</strong>
+                  {roles.map((entry) => (
+                    <Checkbox key={entry.id} checked={resume.selections.experienceIds.includes(entry.id)} onChange={(event) => toggleSelection('experienceIds', entry.id, event.target.checked)} label={<span><strong>{entry.jobTitle || 'Untitled role'}</strong></span>} />
+                  ))}
+                </div>
               )) : <p className="field-hint">No saved experience entries.</p>}
             </fieldset>
             <fieldset className="resume-selection-group">

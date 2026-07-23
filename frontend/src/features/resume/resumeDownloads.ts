@@ -1,4 +1,5 @@
 import type { Paragraph as DocxParagraph } from 'docx';
+import { groupResumeExperience } from './resumeExport';
 import type { ResumeSafeViewModel } from './resumeExport';
 
 const safeFileStem = (value: string) => value.trim()
@@ -56,17 +57,23 @@ export const createResumeDocxBlob = async (model: ResumeSafeViewModel): Promise<
   }
   if (model.experience.length) {
     children.push(sectionHeading('Experience'));
-    model.experience.forEach((item) => children.push(
-      new Paragraph({
-        children: [
-          new TextRun({ bold: true, text: item.jobTitle }),
-          new TextRun({ text: item.dateRange ? `\t${item.dateRange}` : '' })
-        ],
-        spacing: { before: 100, after: 30 }
-      }),
-      new Paragraph({ children: [new TextRun({ italics: true, text: [item.company, item.location].filter(Boolean).join(' | ') })] }),
-      ...detailParagraphs(item.details)
-    ));
+    groupResumeExperience(model.experience).forEach((roles) => {
+      children.push(new Paragraph({
+        children: [new TextRun({ bold: true, text: roles[0].company })],
+        spacing: { before: 100, after: 20 }
+      }));
+      if (roles[0].location) children.push(new Paragraph(roles[0].location));
+      roles.forEach((item) => children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ bold: true, text: item.jobTitle }),
+            new TextRun({ text: item.dateRange ? `\t${item.dateRange}` : '' })
+          ],
+          spacing: { before: 70, after: 30 }
+        }),
+        ...detailParagraphs(item.details)
+      ));
+    });
   }
   if (model.credentials.length) {
     children.push(sectionHeading('Certifications & Licenses'));

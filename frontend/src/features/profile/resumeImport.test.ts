@@ -12,6 +12,22 @@ const modelOutput: ProfileImportModelOutput = {
 };
 
 describe('local resume import boundary', () => {
+  it('groups consecutive roles at one employer but separates a later return', () => {
+    const proposal = createProfileImportProposal({
+      ...modelOutput,
+      experience: [
+        { company: 'Example Corp', current: false, endDate: '2022-01', highlights: [], jobTitle: 'Analyst', startDate: '2020-01' },
+        { company: 'Example Corp', current: false, endDate: '2023-01', highlights: [], jobTitle: 'Senior Analyst', startDate: '2022-01' },
+        { company: 'Other Corp', current: false, endDate: '2024-01', highlights: [], jobTitle: 'Manager', startDate: '2023-01' },
+        { company: 'Example Corp', current: true, endDate: '', highlights: [], jobTitle: 'Director', startDate: '2024-01' }
+      ]
+    }, extractResumeContact(''), 100);
+
+    expect(proposal.experience[0].employmentGroupId).toBe(proposal.experience[1].employmentGroupId);
+    expect(proposal.experience[2].employmentGroupId).not.toBe(proposal.experience[1].employmentGroupId);
+    expect(proposal.experience[3].employmentGroupId).not.toBe(proposal.experience[0].employmentGroupId);
+  });
+
   it('detects contact values deterministically and removes them from model text', () => {
     const text = 'Jordan Lee\njordan@example.test | +1 (317) 555-0123 | https://github.com/jordan\n123 Main Street\nNational Insurance: QQ 12 34 56 C\nEXPERIENCE\nEngineer at Example Corp';
     const contact = extractResumeContact(text, 10);

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import Select from '../ui/AppSelect';
-import { ChevronDown, ExternalLink, Trash2 } from 'lucide-react';
+import { ExternalLink, Pencil, Trash2 } from 'lucide-react';
 
 import { selectStyles } from '../../constants/location';
 import DatePicker from '../ui/DatePicker';
@@ -304,8 +304,8 @@ export default function ProjectsSection({ projects, onChange }: ProjectsSectionP
                     <p className="job-summary-company">{contextLabel}</p>
                   </div>
                   <div className="job-summary-actions">
-                    <button className="icon-button" type="button" onClick={() => expandProject(project.id)} aria-label={`Expand ${projectTitle}`} aria-expanded="false" aria-controls={`${prefix}-details-panel`} data-tooltip={`Expand ${projectTitle}`}>
-                      <ChevronDown size={20} aria-hidden="true" />
+                    <button className="icon-button" type="button" onClick={() => expandProject(project.id)} aria-label={`Edit ${projectTitle}`} aria-controls={`${prefix}-details-panel`} data-tooltip={`Edit ${projectTitle}`}>
+                      <Pencil size={18} aria-hidden="true" />
                     </button>
                     <button className="icon-button icon-button-danger" type="button" onClick={() => removeProject(project.id)} aria-label={removeLabel}>
                       <Trash2 size={18} aria-hidden="true" />

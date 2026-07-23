@@ -2120,6 +2120,18 @@ textarea.form-input {
   background: var(--primary-glow);
 }
 
+.resume-employer-selection {
+  border-left: 3px solid var(--primary-color);
+  display: grid;
+  gap: 2px;
+  padding-left: 10px;
+}
+
+.resume-employer-selection > strong {
+  color: var(--text-main);
+  padding: 4px 8px;
+}
+
 .resume-selection-group .checkbox-label span {
   display: grid;
   gap: 2px;

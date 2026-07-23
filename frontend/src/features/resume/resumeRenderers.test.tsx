@@ -8,7 +8,7 @@ const model: ResumeSafeViewModel = {
   contact: { email: 'jane@example.com', links: [], location: 'Indianapolis, Indiana', name: 'Jane Doe', phone: '+1 (555) 123-4567' },
   credentials: [],
   education: [],
-  experience: [{ company: 'Example Co', dateRange: 'Jan 2024 – Present', details: ['Built accessible products'], jobTitle: 'Engineer', location: 'Indianapolis, Indiana' }],
+  experience: [{ company: 'Example Co', dateRange: 'Jan 2024 – Present', details: ['Built accessible products'], employmentGroupId: 1, jobTitle: 'Engineer', location: 'Indianapolis, Indiana' }],
   projects: [],
   skills: ['TypeScript'],
   summary: 'Product-minded engineer',
