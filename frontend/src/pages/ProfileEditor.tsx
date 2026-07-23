@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SetStateAction } from 'react';
 import ProfileSection from '../components/resume/ProfileSection';
 import type { ProfileSectionData } from '../components/resume/ProfileSection';
@@ -24,6 +24,7 @@ import {
   PROFILE_AUTOMATION_CONSENT_VERSION
 } from '../features/profile/profileConsent';
 import { mergeProfileImportProposal } from '../features/profile/resumeImport';
+import type { ProfileImportProposal, ProfileImportSelection } from '../features/profile/resumeImport';
 
 const resolveSetStateAction = <Value,>(
   action: SetStateAction<Value>,
@@ -36,6 +37,7 @@ export default function ProfileEditor() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [profileReloadKey, setProfileReloadKey] = useState(0);
+  const [isResumeImportBusy, setIsResumeImportBusy] = useState(false);
   const [hasAcknowledgedConsent, setHasAcknowledgedConsent] = useState(false);
   const [isConsentStatusLoaded, setIsConsentStatusLoaded] = useState(false);
   const [isSavingConsent, setIsSavingConsent] = useState(false);
@@ -46,6 +48,10 @@ export default function ProfileEditor() {
   const hasCurrentConsent = isConsentStatusLoaded
     && hasCurrentProfileAutomationConsent(data.automationConsent);
   const hasCurrentConsentRef = useRef(hasCurrentConsent);
+  const pendingResumeImportRef = useRef<{
+    proposal: ProfileImportProposal;
+    selection: ProfileImportSelection;
+  } | null>(null);
   hasCurrentConsentRef.current = hasCurrentConsent;
   const requestedStep = PROFILE_BUILDER_STEPS.findIndex((step) => step.id === searchParams.get('section'));
 
@@ -164,12 +170,21 @@ export default function ProfileEditor() {
     setIsSavingProfile(true);
     setProfileError('');
     try {
+      const pendingImport = activeStep === 1 ? pendingResumeImportRef.current : null;
       const nextState = {
         ...profileBuilderState,
-        isComplete: markComplete || profileBuilderState.isComplete
+        data: pendingImport
+          ? mergeProfileImportProposal(
+              profileBuilderState.data,
+              pendingImport.proposal,
+              pendingImport.selection,
+            )
+          : profileBuilderState.data,
+        isComplete: markComplete || profileBuilderState.isComplete,
       };
       await saveProfileBuilderState(nextState);
       setProfileBuilderState(nextState);
+      if (pendingImport) pendingResumeImportRef.current = null;
       return true;
     } catch (error) {
       setProfileError(error instanceof Error ? error.message : 'Your profile could not be saved by ApplyFill.');
@@ -178,6 +193,13 @@ export default function ProfileEditor() {
       setIsSavingProfile(false);
     }
   };
+
+  const handleResumeImportSelection = useCallback((
+    proposal: ProfileImportProposal | null,
+    selection: ProfileImportSelection | null,
+  ) => {
+    pendingResumeImportRef.current = proposal && selection ? { proposal, selection } : null;
+  }, []);
 
   const moveToStep = async (step: number) => {
     if (activeStep > 0 && step !== activeStep && !await saveCurrentProfile()) return;
@@ -238,7 +260,12 @@ export default function ProfileEditor() {
           }}
         />
       );
-      case 1: return <ProfileResumeImportSection onApply={(proposal, selection) => setProfileBuilderState((current) => ({ ...current, data: mergeProfileImportProposal(current.data, proposal, selection) }))} />;
+      case 1: return (
+        <ProfileResumeImportSection
+          onBusyChange={setIsResumeImportBusy}
+          onSelectionChange={handleResumeImportSelection}
+        />
+      );
       case 2: return <ProfileSection data={data.profile} onChange={updateProfile} />;
       case 3: return <EducationSection defaultCountry={data.profile.country} educations={data.education} onChange={updateEducation} />;
       case 4: return <ExperienceSection defaultCountry={data.profile.country} experiences={data.experience} onChange={updateExperience} />;
@@ -276,7 +303,8 @@ export default function ProfileEditor() {
                   aria-label={`Step ${index + 1} of ${PROFILE_BUILDER_STEPS.length}: ${step.label}`}
                 className={`wizard-progress-step wizard-progress-step-${segmentState}`}
                   key={step.id}
-                  disabled={!isProfileLoaded || isSavingProfile || (index > 0 && !hasCurrentConsent)}
+                  disabled={!isProfileLoaded || isSavingProfile || (activeStep === 1 && isResumeImportBusy)
+                    || (index > 0 && !hasCurrentConsent)}
                   onClick={() => void moveToStep(index)}
                   type="button"
                 >
@@ -304,7 +332,8 @@ export default function ProfileEditor() {
             <button
               className="btn btn-secondary"
               onClick={() => void handleBack()}
-              disabled={activeStep === 0 || !isProfileLoaded || isSavingProfile}
+              disabled={activeStep === 0 || !isProfileLoaded || isSavingProfile
+                || (activeStep === 1 && isResumeImportBusy)}
               type="button"
             >
               <ArrowLeft size={18} />
@@ -313,6 +342,7 @@ export default function ProfileEditor() {
             <button
               className="btn btn-primary"
               disabled={!isConsentStatusLoaded || !isProfileLoaded || isSavingProfile
+                || (activeStep === 1 && isResumeImportBusy)
                 || (activeStep === 0 && !hasCurrentConsent && (!hasAcknowledgedConsent || isSavingConsent))}
               onClick={activeStep === 0 && !hasCurrentConsent
                 ? () => void recordConsent()
@@ -325,6 +355,8 @@ export default function ProfileEditor() {
                 ? 'Loading Profile...'
                 : isSavingProfile
                   ? 'Saving Profile...'
+                : activeStep === 1 && isResumeImportBusy
+                  ? 'Reading Resume...'
                 : !isConsentStatusLoaded
                 ? 'Verifying Consent...'
                 : isSavingConsent

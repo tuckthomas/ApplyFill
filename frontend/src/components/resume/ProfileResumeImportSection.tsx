@@ -17,7 +17,11 @@ import type { ProfileImportProposal, ProfileImportSelection } from '../../featur
 import type { RenderedResumePage } from '../../features/profile/resumeImport';
 
 type ProfileResumeImportSectionProps = {
-  onApply: (proposal: ProfileImportProposal, selection: ProfileImportSelection) => void;
+  onBusyChange: (isBusy: boolean) => void;
+  onSelectionChange: (
+    proposal: ProfileImportProposal | null,
+    selection: ProfileImportSelection | null,
+  ) => void;
 };
 
 type ContactKey = ProfileImportSelection['contact'] extends Set<infer Key> ? Key : never;
@@ -49,7 +53,7 @@ const formatElapsed = (seconds: number) => {
   return `${minutes}m ${String(seconds % 60).padStart(2, '0')}s`;
 };
 
-export default function ProfileResumeImportSection({ onApply }: ProfileResumeImportSectionProps) {
+export default function ProfileResumeImportSection({ onBusyChange, onSelectionChange }: ProfileResumeImportSectionProps) {
   const [fileName, setFileName] = useState('');
   const [proposal, setProposal] = useState<ProfileImportProposal | null>(null);
   const [selection, setSelection] = useState<ProfileImportSelection | null>(null);
@@ -57,10 +61,16 @@ export default function ProfileResumeImportSection({ onApply }: ProfileResumeImp
   const [progress, setProgress] = useState<ResumeImportProgress | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
-  const [isApplied, setIsApplied] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => controllerRef.current?.abort(), []);
+  useEffect(() => {
+    onSelectionChange(proposal, selection);
+  }, [onSelectionChange, proposal, selection]);
+  useEffect(() => {
+    onBusyChange(isExtracting || isRunning);
+  }, [isExtracting, isRunning, onBusyChange]);
+  useEffect(() => () => onBusyChange(false), [onBusyChange]);
 
   const parsePreparedResume = async (
     file: File,
@@ -114,7 +124,6 @@ export default function ProfileResumeImportSection({ onApply }: ProfileResumeImp
     setProposal(null);
     setSelection(null);
     setProgress(null);
-    setIsApplied(false);
     if (!file) {
       setStatus('Choose a resume to begin. ApplyFill processes it only on this computer.');
       return;
@@ -221,13 +230,9 @@ export default function ProfileResumeImportSection({ onApply }: ProfileResumeImp
           <div className="local-ai-review-header">
             <div>
               <h4 id="profile-import-review-title">Review Proposed Profile Data</h4>
-              <p className="field-hint">Existing non-empty contact fields and duplicate entries will not be overwritten. Verify dates and descriptions before continuing.</p>
+              <p className="field-hint">Keep the information you want checked. Checked items are added when you continue, while existing non-empty contact fields and duplicate entries are preserved.</p>
             </div>
-            <Button disabled={!selectedCount || isApplied} onClick={() => {
-              onApply(proposal, selection);
-              setIsApplied(true);
-              setStatus(`${selectedCount} selected proposal${selectedCount === 1 ? '' : 's'} added to the unsaved profile. Continue through each section to verify them, then finish to save.`);
-            }} variant="primary">{isApplied ? 'Added to Profile' : `Add Selected (${selectedCount})`}</Button>
+            <strong>{selectedCount} selected</strong>
           </div>
 
           {contactRows.length ? (
