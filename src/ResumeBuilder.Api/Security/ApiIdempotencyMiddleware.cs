@@ -16,6 +16,7 @@ public sealed class ApiIdempotencyMiddleware(RequestDelegate next)
     {
         if (IsSafe(context.Request.Method) ||
             !context.Request.Path.StartsWithSegments("/api") ||
+            context.Request.Path.Equals("/api/private-ai/resume-import", StringComparison.OrdinalIgnoreCase) ||
             context.Request.Path.Equals("/api/v1/profiles/current/reveal-sensitive", StringComparison.OrdinalIgnoreCase))
         {
             await next(context);

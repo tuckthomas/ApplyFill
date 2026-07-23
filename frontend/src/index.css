@@ -956,6 +956,40 @@ textarea.form-input {
   font-weight: 600;
 }
 
+.profile-resume-import-progress {
+  background: color-mix(in srgb, var(--primary-color) 5%, var(--card-background));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-sm);
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.profile-resume-import-progress .local-ai-progress span {
+  animation: resume-import-progress-pulse 1.8s ease-in-out infinite;
+  background: linear-gradient(90deg, var(--primary-color), var(--secondary-color), var(--primary-color));
+  background-size: 200% 100%;
+}
+
+.profile-resume-import-progress-copy {
+  align-items: baseline;
+  color: var(--text-main);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  justify-content: space-between;
+}
+
+.profile-resume-import-progress-copy span {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+@keyframes resume-import-progress-pulse {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
 .profile-import-review {
   border-top: 1px solid var(--glass-border);
   display: grid;

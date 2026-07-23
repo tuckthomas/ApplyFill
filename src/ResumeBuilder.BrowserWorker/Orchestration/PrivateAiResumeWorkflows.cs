@@ -17,6 +17,8 @@ public sealed record ResumeImportPayload(
 
 public sealed record ResumeImportResult(JsonElement Proposal, string DetectedText);
 
+public sealed record ResumeImportProgress(string Stage, int Progress, string Message);
+
 public sealed class PrivateAiResumeWorkflows(IPrivateAiInference privateAi)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -40,9 +42,11 @@ public sealed class PrivateAiResumeWorkflows(IPrivateAiInference privateAi)
 
     public async Task<ResumeImportResult> ImportResumeAsync(
         ResumeImportPayload payload,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IProgress<ResumeImportProgress>? progress = null)
     {
         ValidateResumePayload(payload);
+        progress?.Report(new ResumeImportProgress("preparing", 5, "Preparing the resume pages…"));
         var pageInputs = payload.Pages
             .OrderBy(page => page.PageNumber)
             .Select(page => new DocumentPageInput(
@@ -50,6 +54,7 @@ public sealed class PrivateAiResumeWorkflows(IPrivateAiInference privateAi)
                 new ImageInput(page.Bytes, page.MediaType),
                 EmbeddedText: null))
             .ToArray();
+        progress?.Report(new ResumeImportProgress("reading", 15, "Reading the resume layout and text…"));
         var parsed = await privateAi.ParseDocumentAsync(
             new DocumentParsingRequest(
                 "resume-ocr-v1",
@@ -61,6 +66,7 @@ public sealed class PrivateAiResumeWorkflows(IPrivateAiInference privateAi)
                 pageInputs),
             cancellationToken);
 
+        progress?.Report(new ResumeImportProgress("organizing", 40, "Organizing the information found in the resume…"));
         var detectedText = Bound(string.Join(
             "\n\n",
             parsed.Pages.OrderBy(page => page.PageNumber).Select(page => $"[Page {page.PageNumber}]\n{page.Text}")), 60_000);
@@ -75,11 +81,21 @@ public sealed class PrivateAiResumeWorkflows(IPrivateAiInference privateAi)
             .Select(page => new ImageInput(page.Bytes, page.MediaType))
             .ToArray();
         var proposalObject = new JsonObject();
+        var sectionProgress = new Dictionary<string, (int Progress, string Message)>(StringComparer.Ordinal)
+        {
+            ["education"] = (48, "Identifying education…"),
+            ["experience"] = (60, "Identifying work experience…"),
+            ["projects"] = (74, "Identifying projects…"),
+            ["skills"] = (86, "Identifying skills…"),
+        };
         foreach (var section in ResumeImportSections)
         {
+            var update = sectionProgress[section];
+            progress?.Report(new ResumeImportProgress(section, update.Progress, update.Message));
             proposalObject[section] = await RequestResumeSectionAsync(section, images, context, cancellationToken);
         }
 
+        progress?.Report(new ResumeImportProgress("finishing", 96, "Preparing the results for review…"));
         using var proposalDocument = JsonDocument.Parse(proposalObject.ToJsonString(JsonOptions));
         var proposal = proposalDocument.RootElement.Clone();
         ValidateResumeImportProposal(proposal);

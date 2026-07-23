@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Sparkles, StopCircle, Upload } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { StopCircle, Upload } from 'lucide-react';
 import Button from '../ui/Button';
 import Checkbox from '../ui/Checkbox';
 import { importResumeWithPrivateAi } from '../../features/private-ai/privateAiClient';
+import type { ResumeImportProgress } from '../../features/private-ai/privateAiClient';
 import {
   createModelSafeResumeImportText,
   createProfileImportProposal,
@@ -43,15 +43,18 @@ const createSelection = (proposal: ProfileImportProposal): ProfileImportSelectio
   };
 };
 
+const formatElapsed = (seconds: number) => {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ${String(seconds % 60).padStart(2, '0')}s`;
+};
+
 export default function ProfileResumeImportSection({ onApply }: ProfileResumeImportSectionProps) {
   const [fileName, setFileName] = useState('');
-  const [sourceFile, setSourceFile] = useState<File | null>(null);
-  const [modelText, setModelText] = useState('');
-  const [pageImages, setPageImages] = useState<RenderedResumePage[]>([]);
-  const [contact, setContact] = useState<ProfileImportProposal['contact'] | null>(null);
   const [proposal, setProposal] = useState<ProfileImportProposal | null>(null);
   const [selection, setSelection] = useState<ProfileImportSelection | null>(null);
   const [status, setStatus] = useState('Choose a resume to begin. ApplyFill processes it only on this computer.');
+  const [progress, setProgress] = useState<ResumeImportProgress | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [isApplied, setIsApplied] = useState(false);
@@ -59,21 +62,65 @@ export default function ProfileResumeImportSection({ onApply }: ProfileResumeImp
 
   useEffect(() => () => controllerRef.current?.abort(), []);
 
+  const parsePreparedResume = async (
+    file: File,
+    safeText: string,
+    renderedPages: RenderedResumePage[],
+    extractedContact: ProfileImportProposal['contact'],
+  ) => {
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    setIsRunning(true);
+    setProgress({
+      elapsedSeconds: 0,
+      message: 'Sending the prepared resume to Private AI…',
+      progress: 4,
+      stage: 'uploading',
+    });
+    setStatus('Sending the prepared resume to Private AI…');
+    try {
+      const result = await importResumeWithPrivateAi(
+        file,
+        safeText,
+        renderedPages,
+        controller.signal,
+        (update) => {
+          setProgress(update);
+          setStatus(update.message);
+        },
+      );
+      const detectedContact = extractResumeContact(result.detectedText);
+      const reviewedContact = mergeExtractedResumeContacts(extractedContact, detectedContact);
+      const nextProposal = createProfileImportProposal(result.proposal, reviewedContact);
+      setProposal(nextProposal);
+      setSelection(createSelection(nextProposal));
+      setProgress({ elapsedSeconds: 0, message: 'Ready for review.', progress: 100, stage: 'complete' });
+      const count = nextProposal.education.length + nextProposal.experience.length + nextProposal.projects.length + nextProposal.skills.length;
+      setStatus(`${count} professional item${count === 1 ? '' : 's'} plus detected contact fields are ready for review. Nothing has been saved yet.`);
+    } catch (error) {
+      setProgress(null);
+      setStatus(error instanceof DOMException && error.name === 'AbortError'
+        ? 'Resume parsing cancelled. Your profile was not changed.'
+        : error instanceof Error ? error.message : 'The resume could not be parsed. Your profile was not changed.');
+    } finally {
+      controllerRef.current = null;
+      setIsRunning(false);
+    }
+  };
+
   const chooseFile = async (file: File | undefined) => {
     controllerRef.current?.abort();
     setFileName(file?.name ?? '');
-    setSourceFile(file ?? null);
-    setModelText('');
-    setPageImages([]);
-    setContact(null);
     setProposal(null);
     setSelection(null);
+    setProgress(null);
     setIsApplied(false);
     if (!file) {
       setStatus('Choose a resume to begin. ApplyFill processes it only on this computer.');
       return;
     }
     setIsExtracting(true);
+    setProgress({ elapsedSeconds: 0, message: `Opening ${file.name}…`, progress: 1, stage: 'opening' });
     setStatus(`Reading ${file.name} locally…`);
     try {
       const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
@@ -85,48 +132,18 @@ export default function ProfileResumeImportSection({ onApply }: ProfileResumeImp
         // A scanned PDF may contain no selectable text. Its rendered pages still go
         // through the local vision/OCR path below.
       }
+      setProgress({ elapsedSeconds: 0, message: 'Preparing the resume pages…', progress: 3, stage: 'rendering' });
       const renderedPages = await renderResumePageImages(file, text);
       if (!renderedPages.length) throw new Error('This resume did not contain a page Private AI could read.');
       const extractedContact = extractResumeContact(text);
       const safeText = createModelSafeResumeImportText(text, extractedContact);
-      setContact(extractedContact);
-      setModelText(safeText);
-      setPageImages(renderedPages);
-      setStatus(renderedPages.length
-        ? `${renderedPages.length} resume page${renderedPages.length === 1 ? '' : 's'} ready for Private AI. Choose Read Resume to continue.`
-        : 'Your resume is ready for Private AI. Choose Read Resume to continue.');
+      setIsExtracting(false);
+      await parsePreparedResume(file, safeText, renderedPages, extractedContact);
     } catch (error) {
+      setProgress(null);
       setStatus(error instanceof Error ? error.message : 'The resume could not be read.');
     } finally {
       setIsExtracting(false);
-    }
-  };
-
-  const parseResume = async () => {
-    if (!contact || !sourceFile || isRunning) return;
-    const controller = new AbortController();
-    controllerRef.current = controller;
-    setIsRunning(true);
-    setProposal(null);
-    setSelection(null);
-    setStatus('Preparing your resume privately on this computer…');
-    try {
-      setStatus('Private AI is reading the professional sections…');
-      const result = await importResumeWithPrivateAi(sourceFile, modelText, pageImages, controller.signal);
-      const detectedContact = extractResumeContact(result.detectedText);
-      const reviewedContact = mergeExtractedResumeContacts(contact, detectedContact);
-      const nextProposal = createProfileImportProposal(result.proposal, reviewedContact);
-      setProposal(nextProposal);
-      setSelection(createSelection(nextProposal));
-      const count = nextProposal.education.length + nextProposal.experience.length + nextProposal.projects.length + nextProposal.skills.length;
-      setStatus(`${count} professional item${count === 1 ? '' : 's'} plus detected contact fields are ready for review. Nothing has been saved yet.`);
-    } catch (error) {
-      setStatus(error instanceof DOMException && error.name === 'AbortError'
-        ? 'Resume parsing cancelled. Your profile was not changed.'
-        : error instanceof Error ? error.message : 'The resume could not be parsed. Your profile was not changed.');
-    } finally {
-      controllerRef.current = null;
-      setIsRunning(false);
     }
   };
 
@@ -161,7 +178,11 @@ export default function ProfileResumeImportSection({ onApply }: ProfileResumeImp
             className="visually-hidden"
             disabled={isExtracting || isRunning}
             id="profile-resume-file"
-            onChange={(event) => void chooseFile(event.target.files?.[0])}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = '';
+              void chooseFile(file);
+            }}
             type="file"
           />
           <label aria-disabled={isExtracting || isRunning} className={`btn btn-secondary profile-resume-file-button${isExtracting || isRunning ? ' is-disabled' : ''}`} htmlFor="profile-resume-file">
@@ -172,16 +193,28 @@ export default function ProfileResumeImportSection({ onApply }: ProfileResumeImp
         <p className="field-hint">PDF, Word (.docx), or text file, up to 10 MB. Scanned and multi-column resumes are supported through local vision/OCR.</p>
       </div>
 
-      <div className="resume-builder-actions">
-        <Button disabled={!sourceFile || isExtracting || isRunning} onClick={() => void parseResume()} variant="primary">
-          <Sparkles aria-hidden="true" size={17} /> {isRunning ? 'Reading Resume…' : 'Read Resume with Private AI'}
-        </Button>
-        {isRunning ? <Button onClick={() => controllerRef.current?.abort()}><StopCircle aria-hidden="true" size={17} /> Cancel</Button> : null}
-        {!isRunning ? <Link className="btn btn-secondary" to="/settings">Private AI Settings</Link> : null}
-      </div>
-
-      <p className="field-hint local-ai-status" role="status" aria-live="polite">{status}</p>
-      {!isRunning ? <p className="field-hint">Private AI is installed and managed by ApplyFill. The selected file is not retained when you leave this page.</p> : null}
+      {progress && (isExtracting || isRunning) ? (
+        <div className="profile-resume-import-progress">
+          <div
+            aria-label="Resume reading progress"
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={progress.progress}
+            aria-valuetext={`${progress.message} ${formatElapsed(progress.elapsedSeconds)} elapsed`}
+            className="local-ai-progress"
+            role="progressbar"
+          >
+            <span style={{ width: `${progress.progress}%` }} />
+          </div>
+          <div className="profile-resume-import-progress-copy" role="status" aria-live="polite">
+            <strong>{progress.message}</strong>
+            <span>{progress.progress}% · {formatElapsed(progress.elapsedSeconds)} elapsed</span>
+          </div>
+          {isRunning ? <Button onClick={() => controllerRef.current?.abort()}><StopCircle aria-hidden="true" size={17} /> Cancel</Button> : null}
+        </div>
+      ) : (
+        <p className="field-hint local-ai-status" role="status" aria-live="polite">{status}</p>
+      )}
 
       {proposal && selection ? (
         <section className="profile-import-review" aria-labelledby="profile-import-review-title">

@@ -18,6 +18,7 @@ public sealed class PrivateAiResumeWorkflowsTests
             VisionJson = "{\"education\":[],\"experience\":[],\"projects\":[],\"skills\":[]}",
         };
         var workflows = new PrivateAiResumeWorkflows(inference);
+        var progress = new RecordingProgress();
 
         var result = await workflows.ImportResumeAsync(new ResumeImportPayload(
             "resume.pdf",
@@ -25,7 +26,7 @@ public sealed class PrivateAiResumeWorkflowsTests
             [],
             "pdf",
             "Engineer",
-            [new ResumeImportPage(1, "image/jpeg", [4, 5, 6])]), CancellationToken.None);
+            [new ResumeImportPage(1, "image/jpeg", [4, 5, 6])]), CancellationToken.None, progress);
 
         Assert.Equal(JsonValueKind.Object, result.Proposal.ValueKind);
         Assert.Contains("Ada Lovelace", result.DetectedText, StringComparison.Ordinal);
@@ -45,6 +46,10 @@ public sealed class PrivateAiResumeWorkflowsTests
         Assert.Equal(
             ["skills"],
             schema.RootElement.GetProperty("required").EnumerateArray().Select(item => item.GetString()!).ToArray());
+        Assert.Equal(
+            ["preparing", "reading", "organizing", "education", "experience", "projects", "skills", "finishing"],
+            progress.Updates.Select(update => update.Stage).ToArray());
+        Assert.True(progress.Updates.Zip(progress.Updates.Skip(1), (left, right) => left.Progress < right.Progress).All(value => value));
     }
 
     [Fact]
@@ -190,5 +195,12 @@ public sealed class PrivateAiResumeWorkflowsTests
             DocumentRequestCount++;
             return Task.FromResult(DocumentResult);
         }
+    }
+
+    private sealed class RecordingProgress : IProgress<ResumeImportProgress>
+    {
+        public List<ResumeImportProgress> Updates { get; } = [];
+
+        public void Report(ResumeImportProgress value) => Updates.Add(value);
     }
 }

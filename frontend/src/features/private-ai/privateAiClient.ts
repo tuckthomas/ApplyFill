@@ -19,6 +19,13 @@ export type ResumeTailoringResult = {
   sourceRevision: string;
 };
 
+export type ResumeImportProgress = {
+  elapsedSeconds: number;
+  message: string;
+  progress: number;
+  stage: string;
+};
+
 class PrivateAiServiceError extends Error {
   readonly status: number | null;
 
@@ -82,6 +89,7 @@ export const importResumeWithPrivateAi = async (
   embeddedTextEvidence: string,
   pages: RenderedResumePage[],
   signal?: AbortSignal,
+  onProgress?: (progress: ResumeImportProgress) => void,
 ): Promise<{ detectedText: string; proposal: ProfileImportModelOutput }> => {
   if (!pages.length) throw new Error('The resume did not contain pages Private AI could read.');
   const renderedBytes = pages.reduce((total, page) => total + page.blob.size, 0);
@@ -97,15 +105,92 @@ export const importResumeWithPrivateAi = async (
     form.append('pages', page.blob, `page-${String(page.pageNumber).padStart(3, '0')}.jpg`);
     form.append('pageNumbers', String(page.pageNumber));
   }
-  const response = await request<unknown>('/api/private-ai/resume-import', {
-    body: form,
-    method: 'POST',
-    signal,
-  });
-  if (typeof response !== 'object' || response === null || !('proposal' in response) || !('detectedText' in response)) {
-    throw new Error('Private AI returned an invalid resume-import response. Nothing was changed.');
+  let response: Response;
+  try {
+    response = await fetch(`${API_ROOT}/api/private-ai/resume-import`, {
+      body: form,
+      credentials: 'include',
+      headers: {
+        'Idempotency-Key': globalThis.crypto.randomUUID(),
+        'X-ApplyFill-Request': '1',
+      },
+      method: 'POST',
+      signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error;
+    throw new PrivateAiServiceError(
+      'Private AI is not running. Open Settings and choose Set Up Private AI, then try again.',
+    );
   }
-  const { detectedText, proposal } = response as { detectedText: unknown; proposal: unknown };
+
+  if (!response.ok) {
+    const detail = await responseMessage(response);
+    throw new PrivateAiServiceError(
+      detail ?? 'Private AI could not begin reading this resume. Nothing was changed.',
+      response.status,
+    );
+  }
+  if (!response.body) {
+    throw new Error('Private AI did not provide resume-reading progress. Nothing was changed.');
+  }
+
+  const resultBox: { current: { detectedText: unknown; proposal: unknown } | null } = { current: null };
+  let buffer = '';
+  const readEvent = (line: string) => {
+    if (!line.trim()) return;
+    let event: unknown;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      throw new Error('Private AI returned an invalid resume-import response. Nothing was changed.');
+    }
+    if (typeof event !== 'object' || event === null || !('type' in event)) {
+      throw new Error('Private AI returned an invalid resume-import response. Nothing was changed.');
+    }
+    const record = event as Record<string, unknown>;
+    if (record.type === 'progress') {
+      if (typeof record.stage !== 'string' || typeof record.message !== 'string'
+        || typeof record.progress !== 'number' || record.progress < 0 || record.progress > 100
+        || typeof record.elapsedSeconds !== 'number' || record.elapsedSeconds < 0) {
+        throw new Error('Private AI returned invalid resume-reading progress. Nothing was changed.');
+      }
+      onProgress?.({
+        elapsedSeconds: Math.floor(record.elapsedSeconds),
+        message: record.message,
+        progress: Math.round(record.progress),
+        stage: record.stage,
+      });
+      return;
+    }
+    if (record.type === 'error') {
+      throw new Error(typeof record.message === 'string'
+        ? record.message
+        : 'Private AI could not finish reading this resume. Nothing was changed.');
+    }
+    if (record.type === 'result' && 'proposal' in record && 'detectedText' in record) {
+      resultBox.current = { detectedText: record.detectedText, proposal: record.proposal };
+      return;
+    }
+    throw new Error('Private AI returned an invalid resume-import response. Nothing was changed.');
+  };
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    lines.forEach(readEvent);
+    if (done) break;
+  }
+  readEvent(buffer);
+
+  if (!resultBox.current) {
+    throw new Error('Private AI stopped before the resume was ready. Nothing was changed.');
+  }
+  const { detectedText, proposal } = resultBox.current;
   if (typeof detectedText !== 'string' || detectedText.length > 100_000) {
     throw new Error('Private AI returned invalid detected text. Nothing was changed.');
   }

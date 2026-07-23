@@ -8,6 +8,34 @@ namespace ResumeBuilder.Tests;
 public sealed class IdempotencyMiddlewareTests
 {
     [Fact]
+    public async Task ReadOnlyResumeImportProgressIsNotBuffered()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var context = new DefaultHttpContext();
+        context.Request.Method = HttpMethods.Post;
+        context.Request.Path = "/api/private-ai/resume-import";
+        context.Request.Body = new MemoryStream();
+        var responseBody = new MemoryStream();
+        context.Response.Body = responseBody;
+        var progressWritten = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishResponse = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var middleware = new ApiIdempotencyMiddleware(async httpContext =>
+        {
+            await httpContext.Response.WriteAsync("{\"type\":\"progress\"}\n", cancellationToken);
+            await httpContext.Response.Body.FlushAsync(cancellationToken);
+            progressWritten.SetResult();
+            await finishResponse.Task;
+        });
+
+        var invocation = middleware.InvokeAsync(context, new TestInstallation(), new RecordingIdempotencyStore());
+        await progressWritten.Task.WaitAsync(TimeSpan.FromSeconds(2), cancellationToken);
+
+        Assert.True(responseBody.Length > 0);
+        finishResponse.SetResult();
+        await invocation;
+    }
+
+    [Fact]
     public async Task ClientDisconnectAfterMutationDoesNotCancelOrAbandonReceiptCompletion()
     {
         using var disconnected = new CancellationTokenSource();
