@@ -30,7 +30,7 @@ ApplyFill React main layout
 ## Non-negotiable product boundaries
 
 - [x] Remove the Chromium extension from the target architecture; do not redesign or retain it as the Browser Agent transport.
-- [x] Render the Browser Agent within the existing ApplyFill header/sidebar/main-content shell.
+- [x] Render the Browser Agent within the tabbed saved-application form.
 - [x] Preserve the same authenticated Chromium context across every page, redirect, popup, conditional branch, and user-control handoff in an application run.
 - [x] Let the user pause, stop, take control, and return control at any time from persistent visible controls.
 - [x] Make agent and human input mutually exclusive through a server-owned control lease.

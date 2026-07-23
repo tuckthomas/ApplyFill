@@ -79,7 +79,7 @@ Prefer these components rather than rebuilding their behavior:
 ## Application Shell And Routes
 
 - `MainLayout.tsx` owns the responsive sidebar, grouped navigation, and persisted light/dark theme. Do not create a page-level substitute for these behaviors.
-- Implemented routes are dashboard (`/`), Job Profile review (`/job-profile`), Job Profile builder (`/job-profile/builder`), Job Tracker (`/job-tracker`), Resume Builder (`/resumes` and `/resumes/builder`), Browser Agent (`/agent` and `/agent/:runId`), and Settings (`/settings`).
+- Implemented routes are dashboard (`/`), Job Profile review (`/job-profile`), Job Profile builder (`/job-profile/builder`), Job Tracker and its tabbed application editor (`/job-tracker` and `/job-tracker/:applicationId/edit`), Resume Builder (`/resumes` and `/resumes/builder`), and Settings (`/settings`). The Browser Agent is a tab within a saved application.
 - The dashboard uses the shared dashboard grid and widget frame. Preserve its edit-mode distinction: layout changes, widget resizing, and widget removal are editing actions.
 - The Job Profile screen uses `TabbedForm`: My Profile is the readable review surface and Structured Data exposes the exact versioned local document. Section-level Edit actions navigate to the matching wizard section rather than duplicating forms.
 - Settings uses shared controls. It shows ordinary-language Private AI status/setup and accurately explains the local PostgreSQL privacy boundary without exposing service topology.

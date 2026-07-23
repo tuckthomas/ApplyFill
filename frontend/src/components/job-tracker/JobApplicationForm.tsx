@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { Download, Loader2 } from 'lucide-react';
 import Select from '../ui/AppSelect';
 import RichTextEditor from '../resume/RichTextEditor';
@@ -21,6 +21,7 @@ import type {
 } from './jobApplication';
 
 type JobApplicationFormProps = {
+  agentContent?: ReactNode;
   error: string;
   mode: 'add' | 'edit';
   onCancel: () => void;
@@ -28,13 +29,16 @@ type JobApplicationFormProps = {
   onImportJobDescription: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   isImportingJobDescription: boolean;
+  initialTab?: 'agent' | 'details' | 'notes';
   jobDescriptionError: string;
   value: JobApplicationFormState;
 };
 
 export default function JobApplicationForm({
+  agentContent,
   error,
   isImportingJobDescription,
+  initialTab = 'details',
   jobDescriptionError,
   mode,
   onCancel,
@@ -43,36 +47,44 @@ export default function JobApplicationForm({
   onSubmit,
   value
 }: JobApplicationFormProps) {
-  const [activeTab, setActiveTab] = useState<'details' | 'notes'>('details');
+  const [activeTab, setActiveTab] = useState<'agent' | 'details' | 'notes'>(initialTab);
   const idPrefix = useId().replace(/:/g, '');
   useEffect(() => {
     if (mode === 'add') setActiveTab('details');
   }, [mode]);
+  useEffect(() => {
+    if (mode === 'edit') setActiveTab(initialTab);
+  }, [initialTab, mode]);
 
   return (
-    <form className="tracker-form-panel" noValidate onSubmit={onSubmit} aria-label="Application form">
+    <div className="tracker-form-panel" aria-label="Application form">
       <TabbedForm
         activeTab={activeTab}
         ariaLabel="Application form sections"
-        onTabChange={(tabId) => setActiveTab(tabId as 'details' | 'notes')}
+        onTabChange={(tabId) => setActiveTab(tabId as 'agent' | 'details' | 'notes')}
         tabs={[
           { id: 'details', label: 'Application Details' },
-          { id: 'notes', label: 'Notes', disabled: mode === 'add', disabledReason: mode === 'add' ? 'Save the application before adding notes.' : undefined }
+          { id: 'notes', label: 'Notes', disabled: mode === 'add', disabledReason: mode === 'add' ? 'Save the application before adding notes.' : undefined },
+          ...(agentContent ? [{ id: 'agent', label: 'Browser Agent' }] : [])
         ]}
-        footer={(
+        footer={activeTab !== 'agent' ? (
           <>
             {error && <p className="form-error-message" role="alert">{error}</p>}
             <div className="toolbar-row tracker-form-actions">
               <span className="section-copy">Required fields are marked with an asterisk.</span>
               <div className="modal-form-actions">
                 <button className="btn btn-secondary" type="button" onClick={onCancel}>Cancel</button>
-                <button className="btn btn-primary" type="submit">{mode === 'add' ? 'Save Application' : 'Save Changes'}</button>
+                <button className="btn btn-primary" form={`${idPrefix}-application-form`} type="submit">{mode === 'add' ? 'Save Application' : 'Save Changes'}</button>
               </div>
             </div>
           </>
-        )}
+        ) : null}
       >
-        {({ activeTab: selectedTab, panelId, tabId }) => selectedTab === 'details' ? (
+        {({ activeTab: selectedTab, panelId, tabId }) => selectedTab === 'agent' ? (
+          <div id={panelId} role="tabpanel" aria-labelledby={tabId}>{agentContent}</div>
+        ) : (
+          <form id={`${idPrefix}-application-form`} noValidate onSubmit={onSubmit}>
+          {selectedTab === 'details' ? (
           <div id={panelId} role="tabpanel" aria-labelledby={tabId} className="tracker-form-grid">
           <div className="form-group">
             <label className="form-label" htmlFor={`${idPrefix}-applied-date`}>Application date</label>
@@ -150,7 +162,9 @@ export default function JobApplicationForm({
             <RichTextEditor label="Notes" labelId={`${idPrefix}-notes-label`} toolbarId={`${idPrefix}-notes-toolbar`} value={value.notes} onChange={(nextValue) => onChange('notes', nextValue)} placeholder="Recruiter name, next steps, or other reminders" editorClassName="rich-text-editor-tracker" />
           </div>
         )}
+          </form>
+        )}
       </TabbedForm>
-    </form>
+    </div>
   );
 }

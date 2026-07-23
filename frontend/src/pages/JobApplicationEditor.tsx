@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import JobApplicationForm from '../components/job-tracker/JobApplicationForm';
 import {
@@ -12,6 +12,8 @@ import {
 import type { JobApplication, JobApplicationFormState } from '../components/job-tracker/jobApplication';
 import { loadProfileBuilderState } from '../features/profile/profileBuilder';
 import { createRichTextFromPlainText, normalizeRichText } from '../features/rich-text/richText';
+
+const BrowserAgent = lazy(() => import('./BrowserAgent'));
 
 const createApplication = (value: JobApplicationFormState, id: string): JobApplication => ({
   ...value,
@@ -28,6 +30,7 @@ const createApplication = (value: JobApplicationFormState, id: string): JobAppli
 export default function JobApplicationEditor() {
   const navigate = useNavigate();
   const { applicationId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [existingApplication, setExistingApplication] = useState<JobApplication>();
   const [isLoading, setIsLoading] = useState(true);
@@ -140,8 +143,25 @@ export default function JobApplicationEditor() {
         </header>
       </div>
       <JobApplicationForm
+        agentContent={existingApplication ? (
+          <Suspense fallback={<p className="section-copy" role="status">Loading browser agent...</p>}>
+            <BrowserAgent
+              embedded
+              initialApplication={existingApplication}
+              onRunChange={(runId) => {
+                const next = new URLSearchParams(searchParams);
+                next.set('tab', 'agent');
+                if (runId) next.set('runId', runId);
+                else next.delete('runId');
+                setSearchParams(next, { replace: true });
+              }}
+              runIdOverride={searchParams.get('runId')}
+            />
+          </Suspense>
+        ) : null}
         error={formError}
         isImportingJobDescription={isImportingJobDescription}
+        initialTab={searchParams.get('tab') === 'agent' && existingApplication ? 'agent' : 'details'}
         jobDescriptionError={jobDescriptionError}
         mode={mode}
         onCancel={() => navigate('/job-tracker')}

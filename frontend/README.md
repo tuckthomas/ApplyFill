@@ -11,7 +11,7 @@ This package is not a standalone PWA. It does not contain a browser AI runtime, 
 - `/job-profile/builder` — profile consent, resume import, and profile editor
 - `/resumes` and `/resumes/builder` — saved resumes, tailoring review, preview, and exports
 - `/job-tracker` — tracked applications
-- `/agent` and `/agent/:runId` — managed Browser Agent and retained runs
+- `/job-tracker/:applicationId/edit` — application details, notes, and Browser Agent
 - `/settings` — date preference, Private AI setup/status, and local-data explanation
 
 Legacy profile URLs redirect to their current equivalents. There is no `/autofill-assist` route.

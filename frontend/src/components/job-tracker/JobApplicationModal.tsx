@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import FormModal from '../ui/FormModal';
 import JobApplicationForm from './JobApplicationForm';
@@ -9,6 +9,8 @@ import {
 import type { JobApplication, JobApplicationFormState } from './jobApplication';
 import { loadProfileBuilderState } from '../../features/profile/profileBuilder';
 import { createRichTextFromPlainText, normalizeRichText } from '../../features/rich-text/richText';
+
+const BrowserAgent = lazy(() => import('../../pages/BrowserAgent'));
 
 type JobApplicationModalProps = {
   application?: JobApplication;
@@ -36,6 +38,7 @@ export default function JobApplicationModal({ application, onClose, onSave }: Jo
   const [formError, setFormError] = useState('');
   const [jobDescriptionError, setJobDescriptionError] = useState('');
   const [isImportingJobDescription, setIsImportingJobDescription] = useState(false);
+  const [agentRunId, setAgentRunId] = useState<string | null>(null);
 
   useEffect(() => {
     if (application) return;
@@ -109,6 +112,16 @@ export default function JobApplicationModal({ application, onClose, onSave }: Jo
       title={mode === 'add' ? 'Add Application' : 'Edit Application'}
     >
       <JobApplicationForm
+        agentContent={application ? (
+          <Suspense fallback={<p className="section-copy" role="status">Loading browser agent...</p>}>
+            <BrowserAgent
+              embedded
+              initialApplication={application}
+              onRunChange={setAgentRunId}
+              runIdOverride={agentRunId}
+            />
+          </Suspense>
+        ) : null}
         error={formError}
         isImportingJobDescription={isImportingJobDescription}
         jobDescriptionError={jobDescriptionError}

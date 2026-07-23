@@ -3,7 +3,7 @@
 | Retired subsystem | Replacement evidence | Disposition |
 | --- | --- | --- |
 | `extension/` package, popup, pairing/session stores, content/background scripts | Managed Browser Worker, Browser Agent route, durable run APIs, SignalR stream | Deleted |
-| `/autofill-assist`, extension IDs, connection codes, tab handoff | `/agent` and `/agent/:runId`, persistent managed context | Deleted |
+| `/autofill-assist`, extension IDs, connection codes, tab handoff | Browser Agent tab in each saved application, persistent managed context | Deleted |
 | Browser LiteRT/WebNN/WebGPU runtime and model cache | Local native Private AI service and catalog | Deleted |
 | Browser model manifest/chunks, service worker, Cloudflare/Wrangler static deployment | Local launcher, API/worker proxy, verified native artifacts | Deleted |
 | Authoritative IndexedDB profile/resume/tracker database | PostgreSQL 18 resources and typed API clients | Deleted |

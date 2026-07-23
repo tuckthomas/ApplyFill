@@ -12,8 +12,8 @@ Add a Browser Agent workspace inside ApplyFill's existing main layout. The user 
 
 ## Route and navigation
 
-- [x] Add a first-class `/agent` or reviewed equivalent route under the existing header/sidebar layout.
-- [x] Add a persistent sidebar destination named in ordinary product language such as **Browser Agent**.
+- [x] Add the Browser Agent as a tab in the existing saved-application form.
+- [x] Keep Browser Agent run controls inside the application workflow rather than adding a separate sidebar destination.
 - [x] Add run list/history access without replacing the main live-workspace route.
 - [x] Support deep links to a specific application run while enforcing ownership and authorization.
 - [x] Preserve current run context when navigating between ApplyFill panels where safe; warn before leaving actions that would relinquish user control.

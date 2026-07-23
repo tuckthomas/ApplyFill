@@ -7,6 +7,12 @@
   width: 100%;
 }
 
+.browser-agent-embedded-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
 .browser-agent-page-header {
   align-items: flex-end;
   display: flex;

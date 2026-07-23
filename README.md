@@ -144,7 +144,7 @@ See [Development guide](docs/development.md) for service configuration and troub
 
 ## Browser Agent controls
 
-The Browser Agent lives at `/agent`; a retained run uses `/agent/:runId`.
+The Browser Agent is available from the **Browser Agent** tab of a saved application in the Job Tracker.
 
 - **Pause** stops new agent actions at a safe boundary.
 - **Take Control** gives mouse and keyboard input exclusively to the user.

@@ -41,7 +41,11 @@ import './BrowserAgent.css';
 
 type BrowserAgentPageProps = {
   client?: BrowserAgentClient;
+  embedded?: boolean;
+  initialApplication?: { companyName: string; jobTitle: string; targetJobUrl: string };
   loadStartResources?: () => Promise<BrowserAgentStartResources>;
+  onRunChange?: (runId: string | null) => void;
+  runIdOverride?: string | null;
 };
 
 type BrowserAgentBusyAction = BrowserRunCommand | 'answer' | 'delete' | 'recover';
@@ -95,9 +99,14 @@ const humanSetupStage = (status: PrivateAiStatus) => {
 
 export function BrowserAgentPage({
   client = browserAgentClient,
+  embedded = false,
+  initialApplication,
   loadStartResources = loadBrowserAgentStartResources,
+  onRunChange,
+  runIdOverride,
 }: BrowserAgentPageProps) {
-  const { runId } = useParams();
+  const { runId: routeRunId } = useParams();
+  const runId = runIdOverride === undefined ? routeRunId : runIdOverride ?? undefined;
   const navigate = useNavigate();
   const [privateAi, setPrivateAi] = useState<PrivateAiStatus | null>(null);
   const [history, setHistory] = useState<BrowserRunSummary[]>([]);
@@ -118,6 +127,13 @@ export function BrowserAgentPage({
   const [selectedOption, setSelectedOption] = useState('');
   const [saveAnswer, setSaveAnswer] = useState(false);
   const inputErrorShown = useRef(false);
+
+  useEffect(() => {
+    if (runId || !initialApplication) return;
+    setStartUrl(initialApplication.targetJobUrl);
+    setCompanyName(initialApplication.companyName);
+    setJobTitle(initialApplication.jobTitle);
+  }, [initialApplication, runId]);
 
   const refreshLandingData = useCallback(async (signal?: AbortSignal) => {
     const [statusResult, runsResult, resourcesResult] = await Promise.allSettled([
@@ -295,7 +311,8 @@ export function BrowserAgentPage({
         resumeId: selectedResumeId || undefined,
       });
       setRun(snapshot);
-      navigate(`/agent/${snapshot.id}`);
+      if (embedded) onRunChange?.(snapshot.id);
+      else navigate(`/agent/${snapshot.id}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'The application could not be started.');
     } finally {
@@ -406,7 +423,7 @@ export function BrowserAgentPage({
 
   return (
     <div className="browser-agent-page">
-      <header className="browser-agent-page-header">
+      {!embedded ? <header className="browser-agent-page-header">
         <div>
           <div className="browser-agent-eyebrow"><ShieldCheck aria-hidden="true" size={17} /> Private, reviewable application help</div>
           <h1>Browser Agent</h1>
@@ -416,7 +433,12 @@ export function BrowserAgentPage({
           if (run.controlOwner === 'user' && !window.confirm('Return control to ApplyFill and leave the live application page?')) return;
           navigate('/agent');
         }}><History aria-hidden="true" size={17} /> Application Runs</Button> : null}
-      </header>
+      </header> : run ? <div className="browser-agent-embedded-actions">
+        <Button onClick={() => {
+          if (run.controlOwner === 'user' && !window.confirm('Return control to ApplyFill and leave the live application page?')) return;
+          onRunChange?.(null);
+        }}><History aria-hidden="true" size={17} /> Application Runs</Button>
+      </div> : null}
 
       {message ? (
         <div className="browser-agent-message" role="alert">
@@ -465,7 +487,7 @@ export function BrowserAgentPage({
           onCompanyNameChange={setCompanyName}
           onDeleteRun={(summary) => void removeRun(summary)}
           onJobTitleChange={setJobTitle}
-          onOpenRun={(id) => navigate(`/agent/${id}`)}
+          onOpenRun={(id) => embedded ? onRunChange?.(id) : navigate(`/agent/${id}`)}
           onResumeChange={setSelectedResumeId}
           onSetup={() => void setupPrivateAi()}
           onStart={(event) => void startRun(event)}
