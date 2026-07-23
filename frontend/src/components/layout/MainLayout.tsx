@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, Settings, UserCircle, Sun, Moon, ChevronLeft, ChevronRight, Menu, BriefcaseBusiness, PlusCircle, Wand2, X } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, UserCircle, Sun, Moon, ChevronDown, ChevronLeft, ChevronRight, Menu, BriefcaseBusiness, PlusCircle, Wand2, X } from 'lucide-react';
 import { ApplyFillLogo } from '../brand/ApplyFillLogo';
 import './MainLayout.css';
 
@@ -147,7 +147,7 @@ export function MainLayout() {
                   >
                     <item.icon className="nav-icon" size={20} aria-hidden="true" />
                     <span>{item.name}</span>
-                    <ChevronRight className="nav-parent-chevron" size={18} aria-hidden="true" />
+                    <ChevronDown className="nav-parent-chevron" size={18} aria-hidden="true" />
                   </button>
                 ) : (
                   <Link

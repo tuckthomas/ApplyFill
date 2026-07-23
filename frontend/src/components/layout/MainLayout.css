@@ -190,7 +190,7 @@
 }
 
 .nav-parent-toggle[aria-expanded='true'] .nav-parent-chevron {
-  transform: rotate(90deg);
+  transform: rotate(180deg);
 }
 
 .sidebar.collapsed .nav-parent-chevron {
