@@ -225,9 +225,7 @@ export default function ResumeBuilder() {
       <header className="page-header">
         <div>
           <h2 className="page-title">Resume Builder</h2>
-          <p className="page-copy">Tailor a local resume and generate PDF, DOCX, or JSON without uploading it.</p>
         </div>
-        <span className="status-pill">Stored on this computer</span>
       </header>
 
       {message ? <p className="profile-data-message" role="status">{message}</p> : null}
@@ -245,7 +243,6 @@ export default function ResumeBuilder() {
       ) : (
         <div className="resume-local-ai-entry">
           <Button onClick={() => setShowLocalAi(true)} variant="primary"><BrainCircuit aria-hidden="true" size={18} /> Tailor with Private AI</Button>
-          <p className="field-hint">Private AI runs locally only when you start it and receives only the professional sections you selected below.</p>
         </div>
       )}
 
@@ -253,7 +250,6 @@ export default function ResumeBuilder() {
         <section className="surface-panel resume-builder-controls" aria-labelledby="resume-details-title">
           <div>
             <h3 id="resume-details-title" className="section-title">Resume Details</h3>
-            <p className="section-copy">Drafts and generated files remain on this device unless you download or share them.</p>
           </div>
 
           <div className="form-group">
@@ -277,7 +273,6 @@ export default function ResumeBuilder() {
 
           <div className="resume-content-selections">
             <h3 className="section-title">Select Resume Content</h3>
-            <p className="section-copy">Application-only information and reasons for leaving are never available to the renderer.</p>
 
             <fieldset className="resume-selection-group">
               <legend>Experience</legend>
@@ -332,7 +327,6 @@ export default function ResumeBuilder() {
           <div className="resume-preview-header">
             <div>
               <h3 id="preview-title" className="section-title">Live PDF Preview</h3>
-              <p className="section-copy">The preview and PDF download use the same client-side document component.</p>
             </div>
             <span className="status-pill">{pageCount ? `${pageCount} page${pageCount === 1 ? '' : 's'}` : 'Rendering'}</span>
           </div>
