@@ -117,11 +117,11 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
     setIsRunning(true);
     reportProgress({
       elapsedSeconds: 0,
-      message: 'Sending the prepared resume to Private AI…',
+      message: 'Reading your resume…',
       progress: 4,
       stage: 'uploading',
     });
-    setStatus('Sending the prepared resume to Private AI…');
+    setStatus('Reading your resume…');
     try {
       const result = await importResumeWithPrivateAi(
         file,
@@ -168,7 +168,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
     }
     setIsExtracting(true);
     reportProgress({ elapsedSeconds: 0, message: `Opening ${file.name}…`, progress: 1, stage: 'opening' });
-    setStatus(`Reading ${file.name} locally…`);
+    setStatus(`Reading ${file.name}…`);
     try {
       const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
       let text = '';
@@ -181,7 +181,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
       }
       reportProgress({ elapsedSeconds: 0, message: 'Preparing the resume pages…', progress: 3, stage: 'rendering' });
       const renderedPages = await renderResumePageImages(file, text);
-      if (!renderedPages.length) throw new Error('This resume did not contain a page Private AI could read.');
+      if (!renderedPages.length) throw new Error('This resume did not contain a readable page.');
       const extractedContact = extractResumeContact(text);
       const safeText = createModelSafeResumeImportText(text, extractedContact);
       setIsExtracting(false);
@@ -222,10 +222,6 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
         </div>
       </header>
 
-      <div className="local-ai-privacy-note">
-        Private AI reads columns, formatting, and scanned text. Review the results before adding them to your profile.
-      </div>
-
       <div className="profile-resume-import-picker">
         <label className="form-label" htmlFor="profile-resume-file">Existing Resume</label>
         <div className="profile-resume-file-control">
@@ -246,7 +242,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
           </label>
           <span className={`profile-resume-file-display${fileName ? ' has-file' : ''}`}>{fileName || 'No resume selected'}</span>
         </div>
-        <p className="field-hint">PDF, Word (.docx), or text file, up to 10 MB. Scanned and multi-column resumes are supported through local vision/OCR.</p>
+        <p className="field-hint">PDF, Word (.docx), or text file, up to 10 MB.</p>
       </div>
 
       {progress && (isExtracting || isRunning) ? (
