@@ -1,4 +1,8 @@
-# ApplyFill
+<div align="center">
+  <img src="frontend/public/favicon.svg" alt="ApplyFill logo" width="112" height="112" />
+  <h1>ApplyFill</h1>
+  <p><strong>Enter job-application information once. Reuse it across applications and targeted resumes.</strong></p>
+</div>
 
 <p align="center">
   <img src="https://img.shields.io/badge/.NET-10-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 10" />
@@ -174,6 +178,20 @@ These are real product captures from the current ApplyFill interface. Gallery im
 | Resume workspace |
 | --- | --- |
 | ![ApplyFill resume workspace](frontend/public/readme/gallery/resumes.png) |
+
+### Job Profile Builder
+
+| Personal information | Education |
+| --- | --- |
+| ![ApplyFill personal information form](frontend/public/readme/profile-builder/personal-information.png) | ![ApplyFill education form](frontend/public/readme/profile-builder/education-form.png) |
+
+| Work experience | Projects |
+| --- | --- |
+| ![ApplyFill work experience form](frontend/public/readme/profile-builder/work-experience-form.png) | ![ApplyFill project form](frontend/public/readme/profile-builder/project-form.png) |
+
+| Skills | Application questions |
+| --- | --- |
+| ![ApplyFill skills autocomplete](frontend/public/readme/profile-builder/skills-autocomplete.png) | ![ApplyFill application questions](frontend/public/readme/profile-builder/application-questions.png) |
 
 ## Repository layout
 
