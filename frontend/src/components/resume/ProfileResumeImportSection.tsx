@@ -48,9 +48,25 @@ const createSelection = (proposal: ProfileImportProposal): ProfileImportSelectio
 };
 
 const formatElapsed = (seconds: number) => {
+  seconds = Math.floor(seconds);
   if (seconds < 60) return `${seconds}s`;
   const minutes = Math.floor(seconds / 60);
   return `${minutes}m ${String(seconds % 60).padStart(2, '0')}s`;
+};
+
+const progressCeilings: Record<string, number> = {
+  opening: 2,
+  rendering: 3.9,
+  uploading: 4.9,
+  preparing: 14.9,
+  reading: 39.9,
+  organizing: 47.9,
+  education: 59.9,
+  experience: 73.9,
+  projects: 85.9,
+  skills: 95.9,
+  finishing: 99.9,
+  complete: 100,
 };
 
 export default function ProfileResumeImportSection({ onBusyChange, onSelectionChange }: ProfileResumeImportSectionProps) {
@@ -61,7 +77,10 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
   const [progress, setProgress] = useState<ResumeImportProgress | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const [displayClock, setDisplayClock] = useState(Date.now());
   const controllerRef = useRef<AbortController | null>(null);
+  const startedAtRef = useRef(Date.now());
+  const progressReceivedAtRef = useRef(Date.now());
 
   useEffect(() => () => controllerRef.current?.abort(), []);
   useEffect(() => {
@@ -71,6 +90,16 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
     onBusyChange(isExtracting || isRunning);
   }, [isExtracting, isRunning, onBusyChange]);
   useEffect(() => () => onBusyChange(false), [onBusyChange]);
+  useEffect(() => {
+    if (!isExtracting && !isRunning) return;
+    const timer = window.setInterval(() => setDisplayClock(Date.now()), 100);
+    return () => window.clearInterval(timer);
+  }, [isExtracting, isRunning]);
+
+  const reportProgress = (update: ResumeImportProgress) => {
+    progressReceivedAtRef.current = Date.now();
+    setProgress(update);
+  };
 
   const parsePreparedResume = async (
     file: File,
@@ -81,7 +110,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
     const controller = new AbortController();
     controllerRef.current = controller;
     setIsRunning(true);
-    setProgress({
+    reportProgress({
       elapsedSeconds: 0,
       message: 'Sending the prepared resume to Private AI…',
       progress: 4,
@@ -95,7 +124,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
         renderedPages,
         controller.signal,
         (update) => {
-          setProgress(update);
+          reportProgress(update);
           setStatus(update.message);
         },
       );
@@ -104,7 +133,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
       const nextProposal = createProfileImportProposal(result.proposal, reviewedContact);
       setProposal(nextProposal);
       setSelection(createSelection(nextProposal));
-      setProgress({ elapsedSeconds: 0, message: 'Ready for review.', progress: 100, stage: 'complete' });
+      reportProgress({ elapsedSeconds: 0, message: 'Ready for review.', progress: 100, stage: 'complete' });
       const count = nextProposal.education.length + nextProposal.experience.length + nextProposal.projects.length + nextProposal.skills.length;
       setStatus(`${count} professional item${count === 1 ? '' : 's'} plus detected contact fields are ready for review. Nothing has been saved yet.`);
     } catch (error) {
@@ -120,6 +149,9 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
 
   const chooseFile = async (file: File | undefined) => {
     controllerRef.current?.abort();
+    startedAtRef.current = Date.now();
+    progressReceivedAtRef.current = startedAtRef.current;
+    setDisplayClock(startedAtRef.current);
     setFileName(file?.name ?? '');
     setProposal(null);
     setSelection(null);
@@ -129,7 +161,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
       return;
     }
     setIsExtracting(true);
-    setProgress({ elapsedSeconds: 0, message: `Opening ${file.name}…`, progress: 1, stage: 'opening' });
+    reportProgress({ elapsedSeconds: 0, message: `Opening ${file.name}…`, progress: 1, stage: 'opening' });
     setStatus(`Reading ${file.name} locally…`);
     try {
       const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
@@ -141,7 +173,7 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
         // A scanned PDF may contain no selectable text. Its rendered pages still go
         // through the local vision/OCR path below.
       }
-      setProgress({ elapsedSeconds: 0, message: 'Preparing the resume pages…', progress: 3, stage: 'rendering' });
+      reportProgress({ elapsedSeconds: 0, message: 'Preparing the resume pages…', progress: 3, stage: 'rendering' });
       const renderedPages = await renderResumePageImages(file, text);
       if (!renderedPages.length) throw new Error('This resume did not contain a page Private AI could read.');
       const extractedContact = extractResumeContact(text);
@@ -157,6 +189,15 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
   };
 
   const selectedCount = selection ? selection.contact.size + selection.education.size + selection.experience.size + selection.projects.size + selection.skills.size : 0;
+  const displayedElapsedSeconds = Math.max(0, (displayClock - startedAtRef.current) / 1000);
+  const reportedProgress = progress?.progress ?? 0;
+  const progressCeiling = progress ? (progressCeilings[progress.stage] ?? reportedProgress) : reportedProgress;
+  const secondsSinceProgress = Math.max(0, (displayClock - progressReceivedAtRef.current) / 1000);
+  const displayedProgress = Math.min(
+    progressCeiling,
+    reportedProgress + (progressCeiling - reportedProgress) * (1 - Math.exp(-secondsSinceProgress / 6)),
+  );
+  const displayedProgressLabel = displayedProgress.toFixed(1);
   const contactRows = proposal ? ([
     { key: 'firstName', label: 'First name', value: proposal.contact.firstName },
     { key: 'middleName', label: 'Middle name', value: proposal.contact.middleName },
@@ -208,16 +249,16 @@ export default function ProfileResumeImportSection({ onBusyChange, onSelectionCh
             aria-label="Resume reading progress"
             aria-valuemax={100}
             aria-valuemin={0}
-            aria-valuenow={progress.progress}
-            aria-valuetext={`${progress.message} ${formatElapsed(progress.elapsedSeconds)} elapsed`}
+            aria-valuenow={displayedProgress}
+            aria-valuetext={`${progress.message} About ${displayedProgressLabel}% complete, ${formatElapsed(displayedElapsedSeconds)} elapsed`}
             className="local-ai-progress"
             role="progressbar"
           >
-            <span style={{ width: `${progress.progress}%` }} />
+            <span style={{ width: `${displayedProgress}%` }} />
           </div>
           <div className="profile-resume-import-progress-copy" role="status" aria-live="polite">
             <strong>{progress.message}</strong>
-            <span>{progress.progress}% · {formatElapsed(progress.elapsedSeconds)} elapsed</span>
+            <span>About {displayedProgressLabel}% · {formatElapsed(displayedElapsedSeconds)} elapsed</span>
           </div>
           {isRunning ? <Button onClick={() => controllerRef.current?.abort()}><StopCircle aria-hidden="true" size={17} /> Cancel</Button> : null}
         </div>
