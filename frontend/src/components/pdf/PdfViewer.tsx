@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -79,6 +80,7 @@ export default function PdfViewer({ className = '', downloadName = 'document.pdf
   const [scale, setScale] = useState(1);
   const [fitWidth, setFitWidth] = useState(true);
   const [showThumbnails, setShowThumbnails] = useState(true);
+  const [thumbnailRailWidth, setThumbnailRailWidth] = useState(160);
   const [pageWidth, setPageWidth] = useState(612);
   const viewportRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -142,6 +144,21 @@ export default function PdfViewer({ className = '', downloadName = 'document.pdf
     setScale(Math.max(0.25, Math.min(3, next)));
   };
 
+  const startThumbnailResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = thumbnailRailWidth;
+    const updateWidth = (pointerEvent: PointerEvent) => {
+      setThumbnailRailWidth(Math.max(140, Math.min(360, startWidth + pointerEvent.clientX - startX)));
+    };
+    const finishResize = () => {
+      window.removeEventListener('pointermove', updateWidth);
+      window.removeEventListener('pointerup', finishResize);
+    };
+    window.addEventListener('pointermove', updateWidth);
+    window.addEventListener('pointerup', finishResize, { once: true });
+  };
+
   const download = () => {
     if (!file) return;
     const url = typeof file === 'string' ? file : URL.createObjectURL(file);
@@ -176,14 +193,31 @@ export default function PdfViewer({ className = '', downloadName = 'document.pdf
       </div>
       <div className="pdf-viewer-body">
         {showThumbnails && document ? (
-          <aside className="pdf-thumbnail-rail" aria-label="PDF pages">
-            {Array.from({ length: document.numPages }, (_, index) => index + 1).map((number) => (
-              <button className={number === pageNumber ? 'is-active' : ''} key={number} onClick={() => setPageNumber(number)} type="button">
-                <PageCanvas document={document} pageNumber={number} scale={0.18} thumbnail />
-                <span>{number}</span>
-              </button>
-            ))}
-          </aside>
+          <>
+            <aside className="pdf-thumbnail-rail" aria-label="PDF pages" style={{ width: thumbnailRailWidth }}>
+              {Array.from({ length: document.numPages }, (_, index) => index + 1).map((number) => (
+                <button className={number === pageNumber ? 'is-active' : ''} key={number} onClick={() => setPageNumber(number)} type="button">
+                  <PageCanvas document={document} pageNumber={number} scale={0.18} thumbnail />
+                  <span>{number}</span>
+                </button>
+              ))}
+            </aside>
+            <div
+              aria-label="Resize page thumbnails"
+              aria-orientation="vertical"
+              aria-valuemax={360}
+              aria-valuemin={140}
+              aria-valuenow={thumbnailRailWidth}
+              className="pdf-thumbnail-resizer"
+              onKeyDown={(event) => {
+                if (event.key === 'ArrowLeft') setThumbnailRailWidth((width) => Math.max(140, width - 10));
+                if (event.key === 'ArrowRight') setThumbnailRailWidth((width) => Math.min(360, width + 10));
+              }}
+              onPointerDown={startThumbnailResize}
+              role="separator"
+              tabIndex={0}
+            />
+          </>
         ) : null}
         <div className="pdf-page-viewport" ref={viewportRef}>
           {error ? <p className="field-error" role="alert">{error}</p> : null}
