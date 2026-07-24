@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { KeyRound, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import Button from '../ui/Button';
+import Select from '../ui/AppSelect';
 import FormModal from '../ui/FormModal';
-import { loadCompanies } from '../../features/companies/companies';
 import {
   createCredential,
   deleteCredential,
@@ -16,13 +16,25 @@ import type { CompanyCredential, VaultStatus } from '../../features/companies/cr
 type CompanyCredentialsProps = {
   companyId: string;
   companyName: string;
+  inputId: string;
   onSelect: (credentialId: string) => void;
   selectedCredentialId: string;
 };
 
-const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+type CredentialOption = {
+  label: string;
+  value: string;
+};
 
-export default function CompanyCredentials({ companyId, companyName, onSelect, selectedCredentialId }: CompanyCredentialsProps) {
+const MANAGE_CREDENTIALS_VALUE = '__manage_credentials__';
+
+export default function CompanyCredentials({
+  companyId,
+  companyName,
+  inputId,
+  onSelect,
+  selectedCredentialId,
+}: CompanyCredentialsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState<VaultStatus>({ isConfigured: false, isUnlocked: false });
   const [credentials, setCredentials] = useState<CompanyCredential[]>([]);
@@ -34,17 +46,41 @@ export default function CompanyCredentials({ companyId, companyName, onSelect, s
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!isOpen) return;
-    setError('');
-    void Promise.all([loadCompanies(), loadVaultStatus()])
-      .then(([companies, vaultStatus]) => {
-        const company = companies.find((item) => item.id === companyId || normalize(item.name) === normalize(companyName));
-        setStatus(vaultStatus);
-        return company ? loadCredentials(company.id) : [];
-      })
+    if (!companyId) {
+      setCredentials([]);
+      return;
+    }
+
+    void loadCredentials(companyId)
       .then(setCredentials)
       .catch((reason) => setError(reason instanceof Error ? reason.message : 'Sign-ins could not be loaded.'));
+  }, [companyId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setError('');
+    void Promise.all([
+      loadVaultStatus(),
+      companyId ? loadCredentials(companyId) : Promise.resolve([]),
+    ])
+      .then(([vaultStatus, loadedCredentials]) => {
+        setStatus(vaultStatus);
+        setCredentials(loadedCredentials);
+      })
+      .catch((reason) => setError(reason instanceof Error ? reason.message : 'Sign-ins could not be loaded.'));
   }, [companyId, companyName, isOpen]);
+
+  const options = useMemo<CredentialOption[]>(
+    () => [
+      ...credentials.map((credential) => ({
+        label: `${credential.label} — ${credential.username}`,
+        value: credential.id,
+      })),
+      { label: 'Manage sign-ins…', value: MANAGE_CREDENTIALS_VALUE },
+    ],
+    [credentials],
+  );
+  const selectedOption = options.find((option) => option.value === selectedCredentialId) ?? null;
 
   const dirtyKey = useMemo(
     () => JSON.stringify({ label, username, password, loginUrl }),
@@ -84,9 +120,22 @@ export default function CompanyCredentials({ companyId, companyName, onSelect, s
 
   return (
     <>
-      <Button disabled={!companyId} onClick={() => setIsOpen(true)}>
-        <KeyRound aria-hidden="true" size={17} /> Manage Sign-ins
-      </Button>
+      <Select<CredentialOption>
+        inputId={inputId}
+        isClearable
+        isDisabled={!companyId}
+        isSearchable={false}
+        onChange={(option) => {
+          if (option?.value === MANAGE_CREDENTIALS_VALUE) {
+            setIsOpen(true);
+            return;
+          }
+          onSelect(option?.value ?? '');
+        }}
+        options={options}
+        placeholder="Select a sign-in"
+        value={selectedOption}
+      />
       <FormModal
         closeLabel="Close company sign-ins"
         dirtyKey={dirtyKey}

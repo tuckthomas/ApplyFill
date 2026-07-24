@@ -55,7 +55,7 @@ Prefer these components rather than rebuilding their behavior:
 - `AddButton.tsx`: standardized add action.
 - `AppSelect.tsx`: shared dropdown with portaled, position-aware menu.
 - `CompanySelect.tsx`: searchable create-or-select company control backed by normalized company resources.
-- `CompanyCredentials.tsx`: company-specific ATS sign-in management and application credential selection.
+- `CompanyCredentials.tsx`: renders the company sign-in selector beside Job Posting URL and opens company-specific ATS sign-in management from the selector.
 - `AutofillSelect.tsx`: searchable address/autofill dropdown.
 - `AddressFlow.tsx`: country-first, country-aware full or locality address fields.
 - `Checkbox.tsx`: accessible custom checkbox.

@@ -96,10 +96,6 @@ export default function JobApplicationForm({
             <DatePicker id={`${idPrefix}-applied-date`} ariaLabel="Application date" precision="Exact" value={value.appliedDate} onChange={(nextValue) => onChange('appliedDate', nextValue)} />
           </div>
           <div className="form-group">
-            <label className="form-label" htmlFor={`${idPrefix}-job-url`}>Job posting URL</label>
-            <input id={`${idPrefix}-job-url`} className="form-input" type="url" placeholder="https://..." value={value.targetJobUrl} onChange={(event) => onChange('targetJobUrl', event.target.value)} />
-          </div>
-          <div className="form-group">
             <label className="form-label" htmlFor={`${idPrefix}-company`}>Company *</label>
             <CompanySelect
               inputId={`${idPrefix}-company`}
@@ -109,21 +105,27 @@ export default function JobApplicationForm({
               }}
               value={value.companyName}
             />
-            <div className="form-field-action">
-              <CompanyCredentials
-                companyId={value.companyId}
-                companyName={value.companyName}
-                onSelect={(credentialId) => onChange('credentialId', credentialId)}
-                selectedCredentialId={value.credentialId}
-              />
-            </div>
           </div>
           <div className="form-group">
-            <label className="form-label" htmlFor={`${idPrefix}-job-title`}>Job title *</label>
+            <label className="form-label" htmlFor={`${idPrefix}-job-url`}>Job Posting URL</label>
+            <input id={`${idPrefix}-job-url`} className="form-input" type="url" placeholder="https://..." value={value.targetJobUrl} onChange={(event) => onChange('targetJobUrl', event.target.value)} />
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor={`${idPrefix}-credential`}>Sign-in</label>
+            <CompanyCredentials
+              companyId={value.companyId}
+              companyName={value.companyName}
+              inputId={`${idPrefix}-credential`}
+              onSelect={(credentialId) => onChange('credentialId', credentialId)}
+              selectedCredentialId={value.credentialId}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor={`${idPrefix}-job-title`}>Job Title *</label>
             <input id={`${idPrefix}-job-title`} className="form-input" type="text" value={value.jobTitle} onChange={(event) => onChange('jobTitle', event.target.value)} required />
           </div>
           <div className="form-group">
-            <label className="form-label" htmlFor={`${idPrefix}-workplace-type`}>Workplace type</label>
+            <label className="form-label" htmlFor={`${idPrefix}-workplace-type`}>Workplace Type</label>
             <Select<WorkplaceTypeOption>
               inputId={`${idPrefix}-workplace-type`}
               isSearchable={false}
