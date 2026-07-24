@@ -23,7 +23,6 @@ type PdfViewerProps = {
   className?: string;
   downloadName?: string;
   file: Blob | string | null;
-  title?: string;
 };
 
 type PageCanvasProps = {
@@ -73,7 +72,7 @@ function PageCanvas({ document, onRendered, pageNumber, scale, thumbnail = false
   return <canvas aria-label={`Page ${pageNumber}`} className={thumbnail ? 'pdf-thumbnail-canvas' : 'pdf-page-canvas'} ref={canvasRef} />;
 }
 
-export default function PdfViewer({ className = '', downloadName = 'document.pdf', file, title = 'PDF preview' }: PdfViewerProps) {
+export default function PdfViewer({ className = '', downloadName = 'document.pdf', file }: PdfViewerProps) {
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState('');
   const [pageNumber, setPageNumber] = useState(1);
@@ -175,7 +174,6 @@ export default function PdfViewer({ className = '', downloadName = 'document.pdf
         <button className="icon-button" onClick={() => setShowThumbnails((value) => !value)} type="button" aria-label={showThumbnails ? 'Hide page thumbnails' : 'Show page thumbnails'}>
           {showThumbnails ? <PanelLeftClose aria-hidden="true" size={19} /> : <PanelLeftOpen aria-hidden="true" size={19} />}
         </button>
-        <span className="pdf-viewer-title">{title}</span>
         <div className="pdf-viewer-page-controls">
           <button className="icon-button" disabled={pageNumber <= 1} onClick={() => setPageNumber((value) => value - 1)} type="button" aria-label="Previous page"><ChevronLeft aria-hidden="true" size={19} /></button>
           <label><span className="visually-hidden">Page</span><input aria-label="Page number" max={document?.numPages ?? 1} min={1} onChange={(event) => setPageNumber(Math.max(1, Math.min(document?.numPages ?? 1, Number(event.target.value) || 1)))} type="number" value={pageNumber} /></label>

@@ -337,7 +337,6 @@ export default function ResumeBuilder() {
               className="resume-pdf-viewer"
               downloadName={resumeFileName(resume.title, 'pdf')}
               file={pdfInstance.blob}
-              title={resume.title || 'Resume preview'}
             />
           )}
         </section>

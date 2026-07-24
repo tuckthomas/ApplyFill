@@ -401,7 +401,7 @@ export default function ProfileResumeImportSection({ existingProfile, hasExistin
         title={sourceResume?.fileName ?? 'Saved Resume'}
       >
         {sourceResume?.mediaType === 'application/pdf'
-          ? <PdfViewer downloadName={sourceResume.fileName} file={previewBlob} title={sourceResume.fileName} />
+          ? <PdfViewer downloadName={sourceResume.fileName} file={previewBlob} />
           : <pre className="source-resume-text-preview">{previewText}</pre>}
       </FormModal>
 

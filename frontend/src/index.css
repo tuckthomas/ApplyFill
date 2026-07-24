@@ -2253,16 +2253,6 @@ textarea.form-input {
   padding: 8px 10px;
 }
 
-.pdf-viewer-title {
-  color: var(--text-main);
-  flex: 1 1 140px;
-  font-weight: 700;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .pdf-viewer-page-controls,
 .pdf-viewer-zoom-controls {
   align-items: center;
