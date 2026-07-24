@@ -235,7 +235,7 @@ export default function ApplicationQuestionsSection({ data, onChange }: Applicat
               />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label" htmlFor="authorized-to-work">Are you currently authorized to work in this country? (Optional)</label>
+              <label className="form-label" htmlFor="authorized-to-work">Are You Currently Authorized to Work in This Country? (Optional)</label>
               <Select
                 inputId="authorized-to-work"
                 isClearable
@@ -247,7 +247,7 @@ export default function ApplicationQuestionsSection({ data, onChange }: Applicat
               />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label" htmlFor="requires-sponsorship">Will you now or in the future require employer sponsorship to work in this country? (Optional)</label>
+              <label className="form-label" htmlFor="requires-sponsorship">Will You Now or in the Future Require Employer Sponsorship to Work in This Country? (Optional)</label>
               <Select
                 inputId="requires-sponsorship"
                 isClearable
@@ -311,7 +311,7 @@ export default function ApplicationQuestionsSection({ data, onChange }: Applicat
 
       <div className="application-questions-grid">
         <div className="form-group">
-          <label className="form-label" htmlFor="application-race-ethnicity">Race or ethnicity (Optional)</label>
+          <label className="form-label" htmlFor="application-race-ethnicity">Race or Ethnicity (Optional)</label>
           <Select
             inputId="application-race-ethnicity"
             options={RACE_ETHNICITY_OPTIONS}
@@ -324,7 +324,7 @@ export default function ApplicationQuestionsSection({ data, onChange }: Applicat
         </div>
 
         <div className="form-group">
-          <label className="form-label" htmlFor="application-veteran-status">Veteran status (Optional)</label>
+          <label className="form-label" htmlFor="application-veteran-status">Veteran Status (Optional)</label>
           <Select
             inputId="application-veteran-status"
             options={VETERAN_STATUS_OPTIONS}
@@ -337,7 +337,7 @@ export default function ApplicationQuestionsSection({ data, onChange }: Applicat
         </div>
 
         <div className="form-group application-question-full-width">
-          <label className="form-label" htmlFor="application-disability-status">Disability status (Optional)</label>
+          <label className="form-label" htmlFor="application-disability-status">Disability Status (Optional)</label>
           <Select
             inputId="application-disability-status"
             options={DISABILITY_STATUS_OPTIONS}

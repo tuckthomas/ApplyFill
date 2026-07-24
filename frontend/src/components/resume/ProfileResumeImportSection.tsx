@@ -290,12 +290,12 @@ export default function ProfileResumeImportSection({ existingProfile, hasExistin
   );
   const displayedProgressLabel = displayedProgress.toFixed(1);
   const contactRows = proposal ? ([
-    { key: 'firstName', label: 'First name', value: proposal.contact.firstName },
-    { key: 'middleName', label: 'Middle name or initial', value: proposal.contact.middleName },
-    { key: 'lastName', label: 'Last name', value: proposal.contact.lastName },
+    { key: 'firstName', label: 'First Name', value: proposal.contact.firstName },
+    { key: 'middleName', label: 'Middle Name or Initial', value: proposal.contact.middleName },
+    { key: 'lastName', label: 'Last Name', value: proposal.contact.lastName },
     { key: 'email', label: 'Email', value: proposal.contact.email },
     { key: 'phone', label: 'Phone', value: proposal.contact.phone },
-    { key: 'webLinks', label: 'Profile links', value: proposal.contact.webLinks.map((link) => link.url).join(', ') }
+    { key: 'webLinks', label: 'Profile Links', value: proposal.contact.webLinks.map((link) => link.url).join(', ') }
   ] satisfies Array<{ key: ContactKey; label: string; value: string }>).filter((row) => row.value) : [];
   const currentContactValue = (key: ContactKey) => key === 'webLinks'
     ? existingProfile.webLinks.map((link) => link.url).join(', ')
@@ -385,7 +385,7 @@ export default function ProfileResumeImportSection({ existingProfile, hasExistin
             </div>
           ) : null}
 
-          {proposal.experience.length ? <div className="profile-import-group"><h5>Work experience</h5>{proposal.experience.map((item) => <Checkbox checked={selection.experience.has(item.id)} key={item.id} label={`${item.jobTitle || 'Role not identified'} — ${item.company || 'Company not identified'}${item.startDate ? ` (${item.startDate}–${item.isCurrentJob ? 'Present' : item.endDate || 'unknown'})` : ''}`} onChange={(event) => setSelection((current) => current ? { ...current, experience: toggleSet(current.experience, item.id, event.target.checked) } : current)} />)}</div> : null}
+          {proposal.experience.length ? <div className="profile-import-group"><h5>Work Experience</h5>{proposal.experience.map((item) => <Checkbox checked={selection.experience.has(item.id)} key={item.id} label={`${item.jobTitle || 'Role not identified'} — ${item.company || 'Company not identified'}${item.startDate ? ` (${item.startDate}–${item.isCurrentJob ? 'Present' : item.endDate || 'unknown'})` : ''}`} onChange={(event) => setSelection((current) => current ? { ...current, experience: toggleSet(current.experience, item.id, event.target.checked) } : current)} />)}</div> : null}
           {proposal.education.length ? <div className="profile-import-group"><h5>Education</h5>{proposal.education.map((item) => <Checkbox checked={selection.education.has(item.id)} key={item.id} label={`${item.level?.label ?? 'Education'} — ${item.provider}${item.fieldOfStudy ? `, ${item.fieldOfStudy}` : ''}`} onChange={(event) => setSelection((current) => current ? { ...current, education: toggleSet(current.education, item.id, event.target.checked) } : current)} />)}</div> : null}
           {proposal.credentials.length ? <div className="profile-import-group"><h5>Certifications &amp; Licenses</h5>{proposal.credentials.map((item) => <Checkbox checked={selection.credentials.has(item.id)} key={item.id} label={`${item.name} — ${item.issuer || item.type}`} onChange={(event) => setSelection((current) => current ? { ...current, credentials: toggleSet(current.credentials, item.id, event.target.checked) } : current)} />)}</div> : null}
           {proposal.projects.length ? <div className="profile-import-group"><h5>Projects</h5>{proposal.projects.map((item) => <Checkbox checked={selection.projects.has(item.id)} key={item.id} label={`${item.name}${item.role ? ` — ${item.role}` : ''}`} onChange={(event) => setSelection((current) => current ? { ...current, projects: toggleSet(current.projects, item.id, event.target.checked) } : current)} />)}</div> : null}

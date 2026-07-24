@@ -53,10 +53,14 @@ describe('JobApplicationForm', () => {
     expect(agentTab?.closest('.tabbed-form__disabled-tooltip')?.getAttribute('data-tooltip'))
       .toBe('Save the application before using Agentic AI.');
     expect(container.textContent).not.toContain('Agent workspace');
+    expect(container.querySelector('label[for$="-applied-date"]')?.textContent).toBe('Application Date');
     expect(container.querySelector('label[for$="-job-url"]')?.textContent).toBe('Job Posting URL');
     expect(container.querySelector('label[for$="-credential"]')?.textContent).toBe('Sign-in');
     expect(container.querySelector('label[for$="-job-title"]')?.textContent).toBe('Job Title *');
     expect(container.querySelector('label[for$="-workplace-type"]')?.textContent).toBe('Workplace Type');
     expect([...container.querySelectorAll('button')].some((button) => button.textContent?.includes('Manage Sign-ins'))).toBe(false);
+    const requiredFieldsNote = container.querySelector('.tracker-form-grid > .section-copy');
+    expect(requiredFieldsNote?.textContent).toBe('* Required fields are marked with an asterisk.');
+    expect(requiredFieldsNote?.querySelector('em')).not.toBeNull();
   });
 });

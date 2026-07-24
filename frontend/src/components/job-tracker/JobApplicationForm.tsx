@@ -76,7 +76,6 @@ export default function JobApplicationForm({
           <>
             {error && <p className="form-error-message" role="alert">{error}</p>}
             <div className="toolbar-row tracker-form-actions">
-              <span className="section-copy">Required fields are marked with an asterisk.</span>
               <div className="modal-form-actions">
                 <button className="btn btn-secondary" type="button" onClick={onCancel}>Cancel</button>
                 <button className="btn btn-primary" form={`${idPrefix}-application-form`} type="submit">{mode === 'add' ? 'Save Application' : 'Save Changes'}</button>
@@ -91,9 +90,10 @@ export default function JobApplicationForm({
           <form id={`${idPrefix}-application-form`} noValidate onSubmit={onSubmit}>
           {selectedTab === 'details' ? (
           <div id={panelId} role="tabpanel" aria-labelledby={tabId} className="tracker-form-grid">
+          <p className="section-copy tracker-form-full-width"><em>* Required fields are marked with an asterisk.</em></p>
           <div className="form-group">
-            <label className="form-label" htmlFor={`${idPrefix}-applied-date`}>Application date</label>
-            <DatePicker id={`${idPrefix}-applied-date`} ariaLabel="Application date" precision="Exact" value={value.appliedDate} onChange={(nextValue) => onChange('appliedDate', nextValue)} />
+            <label className="form-label" htmlFor={`${idPrefix}-applied-date`}>Application Date</label>
+            <DatePicker id={`${idPrefix}-applied-date`} ariaLabel="Application Date" precision="Exact" value={value.appliedDate} onChange={(nextValue) => onChange('appliedDate', nextValue)} />
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor={`${idPrefix}-company`}>Company *</label>

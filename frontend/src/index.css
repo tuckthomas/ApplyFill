@@ -2642,6 +2642,10 @@ textarea.form-input {
   margin-top: 4px;
 }
 
+.tracker-form-actions .modal-form-actions {
+  margin-left: auto;
+}
+
 .settings-preferences-panel {
   align-items: end;
   display: grid;
