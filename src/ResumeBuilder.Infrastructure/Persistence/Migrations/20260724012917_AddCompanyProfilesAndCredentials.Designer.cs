@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ResumeBuilder.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using ResumeBuilder.Infrastructure.Persistence;
 namespace ResumeBuilder.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplyFillDbContext))]
-    partial class ApplyFillDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260724012917_AddCompanyProfilesAndCredentials")]
+    partial class AddCompanyProfilesAndCredentials
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -393,39 +396,6 @@ namespace ResumeBuilder.Infrastructure.Persistence.Migrations
                     b.ToTable("companies", (string)null);
                 });
 
-            modelBuilder.Entity("ResumeBuilder.Infrastructure.Persistence.CredentialVaultRecord", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("OwnerId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Salt")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("VerificationCiphertext")
-                        .IsRequired()
-                        .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OwnerId")
-                        .IsUnique();
-
-                    b.ToTable("credential_vaults", (string)null);
-                });
-
             modelBuilder.Entity("ResumeBuilder.Infrastructure.Persistence.JobApplicationRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -436,9 +406,6 @@ namespace ResumeBuilder.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
-
-                    b.Property<Guid?>("CompanyId")
-                        .HasColumnType("uuid");
 
                     b.Property<Guid>("ConcurrencyToken")
                         .IsConcurrencyToken()
@@ -473,10 +440,6 @@ namespace ResumeBuilder.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CompanyId");
-
-                    b.HasIndex("OwnerId", "CompanyId");
 
                     b.HasIndex("OwnerId", "Status", "UpdatedAt");
 
@@ -935,14 +898,6 @@ namespace ResumeBuilder.Infrastructure.Persistence.Migrations
                     b.Navigation("Company");
                 });
 
-            modelBuilder.Entity("ResumeBuilder.Infrastructure.Persistence.JobApplicationRecord", b =>
-                {
-                    b.HasOne("ResumeBuilder.Infrastructure.Persistence.CompanyRecord", null)
-                        .WithMany("JobApplications")
-                        .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
             modelBuilder.Entity("ResumeBuilder.Infrastructure.Persistence.ResumeArtifactRecord", b =>
                 {
                     b.HasOne("ResumeBuilder.Infrastructure.Persistence.ResumeRecord", "Resume")
@@ -988,8 +943,6 @@ namespace ResumeBuilder.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ResumeBuilder.Infrastructure.Persistence.CompanyRecord", b =>
                 {
                     b.Navigation("Credentials");
-
-                    b.Navigation("JobApplications");
                 });
 
             modelBuilder.Entity("ResumeBuilder.Infrastructure.Persistence.ResumeRecord", b =>

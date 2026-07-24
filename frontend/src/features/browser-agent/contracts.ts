@@ -86,6 +86,7 @@ export type BrowserRunSummary = Pick<BrowserRunSnapshot,
 
 export type StartBrowserRunRequest = {
   companyName?: string;
+  credentialId?: string;
   jobApplicationId?: string;
   jobTitle?: string;
   profileId: string;

@@ -162,6 +162,7 @@ public sealed class RepositoryOwnershipAndPaginationTests(PostgreSqlFixture fixt
         DateTimeOffset now) => new(
             Guid.CreateVersion7(),
             ownerId,
+            null,
             "Example Company",
             "Example Role",
             new Uri("https://jobs.example.test/apply"),

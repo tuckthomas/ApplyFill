@@ -124,14 +124,15 @@ public sealed class SensitiveApprovalOrchestrationTests
     }
 
     [Theory]
-    [InlineData(PageKind.Login, "Password", "password")]
-    [InlineData(PageKind.Mfa, "Verification code", "text")]
-    [InlineData(PageKind.Captcha, "Human verification", "checkbox")]
-    [InlineData(PageKind.ApplicationStep, "I certify this application is accurate", "checkbox")]
+    [InlineData(PageKind.Login, "Password", "password", 1)]
+    [InlineData(PageKind.Mfa, "Verification code", "text", 0)]
+    [InlineData(PageKind.Captcha, "Human verification", "checkbox", 0)]
+    [InlineData(PageKind.ApplicationStep, "I certify this application is accurate", "checkbox", 0)]
     public async Task CredentialCaptchaAndLegalGatesRemainImmediateHandoffs(
         PageKind kind,
         string label,
-        string type)
+        string type,
+        int answerLookups)
     {
         var answers = new StubAnswerSource(new RelevantAnswerLookup([]));
         var runtime = new SensitiveRuntime(kind, label, type);
@@ -147,7 +148,7 @@ public sealed class SensitiveApprovalOrchestrationTests
             TestContext.Current.CancellationToken);
 
         Assert.Equal("user-input-required", result.Code);
-        Assert.Equal(0, answers.CallCount);
+        Assert.Equal(answerLookups, answers.CallCount);
     }
 
     private static ApplicationRunOrchestrator CreateOrchestrator(

@@ -46,6 +46,7 @@ public sealed partial class BrowserAgentRunService : IAsyncDisposable
     private readonly ISensitiveAnswerApprovalCoordinator _sensitiveApprovals;
     private readonly IApprovedArtifactStore _artifacts;
     private readonly IUserAnswerInbox _answers;
+    private readonly IRunCredentialSource _credentials;
     private readonly SessionAccessRegistry _access;
     private readonly ControlLeaseManager _leases;
     private readonly LatestFrameStore _frames;
@@ -62,6 +63,7 @@ public sealed partial class BrowserAgentRunService : IAsyncDisposable
         ISensitiveAnswerApprovalCoordinator sensitiveApprovals,
         IApprovedArtifactStore artifacts,
         IUserAnswerInbox answers,
+        IRunCredentialSource credentials,
         SessionAccessRegistry access,
         ControlLeaseManager leases,
         LatestFrameStore frames,
@@ -77,6 +79,7 @@ public sealed partial class BrowserAgentRunService : IAsyncDisposable
         _sensitiveApprovals = sensitiveApprovals;
         _artifacts = artifacts;
         _answers = answers;
+        _credentials = credentials;
         _access = access;
         _leases = leases;
         _frames = frames;
@@ -99,6 +102,8 @@ public sealed partial class BrowserAgentRunService : IAsyncDisposable
         if (!graph.Contains(target)) throw new InvalidOperationException("That address cannot be opened in the private browser.");
 
         var runId = Guid.CreateVersion7();
+        if (request.CredentialId is { } credentialId)
+            await _credentials.PrepareAsync(runId, credentialId, cancellationToken);
         var persisted = await _durableRuns.StartOrGetAsync(
             new WorkerRunStart(runId, request.ProfileId, request.ResumeId, request.JobApplicationId, target),
             cancellationToken);

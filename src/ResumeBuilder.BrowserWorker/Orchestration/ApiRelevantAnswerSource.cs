@@ -19,11 +19,27 @@ public sealed class ApplyFillApiOptions
 
 public sealed class ApiRelevantAnswerSource(
     HttpClient httpClient,
-    IOptions<ApplyFillApiOptions> options) : IRelevantAnswerSource, ISensitiveAnswerApprovalCoordinator
+    IOptions<ApplyFillApiOptions> options) : IRelevantAnswerSource, ISensitiveAnswerApprovalCoordinator, IRunCredentialSource
 {
     private readonly ApplyFillApiOptions _options = ValidateOptions(options.Value);
     private readonly ConcurrentDictionary<(Guid RunId, string ControlId), SensitiveAnswerApprovalPrompt> _pending = new();
     private readonly ConcurrentDictionary<(Guid RunId, string ControlId), OneUseAnswer> _approved = new();
+    private readonly ConcurrentDictionary<Guid, RunCredential> _credentials = new();
+
+    public async Task PrepareAsync(Guid runId, Guid credentialId, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"internal/v1/company-credentials/{credentialId:D}");
+        request.Headers.Add("X-ApplyFill-Worker-Token", _options.WorkerToken);
+        using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (response.StatusCode == (HttpStatusCode)423)
+            throw new InvalidOperationException("Unlock the selected company sign-in before starting this application.");
+        response.EnsureSuccessStatusCode();
+        var credential = await response.Content.ReadFromJsonAsync<InternalCredentialResponse>(cancellationToken)
+            ?? throw new InvalidOperationException("The selected sign-in could not be loaded.");
+        _credentials[runId] = new RunCredential(credential.Username, credential.Password);
+    }
 
     public async Task<RelevantAnswerLookup> GetForVisibleControlsAsync(
         Guid runId,
@@ -57,6 +73,25 @@ public sealed class ApiRelevantAnswerSource(
             StringComparer.Ordinal);
         var visibleByControl = controls.ToDictionary(control => control.Handle, StringComparer.Ordinal);
         var answers = ImmutableArray.CreateBuilder<RelevantAnswer>();
+        if (_credentials.TryGetValue(runId, out var credential))
+        {
+            foreach (var control in controls.Where(control =>
+                         control.Required && control.Enabled && string.IsNullOrWhiteSpace(control.CurrentValue)))
+            {
+                var description = $"{control.Label} {control.Type}".ToLowerInvariant();
+                if (control.Type?.Equals("password", StringComparison.OrdinalIgnoreCase) == true ||
+                    description.Contains("password", StringComparison.Ordinal))
+                {
+                    answers.Add(new RelevantAnswer(control.Label ?? "Password", credential.Password, true, true));
+                }
+                else if (description.Contains("username", StringComparison.Ordinal) ||
+                         description.Contains("email", StringComparison.Ordinal) ||
+                         description.Contains("user id", StringComparison.Ordinal))
+                {
+                    answers.Add(new RelevantAnswer(control.Label ?? "Username", credential.Username, true, true));
+                }
+            }
+        }
 
         // Approved plaintext is held only until a verified action completes for this
         // exact control. It is never included in an API request, checkpoint, prompt, or log.
@@ -209,6 +244,7 @@ public sealed class ApiRelevantAnswerSource(
 
     public void ClearRun(Guid runId)
     {
+        _credentials.TryRemove(runId, out _);
         foreach (var key in _pending.Keys.Where(key => key.RunId == runId))
         {
             _pending.TryRemove(key, out _);
@@ -323,6 +359,8 @@ public sealed class ApiRelevantAnswerSource(
     }
 
     private sealed record OneUseAnswer(string Field, string Value);
+    private sealed record RunCredential(string Username, string Password);
+    private sealed record InternalCredentialResponse(Guid Id, string Username, string Password);
     private sealed record RelevantAnswersRequest(Guid ProfileId, IReadOnlyList<VisibleControlRequest> Controls);
     private sealed record VisibleControlRequest(
         string ControlId,

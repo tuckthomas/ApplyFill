@@ -58,6 +58,11 @@ public interface IRelevantAnswerSource
         CancellationToken cancellationToken);
 }
 
+public interface IRunCredentialSource
+{
+    Task PrepareAsync(Guid runId, Guid credentialId, CancellationToken cancellationToken);
+}
+
 public interface ISensitiveAnswerApprovalCoordinator
 {
     Task<bool> ConsumeApprovedAsync(

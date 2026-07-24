@@ -42,7 +42,7 @@ import './BrowserAgent.css';
 type BrowserAgentPageProps = {
   client?: BrowserAgentClient;
   embedded?: boolean;
-  initialApplication?: { companyName: string; jobTitle: string; targetJobUrl: string };
+  initialApplication?: { companyName: string; credentialId: string; jobTitle: string; targetJobUrl: string };
   loadStartResources?: () => Promise<BrowserAgentStartResources>;
   onRunChange?: (runId: string | null) => void;
   runIdOverride?: string | null;
@@ -305,6 +305,7 @@ export function BrowserAgentPage({
       const snapshot = await client.startRun({
         targetUrl: startUrl,
         companyName: companyName.trim() || trackedApplication?.companyName || undefined,
+        credentialId: initialApplication?.credentialId || trackedApplication?.credentialId || undefined,
         jobApplicationId: trackedApplication?.id,
         jobTitle: jobTitle.trim() || trackedApplication?.jobTitle || undefined,
         profileId: startResources.profileId,

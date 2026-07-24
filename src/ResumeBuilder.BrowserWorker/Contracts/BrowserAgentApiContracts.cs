@@ -5,6 +5,7 @@ public sealed record StartBrowserRunRequest(
     Guid ProfileId,
     Guid? ResumeId,
     Guid? JobApplicationId,
+    Guid? CredentialId,
     string? CompanyName,
     string? JobTitle);
 public sealed record BrowserRunCommandRequest(string Command, long ExpectedRevision);

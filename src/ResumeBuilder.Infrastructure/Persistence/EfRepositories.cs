@@ -372,6 +372,7 @@ public sealed class EfJobApplicationRepository(ApplyFillDbContext dbContext) : I
             .Select(x => new JobApplication(
                 x.Id,
                 x.OwnerId,
+                x.CompanyId,
                 x.Company,
                 x.JobTitle,
                 new Uri(x.TargetUrl),
@@ -400,6 +401,7 @@ public sealed class EfJobApplicationRepository(ApplyFillDbContext dbContext) : I
         {
             EfProfileRepository.EnsureToken(expectedToken, row.ConcurrencyToken, nameof(JobApplication), application.Id);
             row.Company = application.Company;
+            row.CompanyId = application.CompanyId;
             row.JobTitle = application.JobTitle;
             row.TargetUrl = application.Target.AbsoluteUri;
             row.Status = application.Status;
@@ -429,6 +431,7 @@ public sealed class EfJobApplicationRepository(ApplyFillDbContext dbContext) : I
     private static JobApplication Map(JobApplicationRecord row) => new(
         row.Id,
         row.OwnerId,
+        row.CompanyId,
         row.Company,
         row.JobTitle,
         new Uri(row.TargetUrl),
@@ -442,6 +445,7 @@ public sealed class EfJobApplicationRepository(ApplyFillDbContext dbContext) : I
     {
         Id = application.Id,
         OwnerId = application.OwnerId,
+        CompanyId = application.CompanyId,
         Company = application.Company,
         JobTitle = application.JobTitle,
         TargetUrl = application.Target.AbsoluteUri,

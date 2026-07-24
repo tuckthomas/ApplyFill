@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ResumeBuilder.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using ResumeBuilder.Infrastructure.Persistence;
 namespace ResumeBuilder.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplyFillDbContext))]
-    partial class ApplyFillDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260724013532_LinkApplicationsToCompanies")]
+    partial class LinkApplicationsToCompanies
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

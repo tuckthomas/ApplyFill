@@ -6,6 +6,7 @@ using ResumeBuilder.Application.Common;
 using ResumeBuilder.Application.Persistence;
 using ResumeBuilder.Application.Validation;
 using ResumeBuilder.Domain.JobApplications;
+using ResumeBuilder.Infrastructure.Persistence;
 
 namespace ResumeBuilder.Api.Controllers;
 
@@ -14,7 +15,8 @@ public sealed class JobApplicationsController(
     IJobApplicationRepository applications,
     ICurrentInstallation installation,
     IClock clock,
-    IIdentifierGenerator identifiers) : ApiControllerBase
+    IIdentifierGenerator identifiers,
+    ApplyFillDbContext dbContext) : ApiControllerBase
 {
     [HttpGet]
     public async Task<IReadOnlyList<JobApplicationResponse>> List(
@@ -49,10 +51,13 @@ public sealed class JobApplicationsController(
         CancellationToken cancellationToken)
     {
         var now = clock.UtcNow;
+        var company = await CompaniesController.FindOrCreateAsync(
+            dbContext, installation.Id, request.Company, clock, identifiers, cancellationToken);
         var value = new JobApplication(
             identifiers.NewId(),
             installation.Id,
-            ValidateText(request.Company, nameof(request.Company)),
+            company.Id,
+            company.Name,
             ValidateText(request.JobTitle, nameof(request.JobTitle)),
             ValidateTarget(request.TargetUrl),
             request.Status,
@@ -61,6 +66,7 @@ public sealed class JobApplicationsController(
             now,
             now);
         await applications.SaveAsync(value, null, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
         SetConcurrencyToken(value.ConcurrencyToken);
         return CreatedAtAction(nameof(Get), new { id = value.Id }, ToResponse(value));
     }
@@ -80,14 +86,18 @@ public sealed class JobApplicationsController(
         }
 
         var expected = RequireConcurrencyToken();
+        var company = await CompaniesController.FindOrCreateAsync(
+            dbContext, installation.Id, request.Company, clock, identifiers, cancellationToken);
         value.Update(
-            ValidateText(request.Company, nameof(request.Company)),
+            company.Id,
+            company.Name,
             ValidateText(request.JobTitle, nameof(request.JobTitle)),
             ValidateTarget(request.TargetUrl),
             request.Status,
             StructuredJsonValidator.ValidateAndNormalize(request.Details, 256 * 1024),
             clock.UtcNow);
         await applications.SaveAsync(value, expected, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
         SetConcurrencyToken(value.ConcurrencyToken);
         return ToResponse(value);
     }
@@ -105,6 +115,7 @@ public sealed class JobApplicationsController(
         using var json = JsonDocument.Parse(value.DetailsJson);
         return new JobApplicationResponse(
             value.Id,
+            value.CompanyId,
             value.Company,
             value.JobTitle,
             value.Target.AbsoluteUri,
@@ -144,6 +155,7 @@ public sealed record SaveJobApplicationRequest(
 
 public sealed record JobApplicationResponse(
     Guid Id,
+    Guid? CompanyId,
     string Company,
     string JobTitle,
     string TargetUrl,

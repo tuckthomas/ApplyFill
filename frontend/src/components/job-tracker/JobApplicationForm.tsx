@@ -6,6 +6,8 @@ import RichTextEditor from '../resume/RichTextEditor';
 import DatePicker from '../ui/DatePicker';
 import TabbedForm from '../ui/TabbedForm';
 import AddressFlow from '../ui/AddressFlow';
+import CompanySelect from './CompanySelect';
+import CompanyCredentials from './CompanyCredentials';
 import type { AddressValue } from '../ui/AddressFlow';
 import { selectStyles } from '../../constants/location';
 import {
@@ -99,7 +101,22 @@ export default function JobApplicationForm({
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor={`${idPrefix}-company`}>Company *</label>
-            <input id={`${idPrefix}-company`} className="form-input" type="text" value={value.companyName} onChange={(event) => onChange('companyName', event.target.value)} autoComplete="organization" required />
+            <CompanySelect
+              inputId={`${idPrefix}-company`}
+              onChange={(company) => {
+                onChange('companyId', company?.id ?? '');
+                onChange('companyName', company?.name ?? '');
+              }}
+              value={value.companyName}
+            />
+            <div className="form-field-action">
+              <CompanyCredentials
+                companyId={value.companyId}
+                companyName={value.companyName}
+                onSelect={(credentialId) => onChange('credentialId', credentialId)}
+                selectedCredentialId={value.credentialId}
+              />
+            </div>
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor={`${idPrefix}-job-title`}>Job title *</label>

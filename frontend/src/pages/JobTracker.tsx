@@ -121,8 +121,10 @@ export default function JobTracker() {
       id: 'organization',
       label: 'Organization',
       getValue: (application) => application.companyName,
-      placeholder: 'Filter companies or organizations',
-      type: 'text'
+      options: Array.from(new Set(applications.map((application) => application.companyName).filter(Boolean)))
+        .sort((left, right) => left.localeCompare(right))
+        .map((company) => ({ label: company, value: company })),
+      type: 'options'
     },
     {
       id: 'jobTitle',
@@ -152,7 +154,7 @@ export default function JobTracker() {
       options: STATUS_OPTIONS,
       type: 'options'
     }
-  ], [dateFormat]);
+  ], [applications, dateFormat]);
 
   return (
     <div className="page-stack">

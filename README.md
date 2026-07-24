@@ -16,13 +16,15 @@ ApplyFill is a privacy-focused job-application workspace. It keeps a reusable Jo
 
 ## What is implemented
 
-- A .NET 10 API with profile, resume, job-application, and application-run resources.
+- A .NET 10 API with profile, resume, company, job-application, and application-run resources.
 - PostgreSQL 18 as the authoritative local datastore, including encrypted application-only profile data and optimistic concurrency.
 - A managed Chromium worker built with Microsoft Playwright.
 - A multi-page Browser Agent surface with live frames, reconnecting updates, activity history, questions, pause/resume, take-control, stop, and final-review controls.
 - Provider-neutral local model/runtime manifests under `private-ai/catalog/` so evaluated vision and OCR models can be replaced without changing product workflows or database schemas.
 - Vision/OCR resume import with Merge, Replace, or Cancel review, retained original-file preview, structured validation, and user-controlled contact-value replacement.
 - A shared PDF viewer with thumbnails, page navigation, zoom, fullscreen, and download across resume import and Resume Builder, plus PDF, DOCX, and JSON exports.
+- Normalized company profiles with searchable create-or-select application entry, company filtering, and company-specific ATS sign-ins.
+- A cross-platform credential vault derived from the user's vault password with Argon2id and encrypted with AES-GCM. Selected sign-ins are supplied directly to the managed browser and excluded from model prompts.
 
 ## Privacy boundary
 
@@ -55,7 +57,7 @@ flowchart LR
 | Area | Software | Responsibility |
 | --- | --- | --- |
 | Application API | ASP.NET Core 10 | Local HTTP API, validation, concurrency, health, and persistence boundaries |
-| Data | PostgreSQL 18.4 | Authoritative profiles, resumes, applications, runs, checkpoints, and audit records |
+| Data | PostgreSQL 18.4 | Authoritative profiles, resumes, companies, encrypted credentials, applications, runs, checkpoints, and audit records |
 | Browser automation | Microsoft Playwright 1.61 + managed Chromium | Navigation, observation, user input, uploads, and multi-page continuity |
 | Frontend | React 19, TypeScript 6, Vite 8 | ApplyFill shell, editors, Browser Agent controls, and review surfaces |
 | Private AI | Versioned native runtime/model adapters | Local vision, OCR, planning, resume import, and writing assistance |

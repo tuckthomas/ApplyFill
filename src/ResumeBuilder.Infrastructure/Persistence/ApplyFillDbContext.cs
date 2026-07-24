@@ -9,6 +9,9 @@ public sealed class ApplyFillDbContext(DbContextOptions<ApplyFillDbContext> opti
     public DbSet<ResumeRecord> Resumes => Set<ResumeRecord>();
     public DbSet<ResumeArtifactRecord> ResumeArtifacts => Set<ResumeArtifactRecord>();
     public DbSet<JobApplicationRecord> JobApplications => Set<JobApplicationRecord>();
+    public DbSet<CompanyRecord> Companies => Set<CompanyRecord>();
+    public DbSet<CompanyCredentialRecord> CompanyCredentials => Set<CompanyCredentialRecord>();
+    public DbSet<CredentialVaultRecord> CredentialVaults => Set<CredentialVaultRecord>();
     public DbSet<ApplicationRunRecord> ApplicationRuns => Set<ApplicationRunRecord>();
     public DbSet<RunCheckpointRecord> RunCheckpoints => Set<RunCheckpointRecord>();
     public DbSet<AgentActionRecord> AgentActions => Set<AgentActionRecord>();
@@ -27,6 +30,8 @@ public sealed class ApplyFillDbContext(DbContextOptions<ApplyFillDbContext> opti
         ConfigureProfileSourceResume(modelBuilder);
         ConfigureResume(modelBuilder);
         ConfigureJobApplication(modelBuilder);
+        ConfigureCompany(modelBuilder);
+        ConfigureCredentialVault(modelBuilder);
         ConfigureApplicationRun(modelBuilder);
         ConfigureSupportingRecords(modelBuilder);
         ConfigureSensitiveApprovals(modelBuilder);
@@ -84,12 +89,50 @@ public sealed class ApplyFillDbContext(DbContextOptions<ApplyFillDbContext> opti
         entity.ToTable("job_applications");
         entity.HasKey(x => x.Id);
         entity.HasIndex(x => new { x.OwnerId, x.Status, x.UpdatedAt });
+        entity.HasIndex(x => new { x.OwnerId, x.CompanyId });
         entity.Property(x => x.Company).HasMaxLength(200);
         entity.Property(x => x.JobTitle).HasMaxLength(200);
         entity.Property(x => x.TargetUrl).HasMaxLength(2_048);
         entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
         entity.Property(x => x.DetailsJson).HasColumnType("jsonb");
         entity.Property(x => x.ConcurrencyToken).IsConcurrencyToken();
+    }
+
+    private static void ConfigureCompany(ModelBuilder builder)
+    {
+        var company = builder.Entity<CompanyRecord>();
+        company.ToTable("companies");
+        company.HasKey(x => x.Id);
+        company.HasIndex(x => new { x.OwnerId, x.NormalizedName }).IsUnique();
+        company.Property(x => x.Name).HasMaxLength(200);
+        company.Property(x => x.NormalizedName).HasMaxLength(200);
+        company.HasMany(x => x.JobApplications)
+            .WithOne()
+            .HasForeignKey(x => x.CompanyId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        var credential = builder.Entity<CompanyCredentialRecord>();
+        credential.ToTable("company_credentials");
+        credential.HasKey(x => x.Id);
+        credential.HasIndex(x => new { x.OwnerId, x.CompanyId, x.Label });
+        credential.Property(x => x.Label).HasMaxLength(120);
+        credential.Property(x => x.Username).HasMaxLength(320);
+        credential.Property(x => x.LoginUrl).HasMaxLength(2_048);
+        credential.Property(x => x.ProtectedPassword).HasMaxLength(16_384);
+        credential.HasOne(x => x.Company)
+            .WithMany(x => x.Credentials)
+            .HasForeignKey(x => x.CompanyId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+
+    private static void ConfigureCredentialVault(ModelBuilder builder)
+    {
+        var vault = builder.Entity<CredentialVaultRecord>();
+        vault.ToTable("credential_vaults");
+        vault.HasKey(x => x.Id);
+        vault.HasIndex(x => x.OwnerId).IsUnique();
+        vault.Property(x => x.Salt).HasMaxLength(128);
+        vault.Property(x => x.VerificationCiphertext).HasMaxLength(1_024);
     }
 
     private static void ConfigureApplicationRun(ModelBuilder builder)

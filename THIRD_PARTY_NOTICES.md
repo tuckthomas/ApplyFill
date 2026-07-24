@@ -7,6 +7,7 @@ ApplyFill depends on open-source software. Exact resolved package versions are r
 - .NET / ASP.NET Core 10 — MIT License.
 - Entity Framework Core 10 — MIT License.
 - Npgsql Entity Framework Core provider 10 — PostgreSQL License.
+- Konscious.Security.Cryptography.Argon2 and Blake2 — MIT License.
 - Microsoft Playwright 1.61 and its managed browser distribution — Apache License 2.0 and the browser vendors' applicable notices.
 - PostgreSQL 18.4 — PostgreSQL License.
 

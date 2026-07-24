@@ -67,6 +67,7 @@ builder.Services.AddSingleton<IWorkerRunStore>(services => services.GetRequiredS
 builder.Services.AddSingleton<ApiRelevantAnswerSource>();
 builder.Services.AddSingleton<IRelevantAnswerSource>(services => services.GetRequiredService<ApiRelevantAnswerSource>());
 builder.Services.AddSingleton<ISensitiveAnswerApprovalCoordinator>(services => services.GetRequiredService<ApiRelevantAnswerSource>());
+builder.Services.AddSingleton<IRunCredentialSource>(services => services.GetRequiredService<ApiRelevantAnswerSource>());
 builder.Services.AddSingleton<IDeterministicActionResolver, DeterministicActionResolver>();
 builder.Services.AddSingleton<IManagedBrowserRuntime, PlaywrightBrowserRuntime>();
 builder.Services.AddSingleton<ViewportStreamCoordinator>();

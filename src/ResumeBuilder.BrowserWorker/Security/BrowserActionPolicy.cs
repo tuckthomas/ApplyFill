@@ -81,7 +81,7 @@ public sealed class BrowserActionPolicy
 
     private static readonly string[] ImmediateHandoffTerms =
     [
-        "mfa", "verification code", "captcha", "password", "security question",
+        "mfa", "verification code", "captcha", "security question",
         "arbitration", "electronic signature", "certify", "attest"
     ];
 
@@ -161,13 +161,18 @@ public sealed class BrowserActionPolicy
     }
 
     public bool RequiresImmediateUserHandoff(PageObservation observation) =>
-        observation.Kind is PageKind.Login or PageKind.Mfa or PageKind.Captcha ||
+        observation.Kind is PageKind.Mfa or PageKind.Captcha ||
         observation.Controls.Any(IsCredentialOrLegalAttestationGate);
 
     public bool RequiresUserHandoff(
         PageObservation observation,
         IReadOnlyCollection<string>? approvedSensitiveFields = null) =>
         RequiresImmediateUserHandoff(observation) ||
+        observation.Kind == PageKind.Login && observation.Controls.Any(control =>
+            control.Required &&
+            string.IsNullOrWhiteSpace(control.CurrentValue) &&
+            IsLegalOrSensitiveGate(control) &&
+            !IsApprovedSensitiveControl(control, approvedSensitiveFields)) ||
         observation.Controls.Any(control =>
             IsLegalOrSensitiveGate(control) &&
             string.IsNullOrWhiteSpace(control.CurrentValue) &&

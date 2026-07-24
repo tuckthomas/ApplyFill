@@ -12,6 +12,8 @@ The Browser Agent cannot make a computer safe from malware, another signed-in us
 
 Government identifiers and other application-only answers are separated from ordinary profile content. The API protects that payload with installation-bound ASP.NET Core Data Protection keys; Windows installations protect key material with DPAPI. Revealing the payload requires an explicit sensitive action. Identifiers must remain masked in ordinary views and are never included in resumes or writing prompts.
 
+Company sign-in passwords use a separate cross-platform credential vault. The user-created vault password is processed with Argon2id to derive an encryption key; the vault password and derived key are not stored in PostgreSQL. Password records use AES-GCM authenticated encryption. The derived key remains in memory only while the vault is unlocked and expires after inactivity. A credential selected for an application is sent directly to the managed-browser worker over the authenticated loopback service connection and is excluded from model prompts, checkpoints, activity history, and logs.
+
 Do not collect date of birth, citizenship, or detailed immigration status. Work authorization and sponsorship questions use the neutral form commonly found on job applications.
 
 ## Private AI boundary

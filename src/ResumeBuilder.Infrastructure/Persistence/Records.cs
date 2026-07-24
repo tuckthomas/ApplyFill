@@ -59,12 +59,49 @@ public sealed class JobApplicationRecord
 {
     public Guid Id { get; set; }
     public Guid OwnerId { get; set; }
+    public Guid? CompanyId { get; set; }
     public string Company { get; set; } = string.Empty;
     public string JobTitle { get; set; } = string.Empty;
     public string TargetUrl { get; set; } = string.Empty;
     public JobApplicationStatus Status { get; set; }
     public string DetailsJson { get; set; } = "{}";
     public Guid ConcurrencyToken { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+public sealed class CompanyRecord
+{
+    public Guid Id { get; set; }
+    public Guid OwnerId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string NormalizedName { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+    public ICollection<CompanyCredentialRecord> Credentials { get; set; } = [];
+    public ICollection<JobApplicationRecord> JobApplications { get; set; } = [];
+}
+
+public sealed class CompanyCredentialRecord
+{
+    public Guid Id { get; set; }
+    public Guid OwnerId { get; set; }
+    public Guid CompanyId { get; set; }
+    public string Label { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    public string LoginUrl { get; set; } = string.Empty;
+    public string ProtectedPassword { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+    public CompanyRecord Company { get; set; } = null!;
+}
+
+public sealed class CredentialVaultRecord
+{
+    public Guid Id { get; set; }
+    public Guid OwnerId { get; set; }
+    public string Salt { get; set; } = string.Empty;
+    public string VerificationCiphertext { get; set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }

@@ -5,6 +5,7 @@ import { loadResumeCollection } from '../resume/resumeDocument';
 export type BrowserAgentStartResources = {
   applications: Array<{
     companyName: string;
+    credentialId: string;
     id: string;
     jobTitle: string;
     targetJobUrl: string;
@@ -20,8 +21,9 @@ export const loadBrowserAgentStartResources = async (): Promise<BrowserAgentStar
     loadApplications(),
   ]);
   return {
-    applications: applications.map(({ companyName, id, jobTitle, targetJobUrl }) => ({
+    applications: applications.map(({ companyName, credentialId, id, jobTitle, targetJobUrl }) => ({
       companyName,
+      credentialId,
       id,
       jobTitle,
       targetJobUrl,

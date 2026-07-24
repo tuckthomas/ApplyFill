@@ -20,6 +20,7 @@ public sealed class JobApplication : AggregateRoot
     public JobApplication(
         Guid id,
         Guid ownerId,
+        Guid? companyId,
         string company,
         string jobTitle,
         Uri target,
@@ -30,12 +31,15 @@ public sealed class JobApplication : AggregateRoot
         DateTimeOffset updatedAt)
         : base(id, ownerId, concurrencyToken, createdAt, updatedAt)
     {
+        CompanyId = companyId;
         Company = company;
         JobTitle = jobTitle;
         Target = target;
         Status = status;
         DetailsJson = detailsJson;
     }
+
+    public Guid? CompanyId { get; private set; }
 
     public string Company { get; private set; }
 
@@ -48,6 +52,7 @@ public sealed class JobApplication : AggregateRoot
     public string DetailsJson { get; private set; }
 
     public void Update(
+        Guid? companyId,
         string company,
         string jobTitle,
         Uri target,
@@ -55,6 +60,7 @@ public sealed class JobApplication : AggregateRoot
         string detailsJson,
         DateTimeOffset occurredAt)
     {
+        CompanyId = companyId;
         Company = company;
         JobTitle = jobTitle;
         Target = target;

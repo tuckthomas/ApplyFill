@@ -8,6 +8,8 @@ export type JobApplicationStatus = 'Saved' | 'Applied' | 'Interviewing' | 'Offer
 export type JobApplicationWorkplaceType = 'On-site' | 'Hybrid' | 'Remote';
 
 export type JobApplicationFormState = {
+  companyId: string;
+  credentialId: string;
   companyName: string;
   jobTitle: string;
   workplaceType: JobApplicationWorkplaceType | null;
@@ -28,6 +30,7 @@ export type StatusOption = { value: JobApplicationStatus; label: string };
 export type WorkplaceTypeOption = { value: JobApplicationWorkplaceType; label: string };
 
 type JobApplicationResponse = {
+  companyId?: string;
   company: string;
   concurrencyToken: string;
   createdAt: string;
@@ -95,6 +98,8 @@ export const formatJobApplicationLocation = (
 };
 
 export const createEmptyApplicationForm = (defaultCountry: LocationOption | null = null): JobApplicationFormState => ({
+  companyId: '',
+  credentialId: '',
   companyName: '',
   jobTitle: '',
   workplaceType: null,
@@ -121,6 +126,7 @@ export const loadApplications = async (): Promise<JobApplication[]> => {
       ...value,
       appliedDate: normalizeExactDateValue(value.appliedDate ?? ''),
       city: value.city ?? '',
+      companyId: item.companyId ?? value.companyId ?? '',
       companyName: item.company,
       country: value.country ?? null,
       id: item.id,
@@ -152,7 +158,12 @@ const saveOneApplication = async (application: JobApplication): Promise<JobAppli
     method: token ? 'PUT' : 'POST',
   }, token ? { concurrencyToken: token } : {});
   applicationTokens.set(response.value.id, response.value.concurrencyToken || response.etag || '');
-  return { ...application, id: response.value.id };
+  return {
+    ...application,
+    companyId: response.value.companyId ?? '',
+    companyName: response.value.company,
+    id: response.value.id,
+  };
 };
 
 export const saveApplications = async (applications: JobApplication[]): Promise<JobApplication[]> => {

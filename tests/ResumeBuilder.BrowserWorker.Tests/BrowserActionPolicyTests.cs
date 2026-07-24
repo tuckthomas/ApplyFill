@@ -95,7 +95,9 @@ public sealed class BrowserActionPolicyTests
         Assert.False(_policy.RequiresImmediateUserHandoff(identifier));
         Assert.True(_policy.RequiresUserHandoff(identifier));
         Assert.False(_policy.RequiresUserHandoff(identifier, ["Social Security number"]));
-        Assert.True(_policy.RequiresImmediateUserHandoff(password));
+        Assert.False(_policy.RequiresImmediateUserHandoff(password));
+        Assert.True(_policy.RequiresUserHandoff(password));
+        Assert.False(_policy.RequiresUserHandoff(password, ["Password"]));
         Assert.True(_policy.RequiresImmediateUserHandoff(attestation));
     }
 

@@ -74,6 +74,7 @@ public static class DependencyInjection
         }
 
         services.AddSingleton<ISensitiveValueProtector, DataProtectionSensitiveValueProtector>();
+        services.AddSingleton<ICredentialVaultService, CredentialVaultService>();
         services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("postgresql", tags: ["ready"]);
         return services;
     }

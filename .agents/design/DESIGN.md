@@ -54,6 +54,8 @@ Prefer these components rather than rebuilding their behavior:
 - `Button.tsx`: primary, secondary, and danger commands.
 - `AddButton.tsx`: standardized add action.
 - `AppSelect.tsx`: shared dropdown with portaled, position-aware menu.
+- `CompanySelect.tsx`: searchable create-or-select company control backed by normalized company resources.
+- `CompanyCredentials.tsx`: company-specific ATS sign-in management and application credential selection.
 - `AutofillSelect.tsx`: searchable address/autofill dropdown.
 - `AddressFlow.tsx`: country-first, country-aware full or locality address fields.
 - `Checkbox.tsx`: accessible custom checkbox.
@@ -87,7 +89,9 @@ Prefer these components rather than rebuilding their behavior:
 
 ## Local Application Data UX
 
-- Profiles, resume drafts, job applications, dashboard records, and Browser Agent history use the local backend and PostgreSQL. Frontend state is an editable/view cache, never an independent source of truth.
+- Profiles, resume drafts, companies, company sign-ins, job applications, dashboard records, and Browser Agent history use the local backend and PostgreSQL. Frontend state is an editable/view cache, never an independent source of truth.
+- Company names are normalized and unique per installation. Application forms must use `CompanySelect`; do not reintroduce free-text-only company fields.
+- Company sign-in passwords use the user-created cross-platform credential vault. They must never enter model prompts, checkpoints, activity records, logs, or application JSON. A selected sign-in may be released only to the managed browser for that application while the vault is unlocked.
 - Backup messaging must state that downloaded JSON contains sensitive, unencrypted personal data.
 - Government identifiers are application-only. Mask them in cards and profile summaries, reveal them only through an explicit control while editing, and warn before users expose them in structured JSON, clipboard copies, or downloads. Never include them in resumes or AI writing requests.
 - Work authorization uses the neutral application questions "currently authorized to work" and "now or in the future require sponsorship" per country. Do not collect citizenship, specific immigration status, or date of birth.
